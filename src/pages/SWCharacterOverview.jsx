@@ -174,7 +174,7 @@ export default function SWCharacterOverview() {
       setWoundCurrent(woundCurrentValue);
       setStrainCurrent(strainCurrentValue);
 
-      if (characterData.wound_current === null || characterData.wound_current === undefined) {
+      if (characterData.wound_current === null || characterData.wMeter_current === undefined) {
         const { error: updateError } = await supabase
           .from('SW_player_characters')
           .update({ wound_current: woundCurrentValue })
@@ -394,20 +394,20 @@ export default function SWCharacterOverview() {
         }
       }
 
-      // Initialize soak to 0 on load
-      setTotalSoak(0);
-      setPreviousSoak(0);
+      // Initialize soak to Brawn on character load
+      setTotalSoak(characterData.brawn || 0);
+      setPreviousSoak(characterData.brawn || 0);
     };
 
     fetchCharacterData();
   }, [location, characterId]);
 
-  // Recalculate total soak from equipped armor ONLY
+  // Recalculate total soak: Brawn + equipped armor soak
   const calculateTotalSoak = () => {
     const armorSoak = armour
       .filter(item => item.equipped && item.soak)
       .reduce((sum, item) => sum + (item.soak || 0), 0);
-    return Math.max(0, armorSoak);
+    return Math.max(0, brawn + armorSoak);
   };
 
   useEffect(() => {
@@ -419,14 +419,14 @@ export default function SWCharacterOverview() {
     } else if (newSoak !== previousSoak) {
       const diff = newSoak - previousSoak;
       if (diff > 0) {
-        console.log(`Soak increased by +${diff} from equipped armor → Total: ${newSoak}`);
+        console.log(`Soak increased by +${diff} → Total: ${newSoak} (Brawn: ${brawn} + Armor: ${newSoak - brawn})`);
       } else if (diff < 0) {
-        console.log(`Soak decreased by ${diff} from unequipped armor → Total: ${newSoak}`);
+        console.log(`Soak decreased by ${diff} → Total: ${newSoak} (Brawn: ${brawn} + Armor: ${newSoak - brawn})`);
       }
       setPreviousSoak(newSoak);
       setTotalSoak(newSoak);
     }
-  }, [armour, previousSoak]);
+  }, [brawn, armour, previousSoak]);
 
   const handleChooseTTRPG = () => {
     navigate('/select-ttrpg');
