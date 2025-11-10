@@ -17,8 +17,9 @@ export default function SWCharacterOverview() {
   const [skills, setSkills] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState('');
-  const [inventory, setInventory] = useState([]); // For non-armour items
-  const [armour, setArmour] = useState([]); // For armour items
+  const [inventory, setInventory] = useState([]); // Weapons
+  const [armour, setArmour] = useState([]); // Armour
+  const [otherItems, setOtherItems] = useState([]); // Consumables / Other
   const [characterId, setCharacterId] = useState(null);
   const [playerId, setPlayerId] = useState(null);
   const [woundThreshold, setWoundThreshold] = useState(0);
@@ -26,17 +27,16 @@ export default function SWCharacterOverview() {
   const [woundCurrent, setWoundCurrent] = useState(0);
   const [strainCurrent, setStrainCurrent] = useState(0);
   const [credits, setCredits] = useState(0);
-  const [totalSoak, setTotalSoak] = useState(0); // New state for total Soak
-  const [activeTab, setActiveTab] = useState('skills'); // New state for tab management
-  const [abilities, setAbilities] = useState([]); // New state for abilities
-  const [skillBonuses, setSkillBonuses] = useState({}); // New: { skill: 'BB' }
-  const [previousSoak, setPreviousSoak] = useState(null); // Track previous soak for logging
-  const [raceAbilities, setRaceAbilities] = useState({ Race_Attack: '', ability: '' }); // New: race abilities
+  const [totalSoak, setTotalSoak] = useState(0);
+  const [activeTab, setActiveTab] = useState('skills');
+  const [abilities, setAbilities] = useState([]);
+  const [skillBonuses, setSkillBonuses] = useState({});
+  const [previousSoak, setPreviousSoak] = useState(null);
+  const [raceAbilities, setRaceAbilities] = useState({ Race_Attack: '', ability: '' });
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Helper functions to get equipment details
   const getEquipment = () => {
     return equipment.find(e => e.name === selectedEquipment);
   };
@@ -90,7 +90,6 @@ export default function SWCharacterOverview() {
     return equip?.defence_range || '';
   };
 
-  // Enhanced dice pool with [Blue] from talents
   const getFinalDicePool = (skillName, statName) => {
     const baseStat = { brawn, agility, intellect, cunning, willpower, presence }[statName.toLowerCase()] || 0;
     const rank = skills.find(s => s.skill === skillName)?.rank || 0;
@@ -106,7 +105,6 @@ export default function SWCharacterOverview() {
       const yCount = Math.max(0, baseStat + rank);
       dicePool = 'G'.repeat(yCount) + 'Y'.repeat(baseStat - yCount);
     }
-    // Add [Blue] from talents
     const blueBonus = skillBonuses[skillName] || '';
     return dicePool + blueBonus;
   };
@@ -165,7 +163,6 @@ export default function SWCharacterOverview() {
       setBackstory(characterData.backstory || '');
       setCredits(characterData.credits ?? 0);
 
-      // Base thresholds
       let baseWoundThreshold = characterData.wound_threshold || 0;
       let baseStrainThreshold = characterData.strain_threshold || 0;
 
@@ -174,7 +171,7 @@ export default function SWCharacterOverview() {
       setWoundCurrent(woundCurrentValue);
       setStrainCurrent(strainCurrentValue);
 
-      if (characterData.wound_current === null || characterData.wMeter_current === undefined) {
+      if (characterData.wound_current === null || characterData.wound_current === undefined) {
         const { error: updateError } = await supabase
           .from('SW_player_characters')
           .update({ wound_current: woundCurrentValue })
@@ -210,10 +207,9 @@ export default function SWCharacterOverview() {
         stat: skill.stat,
       })));
 
-      // Fetch equipment with range included
       const { data: equipmentData, error: equipError } = await supabase
         .from('SW_equipment')
-        .select('id, name, skill, damage, critical, special, soak, defence_melee, defence_range, range');
+        .select('id, name, skill, damage, critical, special, soak, defence_melee, defence_range, range, consumable, description');
       if (equipError || !equipmentData) {
         console.error('Error fetching equipment:', equipError);
         return;
@@ -232,38 +228,32 @@ export default function SWCharacterOverview() {
             const equipId = parseInt(item.equipmentID, 10) || 0;
             const equipData = equipmentData.find(e => e.id === equipId);
             const skillData = allSkills.find(s => s.id === equipData?.skill);
-            if (equipData?.soak) {
-              return {
-                id: item.id || 0,
-                equipment_name: equipData?.name || '',
-                soak: equipData?.soak || 0,
-                defence_melee: equipData?.defence_melee || '',
-                defence_range: equipData?.defence_range || '',
-                special: equipData?.special || '',
-                equipped: item.equipped || false,
-              };
-            } else {
-              return {
-                id: item.id || 0,
-                equipment_name: equipData?.name || '',
-                skill: skillData?.skill || '',
-                damage: equipData?.damage || '',
-                critical: equipData?.critical || '',
-                special: equipData?.special || '',
-                range: equipData?.range || 'N/A',
-                equipped: item.equipped || false,
-              };
-            }
+
+            return {
+              id: item.id || 0,
+              equipment_name: equipData?.name || '',
+              description: equipData?.description || '',
+              skill: skillData?.skill || '',
+              damage: equipData?.damage || '',
+              critical: equipData?.critical || '',
+              special: equipData?.special || '',
+              range: equipData?.range || 'N/A',
+              soak: equipData?.soak || 0,
+              defence_melee: equipData?.defence_melee || '',
+              defence_range: equipData?.defence_range || '',
+              consumable: equipData?.consumable || false,
+              equipped: item.equipped || false,
+            };
           }));
-          setInventory(enrichedInventory.filter(item => !item.soak));
+
+          setInventory(enrichedInventory.filter(item => !item.soak && !item.consumable));
           setArmour(enrichedInventory.filter(item => item.soak));
+          setOtherItems(enrichedInventory.filter(item => item.consumable));
         }
       }
 
-      // ---- Talents / Abilities ----
       const talents = characterData.talents ? characterData.talents.split(',').map(t => t.trim()) : [];
       const talentCount = talents.reduce((acc, talent) => {
-        // Strip (Melee), (Ranged), etc.
         const cleanName = talent.replace(/\s*\(.*\)$/, '').trim();
         acc[cleanName] = (acc[cleanName] || 0) + 1;
         return acc;
@@ -280,29 +270,21 @@ export default function SWCharacterOverview() {
         setSkillBonuses({});
       } else {
         const processedAbilities = abilitiesData.map(ability => {
-          // Find original talent string (with brackets) to preserve for display
           const originalTalent = talents.find(t => t.replace(/\s*\(.*\)$/, '').trim() === ability.ability);
-          // Extract skill from brackets: (Melee) → Melee
           const bracketMatch = originalTalent?.match(/\(([^)]+)\)/);
           const bracketSkill = bracketMatch ? bracketMatch[1].trim() : null;
-          // Remove brackets for display name
           const displayName = originalTalent ? originalTalent.replace(/\s*\(.*\)$/, '').trim() : ability.ability;
 
-          // Process description
           let finalDescription = ability.description;
 
-          // Exception: Dedication — keep full description
           if (ability.ability !== 'Dedication' && bracketSkill) {
-            // Remove first sentence up to first period
             const firstPeriodIndex = finalDescription.indexOf('.');
             if (firstPeriodIndex !== -1) {
               finalDescription = finalDescription.substring(firstPeriodIndex + 1).trim();
             }
-            // Replace "that skill" with bracket skill
             finalDescription = finalDescription.replace(/\bthat skill\b/gi, bracketSkill);
           }
 
-          // Special case: Dedication — inject bracket skill into description
           if (ability.ability === 'Dedication' && bracketSkill) {
             finalDescription = `Gain +1 to a single characteristic (${bracketSkill}). This cannot bring a characteristic above 6.`;
           }
@@ -315,14 +297,9 @@ export default function SWCharacterOverview() {
           };
         });
 
-        // Sort abilities A-Z within each activation group
-        const sortedAbilities = processedAbilities.sort((a, b) => {
-          return a.displayName.localeCompare(b.displayName);
-        });
-
+        const sortedAbilities = processedAbilities.sort((a, b) => a.displayName.localeCompare(b.displayName));
         setAbilities(sortedAbilities);
 
-        // Process increase_stat — only once per ability
         let woundBonus = 0;
         let strainBonus = 0;
 
@@ -330,18 +307,12 @@ export default function SWCharacterOverview() {
           if (ability.increase_stat) {
             const stats = ability.increase_stat.split(',').map(s => s.trim());
             stats.forEach(stat => {
-              if (stat === 'Wound') {
-                woundBonus += ability.rank;
-                console.log(`Ability "${ability.displayName}" (Rank ${ability.rank}) increases Wound Threshold by +${ability.rank}`);
-              } else if (stat === 'Strain') {
-                strainBonus += ability.rank;
-                console.log(`Ability "${ability.displayName}" (Rank ${ability.rank}) increases Strain Threshold by +${ability.rank}`);
-              }
+              if (stat === 'Wound') woundBonus += ability.rank;
+              else if (stat === 'Strain') strainBonus += ability.rank;
             });
           }
         });
 
-        // Apply bonuses
         const finalWoundThreshold = baseWoundThreshold + woundBonus;
         const finalStrainThreshold = baseStrainThreshold + strainBonus;
 
@@ -351,9 +322,7 @@ export default function SWCharacterOverview() {
         setWoundCurrent(prev => Math.min(prev, finalWoundThreshold));
         setStrainCurrent(prev => Math.min(prev, finalStrainThreshold));
 
-        // ---- [Blue] Dice Bonuses from Talents ----
         const newSkillBonuses = {};
-
         sortedAbilities.forEach(ability => {
           const desc = ability.description;
           const blueMatch = desc.match(/Add \[Blue\] per rank of [^ ]+ to all (.+?) checks/i);
@@ -364,16 +333,13 @@ export default function SWCharacterOverview() {
             targetSkills.forEach(skill => {
               if (allSkills.some(s => s.skill === skill)) {
                 newSkillBonuses[skill] = (newSkillBonuses[skill] || '') + blueDice;
-                console.log(`Talent "${ability.displayName}" (Rank ${talentRank}) adds ${blueDice} to ${skill} checks`);
               }
             });
           }
         });
-
         setSkillBonuses(newSkillBonuses);
       }
 
-      // ---- Fetch Race Abilities ----
       if (characterData.race) {
         const { data: raceData, error: raceError } = await supabase
           .from('races')
@@ -394,7 +360,6 @@ export default function SWCharacterOverview() {
         }
       }
 
-      // Initialize soak to Brawn on character load
       setTotalSoak(characterData.brawn || 0);
       setPreviousSoak(characterData.brawn || 0);
     };
@@ -402,7 +367,6 @@ export default function SWCharacterOverview() {
     fetchCharacterData();
   }, [location, characterId]);
 
-  // Recalculate total soak: Brawn + equipped armor soak
   const calculateTotalSoak = () => {
     const armorSoak = armour
       .filter(item => item.equipped && item.soak)
@@ -413,15 +377,14 @@ export default function SWCharacterOverview() {
   useEffect(() => {
     const newSoak = calculateTotalSoak();
     if (previousSoak === null) {
-      // First load: initialize without logging
       setPreviousSoak(newSoak);
       setTotalSoak(newSoak);
     } else if (newSoak !== previousSoak) {
       const diff = newSoak - previousSoak;
       if (diff > 0) {
-        console.log(`Soak increased by +${diff} → Total: ${newSoak} (Brawn: ${brawn} + Armor: ${newSoak - brawn})`);
+        console.log(`Soak increased by +${diff} to Total: ${newSoak} (Brawn: ${brawn} + Armor: ${newSoak - brawn})`);
       } else if (diff < 0) {
-        console.log(`Soak decreased by ${diff} → Total: ${newSoak} (Brawn: ${brawn} + Armor: ${newSoak - brawn})`);
+        console.log(`Soak decreased by ${diff} to Total: ${newSoak} (Brawn: ${brawn} + Armor: ${newSoak - brawn})`);
       }
       setPreviousSoak(newSoak);
       setTotalSoak(newSoak);
@@ -437,66 +400,51 @@ export default function SWCharacterOverview() {
       const equipmentToAdd = equipment.find(e => e.name === selectedEquipment);
       if (equipmentToAdd) {
         const skillData = skills.find(s => s.id === equipmentToAdd.skill);
-        if (equipmentToAdd.soak) {
-          // Insert into DB first
-          const { data, error } = await supabase
-            .from('SW_character_equipment')
-            .insert({
-              characterID: characterId,
-              equipmentID: equipmentToAdd.id,
-              equipped: false,
-            })
-            .select();
 
-          if (error) {
-            console.error('Error adding armour to inventory:', error);
-          } else if (data && data[0]) {
-            const newArmourItem = {
-              id: data[0].id,
-              equipment_name: equipmentToAdd.name,
-              soak: equipmentToAdd.soak || 0,
-              defence_melee: equipmentToAdd.defence_melee || '',
-              defence_range: equipmentToAdd.defence_range || '',
-              special: equipmentToAdd.special || '',
-              equipped: false,
-            };
-            setArmour(prev => [...prev, newArmourItem]);
+        const { data, error } = await supabase
+          .from('SW_character_equipment')
+          .insert({
+            characterID: characterId,
+            equipmentID: equipmentToAdd.id,
+            equipped: false,
+          })
+          .select();
+
+        if (error) {
+          console.error('Error adding item to inventory:', error);
+        } else if (data && data[0]) {
+          const newItem = {
+            id: data[0].id,
+            equipment_name: equipmentToAdd.name,
+            description: equipmentToAdd.description || '',
+            skill: skillData?.skill || '',
+            damage: equipmentToAdd.damage || '',
+            critical: equipmentToAdd.critical || '',
+            special: equipmentToAdd.special || '',
+            range: equipmentToAdd.range || 'N/A',
+            soak: equipmentToAdd.soak || 0,
+            defence_melee: equipmentToAdd.defence_melee || '',
+            defence_range: equipmentToAdd.defence_range || '',
+            consumable: equipmentToAdd.consumable || false,
+            equipped: false,
+          };
+
+          if (equipmentToAdd.consumable) {
+            setOtherItems(prev => [...prev, newItem]);
+            console.log('Consumable added to Other Items:', selectedEquipment);
+          } else if (equipmentToAdd.soak) {
+            setArmour(prev => [...prev, newItem]);
             console.log('Armour added to inventory:', selectedEquipment);
-            setSelectedEquipment('');
+          } else {
+            setInventory(prev => [...prev, newItem]);
+            console.log('Weapon added to inventory:', selectedEquipment);
           }
-        } else {
-          const { data, error } = await supabase
-            .from('SW_character_equipment')
-            .insert({
-              characterID: characterId,
-              equipmentID: equipmentToAdd.id,
-              equipped: false,
-            })
-            .select();
-
-          if (error) {
-            console.error('Error adding equipment to inventory:', error);
-          } else if (data && data[0]) {
-            const newInventoryItem = {
-              id: data[0].id,
-              equipment_name: equipmentToAdd.name,
-              skill: skillData?.skill || '',
-              damage: equipmentToAdd.damage,
-              critical: equipmentToAdd.critical,
-              special: equipmentToAdd.special || '',
-              range: equipmentToAdd.range || 'N/A',
-              equipped: false,
-            };
-            setInventory(prev => [...prev, newInventoryItem]);
-            console.log('Equipment added to inventory:', selectedEquipment);
-            setSelectedEquipment('');
-          }
+          setSelectedEquipment('');
         }
       }
     }
   };
 
-  // Fixed: Separate handlers for armour and weapons
   const handleArmourEquipToggle = async (index) => {
     const updatedArmour = [...armour];
     const currentEquipped = updatedArmour[index].equipped;
@@ -538,6 +486,45 @@ export default function SWCharacterOverview() {
     }
   };
 
+  const handleOtherItemDelete = async (index) => {
+    const itemToDelete = otherItems[index];
+    if (itemToDelete.id && characterId) {
+      const confirmDelete = confirm(`Do you really want to delete ${itemToDelete.equipment_name}?`);
+      if (confirmDelete) {
+        const { error } = await supabase
+          .from('SW_character_equipment')
+          .delete()
+          .eq('id', itemToDelete.id);
+        if (error) {
+          console.error('Error deleting other item:', error);
+        } else {
+          const updatedOtherItems = [...otherItems];
+          updatedOtherItems.splice(index, 1);
+          setOtherItems(updatedOtherItems);
+          console.log('Other item deleted:', itemToDelete.equipment_name);
+        }
+      }
+    }
+  };
+
+  const handleUseConsumable = async (name) => {
+    const itemsToUse = otherItems.filter(item => item.equipment_name === name);
+    if (itemsToUse.length === 0) return;
+
+    const itemToRemove = itemsToUse[0];
+    const { error } = await supabase
+      .from('SW_character_equipment')
+      .delete()
+      .eq('id', itemToRemove.id);
+
+    if (error) {
+      console.error('Error using consumable:', error);
+    } else {
+      setOtherItems(prev => prev.filter(item => item.id !== itemToRemove.id));
+      console.log(`Used 1 ${name}. Remaining: ${itemsToUse.length - 1}`);
+    }
+  };
+
   const handleDeleteEquipment = async (index, isArmour = false) => {
     if (isArmour) {
       const itemToDelete = armour[index];
@@ -549,12 +536,12 @@ export default function SWCharacterOverview() {
             .delete()
             .eq('id', itemToDelete.id);
           if (error) {
-            console.error('Error deleting armour from inventory:', error);
+            console.error('Error deleting armour:', error);
           } else {
             const updatedArmour = [...armour];
             updatedArmour.splice(index, 1);
             setArmour(updatedArmour);
-            console.log('Armour deleted from inventory:', itemToDelete.equipment_name);
+            console.log('Armour deleted:', itemToDelete.equipment_name);
           }
         }
       }
@@ -568,12 +555,12 @@ export default function SWCharacterOverview() {
             .delete()
             .eq('id', itemToDelete.id);
           if (error) {
-            console.error('Error deleting equipment from inventory:', error);
+            console.error('Error deleting weapon:', error);
           } else {
             const updatedInventory = [...inventory];
             updatedInventory.splice(index, 1);
             setInventory(updatedInventory);
-            console.log('Equipment deleted from inventory:', itemToDelete.equipment_name);
+            console.log('Weapon deleted:', itemToDelete.equipment_name);
           }
         }
       }
@@ -610,7 +597,6 @@ export default function SWCharacterOverview() {
     if (error) console.error('Error updating credits:', error);
   };
 
-  // Build array of racial abilities for table
   const racialAbilityList = [];
   if (raceAbilities.Race_Attack) {
     const parts = raceAbilities.Race_Attack.split(':');
@@ -628,6 +614,23 @@ export default function SWCharacterOverview() {
       racialAbilityList.push({ name, description });
     }
   }
+
+  const consolidatedConsumables = otherItems.reduce((acc, item) => {
+    if (!acc[item.equipment_name]) {
+      acc[item.equipment_name] = {
+        name: item.equipment_name,
+        count: 0,
+        description: item.description,
+        special: item.special,
+        ids: [],
+      };
+    }
+    acc[item.equipment_name].count += 1;
+    acc[item.equipment_name].ids.push(item.id);
+    return acc;
+  }, {});
+
+  const consumableList = Object.values(consolidatedConsumables);
 
   return (
     <div className="flex flex-col items-start min-h-screen bg-white py-10" style={{ maxWidth: '1600px', minWidth: '1600px', margin: '0 auto' }}>
@@ -675,39 +678,19 @@ export default function SWCharacterOverview() {
         <div className="border-2 border-black rounded-lg p-2 text-center w-28">
           <div className="font-bold">Wound</div>
           <div className="flex justify-center items-center">
-            <button
-              onClick={() => handleWoundChange(-1)}
-              className="px-1 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              -
-            </button>
+            <button onClick={() => handleWoundChange(-1)} className="px-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
             <span className="mx-1">{woundCurrent}</span>
             <span className="mr-1">/ {woundThreshold}</span>
-            <button
-              onClick={() => handleWoundChange(1)}
-              className="px-1 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              +
-            </button>
+            <button onClick={() => handleWoundChange(1)} className="px-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
           </div>
         </div>
         <div className="border-2 border-black rounded-lg p-2 text-center w-28">
           <div className="font-bold">Strain</div>
           <div className="flex justify-center items-center">
-            <button
-              onClick={() => handleStrainChange(-1)}
-              className="px-1 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              -
-            </button>
+            <button onClick={() => handleStrainChange(-1)} className="px-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
             <span className="mx-1">{strainCurrent}</span>
             <span className="mr-1">/ {strainThreshold}</span>
-            <button
-              onClick={() => handleStrainChange(1)}
-              className="px-1 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              +
-            </button>
+            <button onClick={() => handleStrainChange(1)} className="px-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
           </div>
         </div>
         <div className="border-2 border-black rounded-lg p-2 text-center w-28" style={{ color: 'white' }}>
@@ -720,27 +703,11 @@ export default function SWCharacterOverview() {
       </div>
       <div className="w-full">
         <div className="flex border-b-2 border-black mb-4">
-          <button
-            className={`px-4 py-2 font-bold ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`}
-            onClick={() => setActiveTab('skills')}
-          >
-            Skills
-          </button>
-          <button
-            className={`px-4 py-2 font-bold ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`}
-            onClick={() => setActiveTab('equipment')}
-          >
-            Equipment
-          </button>
-          <button
-            className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`}
-            onClick={() => setActiveTab('actions')}
-          >
-            Actions
-          </button>
+          <button className={`px-4 py-2 font-bold ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
+          <button className={`px-4 py-2 font-bold ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
+          <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
         </div>
 
-        {/* ==== SKILLS TAB ==== */}
         {activeTab === 'skills' && (
           <div className="border-2 border-black rounded-lg p-4 text-left w-1/2 mr-4" style={{ minHeight: '400px' }}>
             <h2 className="font-bold text-lg mb-3">Skills</h2>
@@ -757,9 +724,7 @@ export default function SWCharacterOverview() {
                   <tr key={index} className="bg-gray-100">
                     <td className="border border-black py-1">{skill.skill}</td>
                     <td className="border border-black py-1" style={{ color: 'black' }}>{skill.rank}</td>
-                    <td className="border border-black py-1" style={{ color: 'black' }}>
-                      {getFinalDicePool(skill.skill, skill.stat)}
-                    </td>
+                    <td className="border border-black py-1" style={{ color: 'black' }}>{getFinalDicePool(skill.skill, skill.stat)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -767,32 +732,19 @@ export default function SWCharacterOverview() {
           </div>
         )}
 
-        {/* ==== EQUIPMENT TAB ==== */}
         {activeTab === 'equipment' && (
           <div className="flex-1 text-left" style={{ minHeight: '600px' }}>
             <h2 className="font-bold text-lg mb-3">Equipment</h2>
             <div className="mb-4">
               <div className="mt-4 text-right">
                 <label className="mr-2 font-bold">Credits:</label>
-                <input
-                  type="number"
-                  value={credits}
-                  onChange={handleCreditsChange}
-                  className="border-2 border-black rounded-lg p-1 w-24"
-                  min="0"
-                />
+                <input type="number" value={credits} onChange={handleCreditsChange} className="border-2 border-black rounded-lg p-1 w-24" min="0" />
               </div>
-              <select
-                value={selectedEquipment}
-                onChange={(e) => setSelectedEquipment(e.target.value)}
-                className="border-2 border-black rounded-lg p-2 w-full mt-4"
-              >
+              <select value={selectedEquipment} onChange={(e) => setSelectedEquipment(e.target.value)} className="border-2 border-black rounded-lg p-2 w-full mt-4">
                 <option value="">Select Equipment</option>
-                {equipment
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((item, index) => (
-                    <option key={index} value={item.name}>{item.name}</option>
-                  ))}
+                {equipment.sort((a, b) => a.name.localeCompare(b.name)).map((item, index) => (
+                  <option key={index} value={item.name}>{item.name}</option>
+                ))}
               </select>
               {selectedEquipment && (
                 <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed' }}>
@@ -830,18 +782,10 @@ export default function SWCharacterOverview() {
                           <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
                             {getEquipmentSkill()} ({getDicePoolForSkill()})
                           </td>
-                          <td className="border border-black py-1" style={{ minWidth: '150px' }}>
-                            {getEquipmentRange()}
-                          </td>
-                          <td className="border border-black py-1" style={{ minWidth: '50px' }}>
-                            {getEquipmentDamage()}
-                          </td>
-                          <td className="border border-black py-1" style={{ minWidth: '50px' }}>
-                            {getEquipmentCritical()}
-                          </td>
-                          <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>
-                            {getEquipmentSpecial()}
-                          </td>
+                          <td className="border border-black py-1" style={{ minWidth: '150px' }}>{getEquipmentRange()}</td>
+                          <td className="border border-black py-1" style={{ minWidth: '50px' }}>{getEquipmentDamage()}</td>
+                          <td className="border border-black py-1" style={{ minWidth: '50px' }}>{getEquipmentCritical()}</td>
+                          <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{getEquipmentSpecial()}</td>
                         </>
                       )}
                     </tr>
@@ -849,10 +793,7 @@ export default function SWCharacterOverview() {
                 </table>
               )}
               <div className="mt-4">
-                <button
-                  onClick={handleAddToInventory}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
+                <button onClick={handleAddToInventory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                   Add to Inventory
                 </button>
               </div>
@@ -875,11 +816,7 @@ export default function SWCharacterOverview() {
                   {inventory.map((item, index) => (
                     <tr key={index} className="bg-gray-100">
                       <td className="border border-black py-1">
-                        <input
-                          type="checkbox"
-                          checked={item.equipped}
-                          onChange={() => handleWeaponEquipToggle(index)}
-                        />
+                        <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
                       </td>
                       <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
                       <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
@@ -890,12 +827,7 @@ export default function SWCharacterOverview() {
                       <td className="border border-black py-1" style={{ minWidth: '50px' }}>{item.critical || ''}</td>
                       <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special || ''}</td>
                       <td className="border border-black py-1">
-                        <button
-                          onClick={() => handleDeleteEquipment(index)}
-                          className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                        >
-                          Delete
-                        </button>
+                        <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                       </td>
                     </tr>
                   ))}
@@ -919,11 +851,7 @@ export default function SWCharacterOverview() {
                   {armour.map((item, index) => (
                     <tr key={index} className="bg-gray-100">
                       <td className="border border-black py-1">
-                        <input
-                          type="checkbox"
-                          checked={item.equipped}
-                          onChange={() => handleArmourEquipToggle(index)}
-                        />
+                        <input type="checkbox" checked={item.equipped} onChange={() => handleArmourEquipToggle(index)} />
                       </td>
                       <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
                       <td className="border border-black py-1" style={{ minWidth: '75px' }}>{item.soak}</td>
@@ -931,12 +859,43 @@ export default function SWCharacterOverview() {
                       <td className="border border-black py-1" style={{ minWidth: '75px' }}>{item.defence_range}</td>
                       <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special}</td>
                       <td className="border border-black py-1">
-                        <button
-                          onClick={() => handleDeleteEquipment(index, true)}
-                          className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                        >
-                          Delete
-                        </button>
+                        <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <h3 className="font-bold text-lg mt-4">Other Items</h3>
+              <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed', width: '100%' }}>
+                <colgroup>
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '58%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '5%' }} />
+                </colgroup>
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-black py-1">Name</th>
+                    <th className="border border-black py-1">Description</th>
+                    <th className="border border-black py-1">Special</th>
+                    <th className="border border-black py-1">Delete</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {otherItems.map((item, index) => (
+                    <tr key={index} className="bg-gray-100">
+                      <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                        {item.equipment_name}
+                      </td>
+                      <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                        {item.description || ''}
+                      </td>
+                      <td className="border border-black py-1" style={{ wordWrap: 'break-word' }}>
+                        {item.special || ''}
+                      </td>
+                      <td className="border border-black py-1 text-center">
+                        <button onClick={() => handleOtherItemDelete(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                       </td>
                     </tr>
                   ))}
@@ -946,11 +905,12 @@ export default function SWCharacterOverview() {
           </div>
         )}
 
-        {/* ==== ACTIONS TAB ==== */}
         {activeTab === 'actions' && (
-          <div className="border-2 border-black rounded-lg p-4 text-left w-1/2 mr-4" style={{ minHeight: '400px' }}>
-            <h2 className="font-bold text-lg mb-3">Equipped Weapons</h2>
-            <table className="border border-black w-full text-left" style={{ tableLayout: 'fixed' }}>
+          <div className="flex-1 text-left" style={{ minHeight: '600px' }}>
+            <h2 className="font-bold text-lg mb-3">Actions</h2>
+
+            <h3 className="font-bold text-lg mt-4 mb-3">Equipped Weapons</h3>
+            <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed' }}>
               <thead>
                 <tr className="bg-gray-100">
                   <th className="border border-black py-1" style={{ minWidth: '200px', wordWrap: 'break-word' }}>Name</th>
@@ -979,11 +939,56 @@ export default function SWCharacterOverview() {
               </tbody>
             </table>
 
-            {/* ---- Racial Abilities Table ---- */}
+            {consumableList.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-bold text-lg mb-3">Consumables</h3>
+                <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed', width: '100%' }}>
+                  <colgroup>
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '58%' }} />
+                    <col style={{ width: '25%' }} />
+                    <col style={{ width: '5%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-black py-1">Name</th>
+                      <th className="border border-black py-1">Description</th>
+                      <th className="border border-black py-1">Special</th>
+                      <th className="border border-black py-1">Use</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {consumableList.map((item, index) => (
+                      <tr key={index} className="bg-gray-100">
+                        <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                          {item.name} x{item.count}
+                        </td>
+                        <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                          {item.description || ''}
+                        </td>
+                        <td className="border border-black py-1" style={{ wordWrap: 'break-word' }}>
+                          {item.special || ''}
+                        </td>
+                        <td className="border border-black py-1 text-center">
+                          <button
+                            onClick={() => handleUseConsumable(item.name)}
+                            disabled={item.count === 0}
+                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+                          >
+                            Use
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             {racialAbilityList.length > 0 && (
               <div className="mt-6">
                 <h3 className="font-bold text-lg mb-3">Racial Abilities</h3>
-                <table className="border border-black w-full text-left" style={{ tableLayout: 'fixed' }}>
+                <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed' }}>
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="border border-black py-1" style={{ minWidth: '300px', wordWrap: 'break-word' }}>Ability</th>
@@ -995,12 +1000,8 @@ export default function SWCharacterOverview() {
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((ability, idx) => (
                         <tr key={idx} className="bg-gray-100">
-                          <td className="border border-black py-1" style={{ minWidth: '300px', wordWrap: 'break-word' }}>
-                            {ability.name}
-                          </td>
-                          <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>
-                            {ability.description}
-                          </td>
+                          <td className="border border-black py-1" style={{ minWidth: '300px', wordWrap: 'break-word' }}>{ability.name}</td>
+                          <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{ability.description}</td>
                         </tr>
                       ))}
                   </tbody>
@@ -1008,7 +1009,6 @@ export default function SWCharacterOverview() {
               </div>
             )}
 
-            {/* ---- Abilities (grouped by activation, Active first, then A-Z within each) ---- */}
             {Array.from(new Set(abilities.map(a => a.activation)))
               .sort((a, b) => a.localeCompare(b))
               .map(activation => {
@@ -1019,7 +1019,7 @@ export default function SWCharacterOverview() {
                 return (
                   <div key={activation} className="mt-6">
                     <h3 className="font-bold text-lg mb-3">{activation} Abilities</h3>
-                    <table className="border border-black w-full text-left" style={{ tableLayout: 'fixed' }}>
+                    <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed' }}>
                       <thead>
                         <tr className="bg-gray-100">
                           <th className="border border-black py-1" style={{ minWidth: '300px', wordWrap: 'break-word' }}>Ability</th>
