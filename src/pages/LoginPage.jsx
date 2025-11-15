@@ -57,7 +57,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      {/* ---------- LOGO (centered at the very top) ---------- */}
+      <div className="mb-6">
+        <img
+          src="/TTRPGLogo.png"
+          alt="TTRPG Logo"
+          className="max-w-xs w-full h-auto mx-auto"
+        />
+      </div>
+
+      {/* ---------- VERSION IMAGE (left-aligned, under logo) ---------- */}
+      <div className="self-start ml-8 mb-4">
+        <img
+          src="/Version.png"
+          alt="Version"
+          className="h-8 w-auto"
+        />
+      </div>
+
+      {/* ---------- LOGIN / SIGN-UP CARD ---------- */}
       <div className="bg-white p-8 rounded-2xl shadow-md w-80">
         <h2 className="text-2xl font-bold mb-4 text-center">
           {isLogin ? 'Login' : 'Sign Up'}

@@ -11,7 +11,7 @@ export default function SWEotECharacterCreator() {
   const [skills, setSkills] = useState([]);
   const [statCosts, setStatCosts] = useState([]);
   const [exp, setExp] = useState(0);
-  const [activeTab, setActiveTab] = useState('Stats');
+  const [activeTab, setActiveTab] = useState('Species');
   const [selectedStartingSkill, setSelectedStartingSkill] = useState('');
   const [selectedStartingSkill2, setSelectedStartingSkill2] = useState('');
   const [skillRanks, setSkillRanks] = useState({});
@@ -31,6 +31,7 @@ export default function SWEotECharacterCreator() {
   const [backstory, setBackstory] = useState('');
   const [woundThreshold, setWoundThreshold] = useState(0);
   const [strainThreshold, setStrainThreshold] = useState(0);
+  const [startingTalents, setStartingTalents] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -180,7 +181,6 @@ export default function SWEotECharacterCreator() {
                 }));
               }
 
-              // Load talent choices from talent_tree
               const choices = {};
               if (playerData.talent_tree && playerData.talent_tree.trim()) {
                 const talentList = playerData.talent_tree.split(',').map(t => t.trim()).filter(t => t);
@@ -275,6 +275,22 @@ export default function SWEotECharacterCreator() {
   }, [createCharacter]);
 
   useEffect(() => {
+    if (selectedRace && selectedRace.Starting_Talents) {
+      const talentNames = selectedRace.Starting_Talents.split(',').map(t => t.trim()).filter(t => t);
+      const talentsWithDesc = talentNames.map(name => {
+        const ability = abilities.find(a => a.ability === name);
+        return {
+          name,
+          description: ability ? ability.description : 'No description found'
+        };
+      });
+      setStartingTalents(talentsWithDesc);
+    } else {
+      setStartingTalents([]);
+    }
+  }, [selectedRace, abilities]);
+
+  useEffect(() => {
     if (selectedRace) {
       let baseWound = (selectedRace.wound || 0) + (getBaseStatValue('brawn') || 0);
       let baseStrain = (selectedRace.Strain || 0) + (getBaseStatValue('willpower') || 0);
@@ -332,6 +348,7 @@ export default function SWEotECharacterCreator() {
     setSelectedStartingSkill2('');
     setSelectedTalents([]);
     setClickableTalents([0, 1, 2, 3]);
+    setStartingTalents([]);
   };
 
   const updateStat = (statName, delta) => {
@@ -647,7 +664,6 @@ export default function SWEotECharacterCreator() {
     return dicePool;
   };
 
-  // Helper to build talent_tree and talents strings with choices
   const buildTalentStrings = () => {
     const talentTreeEntries = [];
     const talentNameEntries = [];
@@ -673,6 +689,10 @@ export default function SWEotECharacterCreator() {
       talentTreeString: talentTreeEntries.join(', '),
       talentString: talentNameEntries.join(', ')
     };
+  };
+
+  const buildStartingTalentsString = () => {
+    return startingTalents.map(t => t.name).join(', ');
   };
 
   const handleSave = async () => {
@@ -708,8 +728,12 @@ export default function SWEotECharacterCreator() {
 
     const careerSkillsString = selectedCareerSkills.filter(skill => skill).join(', ');
     const specSkillsString = [selectedSpecSkill1, selectedSpecSkill2].filter(skill => skill).join(', ');
+    const startingTalentsString = buildStartingTalentsString();
+
+    const finalSpecSkills = [specSkillsString, startingTalentsString].filter(s => s).join(', ');
 
     const { talentTreeString, talentString } = buildTalentStrings();
+    const startingTalentsForTalentsField = startingTalentsString ? (talentString ? `${talentString}, ${startingTalentsString}` : startingTalentsString) : talentString;
 
     const startingSkillCombined = selectedStartingSkill2 
       ? `${selectedStartingSkill}, ${selectedStartingSkill2}` 
@@ -732,9 +756,9 @@ export default function SWEotECharacterCreator() {
           career: selectedCareer,
           career_skills: careerSkillsString,
           spec: selectedSpecialization,
-          spec_skills: specSkillsString,
+          spec_skills: finalSpecSkills,
           talent_tree: talentTreeString,
-          talents: talentString,
+          talents: startingTalentsForTalentsField,
           skills_rank: skillsRankString,
           backstory: backstory,
           wound_threshold: woundThreshold,
@@ -765,9 +789,9 @@ export default function SWEotECharacterCreator() {
           career: selectedCareer,
           career_skills: careerSkillsString,
           spec: selectedSpecialization,
-          spec_skills: specSkillsString,
+          spec_skills: finalSpecSkills,
           talent_tree: talentTreeString,
-          talents: talentString,
+          talents: startingTalentsForTalentsField,
           skills_rank: skillsRankString,
           backstory: backstory,
           wound_threshold: woundThreshold,
@@ -819,8 +843,12 @@ export default function SWEotECharacterCreator() {
 
     const careerSkillsString = selectedCareerSkills.filter(skill => skill).join(', ');
     const specSkillsString = [selectedSpecSkill1, selectedSpecSkill2].filter(skill => skill).join(', ');
+    const startingTalentsString = buildStartingTalentsString();
+
+    const finalSpecSkills = [specSkillsString, startingTalentsString].filter(s => s).join(', ');
 
     const { talentTreeString, talentString } = buildTalentStrings();
+    const startingTalentsForTalentsField = startingTalentsString ? (talentString ? `${talentString}, ${startingTalentsString}` : startingTalentsString) : talentString;
 
     const startingSkillCombined = selectedStartingSkill2 
       ? `${selectedStartingSkill}, ${selectedStartingSkill2}` 
@@ -843,9 +871,9 @@ export default function SWEotECharacterCreator() {
           career: selectedCareer,
           career_skills: careerSkillsString,
           spec: selectedSpecialization,
-          spec_skills: specSkillsString,
+          spec_skills: finalSpecSkills,
           talent_tree: talentTreeString,
-          talents: talentString,
+          talents: startingTalentsForTalentsField,
           skills_rank: skillsRankString,
           backstory: backstory,
           wound_threshold: woundThreshold,
@@ -877,9 +905,9 @@ export default function SWEotECharacterCreator() {
           career: selectedCareer,
           career_skills: careerSkillsString,
           spec: selectedSpecialization,
-          spec_skills: specSkillsString,
+          spec_skills: finalSpecSkills,
           talent_tree: talentTreeString,
-          talents: talentString,
+          talents: startingTalentsForTalentsField,
           skills_rank: skillsRankString,
           backstory: backstory,
           wound_threshold: woundThreshold,
@@ -942,7 +970,7 @@ export default function SWEotECharacterCreator() {
     return treeData;
   };
 
-  const handleTalentClick = (index, isLoaded = false) => {
+  const handleTalentClick = (index) => {
     const talentData = getTalentTreeData()[index];
     if (!clickableTalents.includes(index)) return;
 
@@ -969,12 +997,12 @@ export default function SWEotECharacterCreator() {
         return updated;
       });
 
-      // Revert previous Dedication choice
       if (talentData.isDedication && dedicationChoices[index]) {
         const prevStat = dedicationChoices[index];
+        const statKey = prevStat.toLowerCase();
         setSelectedRace(prevRace => ({
           ...prevRace,
-          [prevStat.toLowerCase()]: Math.max(baseStats[prevStat.toLowerCase()], prevRace[prevStat.toLowerCase()] - 1)
+          [statKey]: Math.max(baseStats[statKey], prevRace[statKey] - 1)
         }));
         setDedicationChoices(prev => {
           const updated = { ...prev };
@@ -1043,7 +1071,6 @@ export default function SWEotECharacterCreator() {
     }
   };
 
-  // Handle Dedication dropdown change
   const handleDedicationChoice = (index, newChoice) => {
     const talentData = getTalentTreeData()[index];
     if (!talentData.isDedication) return;
@@ -1051,7 +1078,6 @@ export default function SWEotECharacterCreator() {
     const prevChoice = dedicationChoices[index];
     const statKey = newChoice.toLowerCase();
 
-    // If changing from one stat to another
     if (prevChoice && prevChoice !== newChoice) {
       const oldKey = prevChoice.toLowerCase();
       setSelectedRace(prevRace => ({
@@ -1060,7 +1086,6 @@ export default function SWEotECharacterCreator() {
       }));
     }
 
-    // Apply new +1, but not beyond 6
     if (newChoice) {
       setSelectedRace(prevRace => {
         const current = prevRace[statKey] || baseStats[statKey];
@@ -1072,7 +1097,6 @@ export default function SWEotECharacterCreator() {
       });
     }
 
-    // Update tracking
     setDedicationChoices(prev => ({ ...prev, [index]: newChoice }));
     setTalentChoices(prev => ({ ...prev, [index]: newChoice }));
   };
@@ -1086,6 +1110,15 @@ export default function SWEotECharacterCreator() {
     if (type === 'knowledge') return skills.filter(s => s.type === 'Knowledge').map(s => s.skill).sort();
     if (type === 'general') return skills.filter(s => s.type === 'General').map(s => s.skill).sort();
     return [];
+  };
+
+  const handleTabClick = (tab) => {
+    if (!selectedRace && tab !== 'Species') {
+      alert('Please choose a Species first');
+      setActiveTab('Species');
+    } else {
+      setActiveTab(tab);
+    }
   };
 
   return (
@@ -1113,26 +1146,97 @@ export default function SWEotECharacterCreator() {
         </div>
       </div>
 
-      <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4">
-        <div className="flex justify-center mb-4 space-x-4">
+      <div className="border-2 border-black rounded-lg p-6 w-full text-center mb-4">
+        <div className="flex flex-col items-center space-y-4">
           <div className="w-1/2">
             <label className="block font-bold text-lg mb-2">Character Name</label>
             <input
               type="text"
               value={characterName}
               onChange={(e) => setCharacterName(e.target.value)}
-              className="border border-black rounded px-2 py-1 w-full text-center"
+              className="border border-black rounded px-4 py-2 w-full text-center text-xl"
               placeholder="Enter character name"
             />
           </div>
-          <div className="w-1/2">
-            <label className="block font-bold text-lg mb-2">Race</label>
+
+          <div className="flex items-center justify-center space-x-6">
+            <h2 className="font-bold text-xl">EXP:</h2>
+            <button
+              onClick={() => handleExpChange(-1)}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-lg"
+            >
+              −
+            </button>
+            <span className="border-4 border-black rounded px-8 py-3 font-bold text-3xl min-w-32 text-center">
+              {exp}
+            </span>
+            <button
+              onClick={() => handleExpChange(1)}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-lg"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full mb-4">
+        <div className="flex border-2 border-black rounded-lg overflow-hidden">
+          <button
+            onClick={() => handleTabClick('Species')}
+            className={`px-6 py-2 font-semibold ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+          >
+            Species
+          </button>
+          <button
+            onClick={() => handleTabClick('Stats')}
+            className={`px-6 py-2 font-semibold ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+          >
+            Stats
+          </button>
+          <button
+            onClick={() => handleTabClick('Skills')}
+            className={`px-6 py-2 font-semibold ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+          >
+            Skills
+          </button>
+          <button
+            onClick={() => handleTabClick('Career')}
+            className={`px-6 py-2 font-semibold ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+          >
+            Career
+          </button>
+          <button
+            onClick={() => handleTabClick('Talent Tree')}
+            className={`px-6 py-2 font-semibold ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+          >
+            Talent Tree
+          </button>
+          <button
+            onClick={() => handleTabClick('Backstory')}
+            className={`px-6 py-2 font-semibold ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+          >
+            Backstory
+          </button>
+          <button
+            onClick={() => handleTabClick('Finish')}
+            className={`px-6 py-2 font-semibold ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+          >
+            Finish
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'Species' && (
+        <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
+          <h2 className="font-bold text-lg mb-4">Select Species</h2>
+          <div className="flex justify-center mb-6">
             <select
               onChange={handleRaceChange}
-              className="border border-black rounded px-2 py-1 w-full text-center"
+              className="border border-black rounded px-4 py-2 text-lg"
               value={selectedRace?.name || ''}
             >
-              <option value="">Select Race</option>
+              <option value="">Select Species</option>
               {races.map((race) => (
                 <option key={race.id} value={race.name}>
                   {race.name}
@@ -1140,127 +1244,76 @@ export default function SWEotECharacterCreator() {
               ))}
             </select>
           </div>
-        </div>
-        {selectedRace && (
-          <div>
-            <div className="flex justify-center mb-4 space-x-4">
-              <div className="w-1/2">
-                <h2 className="font-bold text-base mb-2">Race Description</h2>
-                <p className="text-gray-700 mb-4">{selectedRace.description}</p>
-              </div>
-              <div className="w-1/2">
-                <h2 className="block font-bold text-base mb-2">Race Starting Skill</h2>
 
-                <select
-                  value={selectedStartingSkill}
-                  onChange={handleStartingSkillChange}
-                  className="border border-black rounded px-2 py-1 w-full text-center"
-                >
-                  <option value="">Select Starting Skill</option>
-                  {getStartingSkillOptions().map((skill, index) => (
-                    <option key={index} value={skill.name}>
-                      {skill.name} ({skill.type})
-                    </option>
-                  ))}
-                </select>
-
-                {showSecondSkill && (
-                  <div className="mt-2">
-                    <label className="block font-bold text-base mb-1">Second Starting Skill</label>
-                    <select
-                      value={selectedStartingSkill2}
-                      onChange={handleStartingSkill2Change}
-                      className="border border-black rounded px-2 py-1 w-full text-center"
-                    >
-                      <option value="">Select Second Skill</option>
-                      {getSecondSkillOptions().map((skill, i) => (
-                        <option key={i} value={skill.name}>
-                          {skill.name} ({skill.type})
-                        </option>
-                      ))}
-                    </select>
+          {selectedRace && (
+            <>
+              <div className="grid grid-cols-2 gap-8 mb-6">
+                <div>
+                  <h3 className="font-bold text-base mb-2">Species Description</h3>
+                  <div className="text-left p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto">
+                    {selectedRace.description || 'No description available'}
                   </div>
-                )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-base mb-2">Starting Skills & Talents</h3>
+                  <div className="text-left p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto space-y-3">
+                    <div>
+                      <h4 className="font-semibold">Starting Skill</h4>
+                      <select
+                        value={selectedStartingSkill}
+                        onChange={handleStartingSkillChange}
+                        className="border border-black rounded px-2 py-1 w-full mt-1"
+                      >
+                        <option value="">Select Starting Skill</option>
+                        {getStartingSkillOptions().map((skill, index) => (
+                          <option key={index} value={skill.name}>
+                            {skill.name} ({skill.type})
+                          </option>
+                        ))}
+                      </select>
+
+                      {showSecondSkill && (
+                        <div className="mt-3">
+                          <label className="font-semibold block mb-1">Second Starting Skill</label>
+                          <select
+                            value={selectedStartingSkill2}
+                            onChange={handleStartingSkill2Change}
+                            className="border border-black rounded px-2 py-1 w-full"
+                          >
+                            <option value="">Select Second Skill</option>
+                            {getSecondSkillOptions().map((skill, i) => (
+                              <option key={i} value={skill.name}>
+                                {skill.name} ({skill.type})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {startingTalents.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="font-semibold">Starting Talents</h4>
+                        <div className="mt-2 space-y-2">
+                          {startingTalents.map((talent, idx) => (
+                            <div key={idx} className="border border-gray-400 rounded p-2 bg-white">
+                              <span className="font-semibold">{talent.name}:</span> {talent.description}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            </>
+          )}
+        </div>
+      )}
 
-            <div className="flex items-center justify-center space-x-2 pl-4">
-              <h2 className="font-bold text-base">EXP: </h2>
-              <button
-                onClick={() => handleExpChange(-1)}
-                className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-              >
-                -
-              </button>
-              <span
-                className="border border-black rounded px-4 py-2"
-                style={{ fontSize: '1rem', fontWeight: 'bold', color: 'black', minWidth: '60px', textAlign: 'center' }}
-              >
-                {exp}
-              </span>
-              <button
-                onClick={() => handleExpChange(1)}
-                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-              >
-                +
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {selectedRace && (
-        <div className="w-full mb-4">
-          <div className="flex border-2 border-black rounded-lg overflow-hidden">
-            <button
-              onClick={() => setActiveTab('Stats')}
-              className={`px-6 py-2 font-semibold ${
-                activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'
-              }`}
-            >
-              Stats
-            </button>
-            <button
-              onClick={() => setActiveTab('Skills')}
-              className={`px-6 py-2 font-semibold ${
-                activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'
-              }`}
-            >
-              Skills
-            </button>
-            <button
-              onClick={() => setActiveTab('Career')}
-              className={`px-6 py-2 font-semibold ${
-                activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'
-              }`}
-            >
-              Career
-            </button>
-            <button
-              onClick={() => setActiveTab('Talent Tree')}
-              className={`px-6 py-2 font-semibold ${
-                activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'
-              }`}
-            >
-              Talent Tree
-            </button>
-            <button
-              onClick={() => setActiveTab('Backstory')}
-              className={`px-6 py-2 font-semibold ${
-                activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'
-              }`}
-            >
-              Backstory
-            </button>
-            <button
-              onClick={() => setActiveTab('Finish')}
-              className={`px-6 py-2 font-semibold ${
-                activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'
-              }`}
-            >
-              Finish
-            </button>
-          </div>
+      {!selectedRace && activeTab !== 'Species' && (
+        <div className="border-2 border-black rounded-lg p-8 w-full text-center mb-4" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p className="text-3xl font-bold text-red-600">Please choose a Species first</p>
         </div>
       )}
 
@@ -1272,125 +1325,61 @@ export default function SWEotECharacterCreator() {
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Brawn</th>
                 <td className="border border-black py-1">
-                  <button
-                    onClick={() => updateStat('brawn', -1)}
-                    className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    -
-                  </button>
+                  <button onClick={() => updateStat('brawn', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                   <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('brawn')}</span>
-                  <button
-                    onClick={() => updateStat('brawn', 1)}
-                    className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => updateStat('brawn', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 </td>
               </tr>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Agility</th>
                 <td className="border border-black py-1">
-                  <button
-                    onClick={() => updateStat('agility', -1)}
-                    className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    -
-                  </button>
+                  <button onClick={() => updateStat('agility', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                   <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('agility')}</span>
-                  <button
-                    onClick={() => updateStat('agility', 1)}
-                    className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => updateStat('agility', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 </td>
               </tr>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Intellect</th>
                 <td className="border border-black py-1">
-                  <button
-                    onClick={() => updateStat('intellect', -1)}
-                    className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    -
-                  </button>
+                  <button onClick={() => updateStat('intellect', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                   <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('intellect')}</span>
-                  <button
-                    onClick={() => updateStat('intellect', 1)}
-                    className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => updateStat('intellect', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 </td>
               </tr>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Cunning</th>
                 <td className="border border-black py-1">
-                  <button
-                    onClick={() => updateStat('cunning', -1)}
-                    className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    -
-                  </button>
+                  <button onClick={() => updateStat('cunning', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                   <span style={{ color: 'black', margin: '0 4px' }}>{getBaseStatValue('cunning')}</span>
-                  <button
-                    onClick={() => updateStat('cunning', 1)}
-                    className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => updateStat('cunning', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 </td>
               </tr>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Willpower</th>
                 <td className="border border-black py-1">
-                  <button
-                    onClick={() => updateStat('willpower', -1)}
-                    className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    -
-                  </button>
+                  <button onClick={() => updateStat('willpower', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                   <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('willpower')}</span>
-                  <button
-                    onClick={() => updateStat('willpower', 1)}
-                    className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => updateStat('willpower', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 </td>
               </tr>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Presence</th>
                 <td className="border border-black py-1">
-                  <button
-                    onClick={() => updateStat('presence', -1)}
-                    className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    -
-                  </button>
+                  <button onClick={() => updateStat('presence', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                   <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('presence')}</span>
-                  <button
-                    onClick={() => updateStat('presence', 1)}
-                    className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    +
-                  </button>
+                  <button onClick={() => updateStat('presence', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 </td>
               </tr>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Wound Threshold</th>
-                <td className="border border-black py-1" style={{ color: 'black' }}>
-                  {woundThreshold}
-                </td>
+                <td className="border border-black py-1" style={{ color: 'black' }}>{woundThreshold}</td>
               </tr>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Strain Threshold</th>
-                <td className="border border-black py-1" style={{ color: 'black' }}>
-                  {strainThreshold}
-                </td>
+                <td className="border border-black py-1" style={{ color: 'black' }}>{strainThreshold}</td>
               </tr>
               <tr className="bg-gray-100">
-                <th className="border border-black py-1">Race Attack</th>
+                <th className="border border-black py-1">Species Attack</th>
                 <td className="border border-black py-1" style={{ color: 'black' }}>{selectedRace.Race_Attack}</td>
               </tr>
             </tbody>
@@ -1414,19 +1403,9 @@ export default function SWEotECharacterCreator() {
                 <tr key={index} className="bg-gray-100">
                   <td className="border border-black py-1">{skill.skill}</td>
                   <td className="border border-black py-1">
-                    <button
-                      onClick={() => updateSkillRank(skill.skill, -1)}
-                      className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      -
-                    </button>
+                    <button onClick={() => updateSkillRank(skill.skill, -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                     <span style={{ color: 'black', margin: '0 8px' }}>{getSkillRank(skill.skill)}</span>
-                    <button
-                      onClick={() => updateSkillRank(skill.skill, 1)}
-                      className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                      +
-                    </button>
+                    <button onClick={() => updateSkillRank(skill.skill, 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                   </td>
                   <td className="border border-black py-1" style={{ color: 'black' }}>
                     {getDicePool(skill.skill, skill.stat)}
@@ -1615,7 +1594,6 @@ export default function SWEotECharacterCreator() {
                                     <div>{expToShow} EXP</div>
                                   </div>
 
-                                  {/* SKILL CHOICE DROPDOWN */}
                                   {selectedTalents.includes(index) && talent?.requiresChoice && (
                                     <div className="absolute inset-x-0 bottom-12 left-0 right-0 px-2">
                                       <select
@@ -1638,7 +1616,6 @@ export default function SWEotECharacterCreator() {
                                     </div>
                                   )}
 
-                                  {/* DEDICATION DROPDOWN */}
                                   {selectedTalents.includes(index) && talent?.isDedication && (
                                     <div className="absolute inset-x-0 bottom-12 left-0 right-0 px-2">
                                       <select

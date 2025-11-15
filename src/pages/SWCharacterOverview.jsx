@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
@@ -29,7 +29,7 @@ export default function SWCharacterOverview() {
   const [credits, setCredits] = useState(0);
   const [totalSoak, setTotalSoak] = useState(0);
   const [activeTab, setActiveTab] = useState('skills');
-  const [abilities, setAbilities] = useState([]);
+  const [abilities, setabilities] = useState([]);
   const [skillBonuses, setSkillBonuses] = useState({});
   const [previousSoak, setPreviousSoak] = useState(null);
   const [raceAbilities, setRaceAbilities] = useState({ Race_Attack: '', ability: '' });
@@ -200,12 +200,17 @@ export default function SWCharacterOverview() {
         return;
       }
 
-      setSkills(allSkills.map(skill => ({
+      const enrichedSkills = allSkills.map(skill => ({
         id: skill.id,
         skill: skill.skill,
         rank: skillRanks[skill.skill] || 0,
         stat: skill.stat,
-      })));
+      }));
+
+      // Sort skills A-Z by name
+      const sortedSkills = enrichedSkills.sort((a, b) => a.skill.localeCompare(b.skill));
+
+      setSkills(sortedSkills);
 
       const { data: equipmentData, error: equipError } = await supabase
         .from('SW_equipment')
@@ -266,7 +271,7 @@ export default function SWCharacterOverview() {
         .in('ability', uniqueCleanTalents);
       if (abilitiesError || !abilitiesData) {
         console.error('Error fetching abilities:', abilitiesError);
-        setAbilities([]);
+        setabilities([]);
         setSkillBonuses({});
       } else {
         const processedAbilities = abilitiesData.map(ability => {
@@ -298,7 +303,7 @@ export default function SWCharacterOverview() {
         });
 
         const sortedAbilities = processedAbilities.sort((a, b) => a.displayName.localeCompare(b.displayName));
-        setAbilities(sortedAbilities);
+        setabilities(sortedAbilities);
 
         let woundBonus = 0;
         let strainBonus = 0;
@@ -632,6 +637,230 @@ export default function SWCharacterOverview() {
 
   const consumableList = Object.values(consolidatedConsumables);
 
+  // MAIN STAT BOX
+  const StatBox = ({ statName, value }) => {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      
+      img.onload = () => {
+        ctx.clearRect(0, 0, 112, 112);
+        ctx.drawImage(img, 0, 0, 112, 112);
+
+        ctx.font = 'bold 34px "Arial Black", Arial, sans-serif';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 4;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const x = 56;
+        const y = 56;
+        
+        for (let i = 0; i < 4; i++) {
+          ctx.strokeText(value, x + i, y);
+          ctx.strokeText(value, x - i, y);
+          ctx.strokeText(value, x, y + i);
+          ctx.strokeText(value, x, y - i);
+        }
+        for (let dx = -2; dx <= 2; dx += 4) {
+          for (let dy = -2; dy <= 2; dy += 4) {
+            if (dx !== 0 || dy !== 0) {
+              ctx.strokeText(value, x + dx, y + dy);
+            }
+          }
+        }
+        
+        ctx.fillText(value, x, y);
+      };
+      
+      img.onerror = () => {
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(0, 0, 112, 112);
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText(statName[0], 56, 56);
+        ctx.fillText(statName[0], 56, 56);
+      };
+      
+      img.src = `/SW_${statName}.png?t=${Date.now()}`;
+    }, [statName, value]);
+
+    return (
+      <canvas
+        ref={canvasRef}
+        width={112}
+        height={112}
+        className="w-28 h-28 inline-block align-top"
+        style={{ imageRendering: 'pixelated' }}
+      />
+    );
+  };
+
+  // SOAK BOX
+  const SoakBox = ({ value }) => {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      
+      img.onload = () => {
+        ctx.clearRect(0, 0, 112, 112);
+        ctx.drawImage(img, 0, 0, 112, 112);
+
+        ctx.font = 'bold 34px "Arial Black", Arial, sans-serif';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 4;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const x = 56;
+        const y = 56;
+        
+        for (let i = 0; i < 4; i++) {
+          ctx.strokeText(value, x + i, y);
+          ctx.strokeText(value, x - i, y);
+          ctx.strokeText(value, x, y + i);
+          ctx.strokeText(value, x, y - i);
+        }
+        for (let dx = -2; dx <= 2; dx += 4) {
+          for (let dy = -2; dy <= 2; dy += 4) {
+            if (dx !== 0 || dy !== 0) {
+              ctx.strokeText(value, x + dx, y + dy);
+            }
+          }
+        }
+        
+        ctx.fillText(value, x, y);
+      };
+      
+      img.onerror = () => {
+        ctx.fillStyle = '#666';
+        ctx.fillRect(0, 0, 112, 112);
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText('S', 56, 56);
+        ctx.fillText('S', 56, 56);
+      };
+      
+      img.src = `/SW_Soak.png?t=${Date.now()}`;
+    }, [value]);
+
+    return (
+      <canvas
+        ref={canvasRef}
+        width={112}
+        height={112}
+        className="w-28 h-28 inline-block align-top"
+        style={{ imageRendering: 'pixelated' }}
+      />
+    );
+  };
+
+  // WOUND/STRAIN BOX — SAME SIZE AS OTHER STATS
+  const WoundStrainSingleBox = ({ type, threshold, current, onChange }) => {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      
+      img.onload = () => {
+        ctx.clearRect(0, 0, 112, 112);
+        ctx.drawImage(img, 0, 0, 112, 112);
+
+        ctx.font = 'bold 24px "Arial Black", Arial, sans-serif';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const y = 56;
+        const leftX = 38;
+        const rightX = 74;
+
+        for (let i = 0; i < 3; i++) {
+          ctx.strokeText(threshold, leftX + i, y);
+          ctx.strokeText(threshold, leftX - i, y);
+          ctx.strokeText(threshold, leftX, y + i);
+          ctx.strokeText(threshold, leftX, y - i);
+          ctx.strokeText(current, rightX + i, y);
+          ctx.strokeText(current, rightX - i, y);
+          ctx.strokeText(current, rightX, y + i);
+          ctx.strokeText(current, rightX, y - i);
+        }
+        ctx.fillText(threshold, leftX, y);
+        ctx.fillText(current, rightX, y);
+      };
+      
+      img.onerror = () => {
+        ctx.fillStyle = type === 'wound' ? '#8B0000' : '#008B8B';
+        ctx.fillRect(0, 0, 112, 112);
+        ctx.font = 'bold 20px Arial';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText(type.toUpperCase().slice(0, 3), 56, 56);
+        ctx.fillText(type.toUpperCase().slice(0, 3), 56, 56);
+      };
+      
+      img.src = type === 'wound' ? '/SW_Wounds.png' : '/SW_Strain.png?t=' + Date.now();
+    }, [threshold, current, type]);
+
+    return (
+      <div className="flex items-center">
+        <canvas
+          ref={canvasRef}
+          width={112}
+          height={112}
+          className="w-28 h-28 inline-block align-top"
+          style={{ imageRendering: 'pixelated' }}
+        />
+        <div className="flex flex-col">
+          <button 
+            onClick={() => onChange(1)}
+            className="w-8 h-8 bg-green-600 text-white text-lg font-bold rounded-full hover:bg-green-700 shadow-md flex items-center justify-center -ml-2"
+          >
+            +
+          </button>
+          <button 
+            onClick={() => onChange(-1)}
+            className="w-8 h-8 bg-red-600 text-white text-lg font-bold rounded-full hover:bg-red-700 shadow-md flex items-center justify-center -ml-2 mt-1"
+          >
+            −
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col items-start min-h-screen bg-white py-10" style={{ maxWidth: '1600px', minWidth: '1600px', margin: '0 auto' }}>
       <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4">
@@ -646,61 +875,38 @@ export default function SWCharacterOverview() {
       <div className="flex items-center mb-4">
         <p>{race ? `${race} ${career} - ${specialization}` : `${career} - ${specialization}`}</p>
       </div>
-      <div className="flex space-x-6 mb-4">
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Brawn</div>
-          <div>{brawn}</div>
+
+      {/* MAIN STATS ROW */}
+      <div className="flex mb-8 items-center">
+        <div className="mr-6"><StatBox statName="Brawn" value={brawn} /></div>
+        <div className="mr-6"><StatBox statName="Agility" value={agility} /></div>
+        <div className="mr-6"><StatBox statName="Intellect" value={intellect} /></div>
+        <div className="mr-6"><StatBox statName="Cunning" value={cunning} /></div>
+        <div className="mr-6"><StatBox statName="Willpower" value={willpower} /></div>
+        <div className="mr-6"><StatBox statName="Presence" value={presence} /></div>
+        <div className="mr-6"><SoakBox value={totalSoak} /></div>
+
+        {/* WOUNDS */}
+        <div className="flex items-center">
+          <WoundStrainSingleBox 
+            type="wound"
+            threshold={woundThreshold}
+            current={woundCurrent}
+            onChange={handleWoundChange}
+          />
         </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Agility</div>
-          <div>{agility}</div>
-        </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Intellect</div>
-          <div>{intellect}</div>
-        </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Cunning</div>
-          <div>{cunning}</div>
-        </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Willpower</div>
-          <div>{willpower}</div>
-        </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Presence</div>
-          <div>{presence}</div>
-        </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28" style={{ color: 'white' }}>
-          empty box
-        </div>
-        <div className="ml-4"></div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Wound</div>
-          <div className="flex justify-center items-center">
-            <button onClick={() => handleWoundChange(-1)} className="px-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
-            <span className="mx-1">{woundCurrent}</span>
-            <span className="mr-1">/ {woundThreshold}</span>
-            <button onClick={() => handleWoundChange(1)} className="px-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
-          </div>
-        </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Strain</div>
-          <div className="flex justify-center items-center">
-            <button onClick={() => handleStrainChange(-1)} className="px-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
-            <span className="mx-1">{strainCurrent}</span>
-            <span className="mr-1">/ {strainThreshold}</span>
-            <button onClick={() => handleStrainChange(1)} className="px-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
-          </div>
-        </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28" style={{ color: 'white' }}>
-          Blank Box
-        </div>
-        <div className="border-2 border-black rounded-lg p-2 text-center w-28">
-          <div className="font-bold">Soak</div>
-          <div>{totalSoak}</div>
+
+        {/* STRAIN */}
+        <div className="flex items-center">
+          <WoundStrainSingleBox 
+            type="strain"
+            threshold={strainThreshold}
+            current={strainCurrent}
+            onChange={handleStrainChange}
+          />
         </div>
       </div>
+
       <div className="w-full">
         <div className="flex border-b-2 border-black mb-4">
           <button className={`px-4 py-2 font-bold ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
@@ -708,23 +914,35 @@ export default function SWCharacterOverview() {
           <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
         </div>
 
+        {/* SKILLS TAB — TIGHT COLUMN, NO WRAP */}
         {activeTab === 'skills' && (
           <div className="border-2 border-black rounded-lg p-4 text-left w-1/2 mr-4" style={{ minHeight: '400px' }}>
             <h2 className="font-bold text-lg mb-3">Skills</h2>
-            <table className="border border-black text-left w-full" style={{ tableLayout: 'auto', margin: '0' }}>
+            <table className="border border-black text-left w-full" style={{ tableLayout: 'fixed', margin: '0' }}>
+              <colgroup>
+                <col style={{ width: '200px' }} />  {/* Skill + (Stat) */}
+                <col style={{ width: '60px' }} />   {/* Rank */}
+                <col style={{ width: '80px' }} />   {/* Dice Pool */}
+              </colgroup>
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-black py-1">Skill</th>
-                  <th className="border border-black py-1">Rank</th>
-                  <th className="border border-black py-1">Dice Pool</th>
+                  <th className="border border-black py-1 text-xs">Skill</th>
+                  <th className="border border-black py-1 text-xs">Rank</th>
+                  <th className="border border-black py-1 text-xs">Dice Pool</th>
                 </tr>
               </thead>
               <tbody>
                 {skills.map((skill, index) => (
                   <tr key={index} className="bg-gray-100">
-                    <td className="border border-black py-1">{skill.skill}</td>
-                    <td className="border border-black py-1" style={{ color: 'black' }}>{skill.rank}</td>
-                    <td className="border border-black py-1" style={{ color: 'black' }}>{getFinalDicePool(skill.skill, skill.stat)}</td>
+                    <td className="border border-black py-1 text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                      {skill.skill} ({skill.stat})
+                    </td>
+                    <td className="border border-black py-1 text-xs text-center font-bold">
+                      {skill.rank}
+                    </td>
+                    <td className="border border-black py-1 text-xs text-center font-mono">
+                      {getFinalDicePool(skill.skill, skill.stat)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

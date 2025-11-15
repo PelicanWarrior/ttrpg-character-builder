@@ -8,6 +8,7 @@ export default function SelectTTRPG() {
   const [feastlandsCharacters, setFeastlandsCharacters] = useState([]);
   const [selectedFeastlandsCharacter, setSelectedFeastlandsCharacter] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [playerId, setPlayerId] = useState(null); // <-- This is the ID from 'user' table
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export default function SelectTTRPG() {
         return;
       }
 
-      // Fetch user data including admin status
+      // Fetch user data: id (Player ID) and admin status
       const { data: userData, error: userError } = await supabase
         .from('user')
         .select('id, admin')
@@ -26,18 +27,19 @@ export default function SelectTTRPG() {
         .single();
 
       if (userError || !userData) {
-        console.error('Error fetching user:', userError);
+        console.error('Error fetching user:', userError?.message);
         return;
       }
 
-      const userId = userData.id;
-      setIsAdmin(!!userData.admin); // Set admin status
+      const fetchedPlayerId = userData.id;
+      setPlayerId(fetchedPlayerId);           // Store Player ID
+      setIsAdmin(!!userData.admin);           // Set admin flag
 
       // Fetch Star Wars characters
       const { data: swCharData, error: swCharError } = await supabase
         .from('SW_player_characters')
         .select('id, name')
-        .eq('user_number', userId);
+        .eq('user_number', fetchedPlayerId);
 
       if (swCharError) {
         console.error('Error fetching Star Wars characters:', swCharError);
@@ -45,11 +47,11 @@ export default function SelectTTRPG() {
         setCharacters(swCharData || []);
       }
 
-      // Fetch Feastlands characters (still fetched, but not shown)
+      // Fetch Feastlands characters (kept in code, hidden in UI)
       const { data: flCharData, error: flCharError } = await supabase
         .from('FL_player_characters')
         .select('id, name')
-        .eq('playerID', userId);
+        .eq('playerID', fetchedPlayerId);
 
       if (flCharError) {
         console.error('Error fetching Feastlands characters:', flCharError);
@@ -83,19 +85,18 @@ export default function SelectTTRPG() {
 
     if (userError || !userData) return;
 
-    const userId = userData.id;
     const selectedChar = characters.find(char => char.name === selectedCharacter);
     if (!selectedChar) return;
 
     const { data: charData, error: charError } = await supabase
       .from('SW_player_characters')
       .select('*')
-      .eq('user_number', userId)
+      .eq('user_number', userData.id)
       .eq('id', selectedChar.id)
       .single();
 
     if (charError || !charData) {
-      console.error('Error fetching character data:', charError);
+      console.error('Error fetching character:', charError);
       return;
     }
 
@@ -120,14 +121,13 @@ export default function SelectTTRPG() {
 
     if (userError || !userData) return;
 
-    const userId = userData.id;
     const selectedChar = characters.find(char => char.name === selectedCharacter);
     if (!selectedChar) return;
 
     const { data: charData, error: charError } = await supabase
       .from('SW_player_characters')
       .select('*')
-      .eq('user_number', userId)
+      .eq('user_number', userData.id)
       .eq('id', selectedChar.id)
       .single();
 
@@ -137,7 +137,7 @@ export default function SelectTTRPG() {
     navigate('/SW_character_overview');
   };
 
-  // === FEASTLANDS HANDLERS (kept but not used in UI) ===
+  // === FEASTLANDS HANDLERS (hidden but preserved) ===
   const handleFeastlandsCreateCharacter = () => {
     navigate('/feastlands-character-creator', { state: { create_character: true } });
   };
@@ -159,14 +159,13 @@ export default function SelectTTRPG() {
 
     if (userError || !userData) return;
 
-    const userId = userData.id;
     const selectedChar = feastlandsCharacters.find(char => char.name === selectedFeastlandsCharacter);
     if (!selectedChar) return;
 
     const { data: charData, error: charError } = await supabase
       .from('FL_player_characters')
       .select('*')
-      .eq('playerID', userId)
+      .eq('playerID', userData.id)
       .eq('id', selectedChar.id)
       .single();
 
@@ -193,14 +192,13 @@ export default function SelectTTRPG() {
 
     if (userError || !userData) return;
 
-    const userId = userData.id;
     const selectedChar = feastlandsCharacters.find(char => char.name === selectedFeastlandsCharacter);
     if (!selectedChar) return;
 
     const { data: charData, error: charError } = await supabase
       .from('FL_player_characters')
       .select('*')
-      .eq('playerID', userId)
+      .eq('playerID', userData.id)
       .eq('id', selectedChar.id)
       .single();
 
@@ -227,9 +225,9 @@ export default function SelectTTRPG() {
         {isAdmin && <span className="text-red-600 font-semibold"> (Admin)</span>}
       </p>
 
-      {/* TTRPG Sections Container */}
+      {/* TTRPG Sections */}
       <div className="flex flex-row justify-center w-full max-w-4xl space-x-4">
-        {/* Star Wars: Edge of the Empire Section */}
+        {/* Star Wars Section */}
         <div className="flex flex-col items-center w-1/2">
           <img
             src="/SWEotE.webp"
@@ -273,11 +271,7 @@ export default function SelectTTRPG() {
           </div>
         </div>
 
-        {/* Feastlands Section - HIDDEN FROM UI BUT CODE KEPT */}
-        {/* <div className="flex flex-col items-center w-1/2">
-          ... (all Feastlands JSX commented out below)
-        </div> */}
-        {/* Uncomment below when ready to re-enable Feastlands */}
+        {/* Feastlands - HIDDEN BUT CODE PRESERVED */}
         {/*
         <div className="flex flex-col items-center w-1/2">
           <img src="/Feastlands.png" alt="Feastlands" className="w-64 mb-6" />
@@ -320,14 +314,29 @@ export default function SelectTTRPG() {
         */}
       </div>
 
-      {/* Log Out Button */}
+      {/* Settings + Log Out */}
       <div className="w-3/4 max-w-lg text-center mt-8">
-        <button
-          onClick={handleLogOut}
-          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-        >
-          Log Out
-        </button>
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() =>
+              navigate('/settings', { state: { playerId } })
+            }
+            disabled={!playerId}
+            className={`px-4 py-2 rounded text-white font-medium transition ${
+              playerId
+                ? 'bg-gray-600 hover:bg-gray-700'
+                : 'bg-gray-400 cursor-not-allowed'
+            }`}
+          >
+            Settings
+          </button>
+          <button
+            onClick={handleLogOut}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Log Out
+          </button>
+        </div>
       </div>
     </div>
   );
