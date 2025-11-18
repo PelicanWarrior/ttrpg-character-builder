@@ -32,6 +32,9 @@ export default function SWEotECharacterCreator() {
   const [woundThreshold, setWoundThreshold] = useState(0);
   const [strainThreshold, setStrainThreshold] = useState(0);
   const [startingTalents, setStartingTalents] = useState([]);
+  const [racePictures, setRacePictures] = useState([]);
+  const [selectedPictureId, setSelectedPictureId] = useState(null);
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -42,7 +45,7 @@ export default function SWEotECharacterCreator() {
 
   useEffect(() => {
     const fetchAndLoadData = async () => {
-      const [raceResponse, skillResponse, statCostResponse, careerResponse, specResponse, abilityResponse, treeResponse] = await Promise.all([
+      const [raceResponse, skillResponse, statCostResponse, careerResponse, specResponse, abilityResponse, treeResponse, pictureResponse] = await Promise.all([
         supabase.from('races').select('*'),
         supabase.from('skills').select('*'),
         supabase.from('SW_stat_increase').select('*'),
@@ -50,6 +53,7 @@ export default function SWEotECharacterCreator() {
         supabase.from('SW_spec').select('*'),
         supabase.from('SW_abilities').select('*'),
         supabase.from('SW_spec_tree').select('*'),
+        supabase.from('SW_pictures').select('*'),
       ]);
 
       if (raceResponse.error) {
@@ -99,6 +103,12 @@ export default function SWEotECharacterCreator() {
         console.error('Error fetching talent tree:', treeResponse.error);
       } else {
         setTalentTree(treeResponse.data || []);
+      }
+
+      if (pictureResponse.error) {
+        console.error('Error fetching pictures:', pictureResponse.error);
+      } else {
+        setRacePictures(pictureResponse.data || []);
       }
 
       if (!createCharacter) {
@@ -273,6 +283,29 @@ export default function SWEotECharacterCreator() {
     };
     fetchAndLoadData();
   }, [createCharacter]);
+
+  useEffect(() => {
+    if (selectedRace && racePictures.length > 0) {
+      const matchingPictures = racePictures.filter(pic => pic.race_ID === selectedRace.id);
+      console.log(`[DEBUG] Species: ${selectedRace.name} (ID: ${selectedRace.id})`);
+      console.log(`[DEBUG] Matching pictures in SW_pictures:`, matchingPictures);
+      
+      if (matchingPictures.length > 0) {
+        const randomPic = matchingPictures[Math.floor(Math.random() * matchingPictures.length)];
+        setSelectedPictureId(randomPic.id);
+        console.log(`[DEBUG] Selected picture ID: ${randomPic.id}`);
+        console.log(`[DEBUG] Image URL: /SW_Pictures/Picture ${randomPic.id} Face.png`);
+      } else {
+        setSelectedPictureId(null);
+        console.log('[DEBUG] No matching pictures found for this species.');
+      }
+    } else {
+      setSelectedPictureId(null);
+      if (selectedRace) {
+        console.log(`[DEBUG] No pictures loaded or racePictures is empty. racePictures length: ${racePictures.length}`);
+      }
+    }
+  }, [selectedRace, racePictures]);
 
   useEffect(() => {
     if (selectedRace && selectedRace.Starting_Talents) {
@@ -1247,62 +1280,87 @@ export default function SWEotECharacterCreator() {
 
           {selectedRace && (
             <>
-              <div className="grid grid-cols-2 gap-8 mb-6">
-                <div>
+              <div className="flex gap-8 mb-6">
+                {/* Species Image - Shrunk to fit image only */}
+                <div className="flex flex-col items-center">
+                  <h3 className="font-bold text-base mb-2">Species Image</h3>
+                  {selectedPictureId ? (
+                    <img
+                      src={`/SW_Pictures/Picture ${selectedPictureId} Face.png`}
+                      alt={`${selectedRace.name} portrait`}
+                      className="border border-black rounded object-contain"
+                      style={{ maxHeight: '200px', width: 'auto' }}
+                      onLoad={() => console.log(`[DEBUG] Image loaded: /SW_Pictures/Picture ${selectedPictureId} Face.png`)}
+                      onError={(e) => {
+                        console.error(`[DEBUG] Failed to load: /SW_Pictures/Picture ${selectedPictureId} Face.png`);
+                        console.error('[DEBUG] Check filename and path.');
+                      }}
+                    />
+                  ) : (
+                    <div className="w-48 h-48 border border-dashed border-gray-400 rounded flex items-center justify-center bg-gray-100">
+                      <p className="text-gray-500">No image</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Species Description */}
+                <div className="flex-1">
                   <h3 className="font-bold text-base mb-2">Species Description</h3>
                   <div className="text-left p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto">
                     {selectedRace.description || 'No description available'}
                   </div>
-                </div>
-                <div>
-                  <h3 className="font-bold text-base mb-2">Starting Skills & Talents</h3>
-                  <div className="text-left p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto space-y-3">
-                    <div>
-                      <h4 className="font-semibold">Starting Skill</h4>
-                      <select
-                        value={selectedStartingSkill}
-                        onChange={handleStartingSkillChange}
-                        className="border border-black rounded px-2 py-1 w-full mt-1"
-                      >
-                        <option value="">Select Starting Skill</option>
-                        {getStartingSkillOptions().map((skill, index) => (
-                          <option key={index} value={skill.name}>
-                            {skill.name} ({skill.type})
-                          </option>
-                        ))}
-                      </select>
 
-                      {showSecondSkill && (
-                        <div className="mt-3">
-                          <label className="font-semibold block mb-1">Second Starting Skill</label>
-                          <select
-                            value={selectedStartingSkill2}
-                            onChange={handleStartingSkill2Change}
-                            className="border border-black rounded px-2 py-1 w-full"
-                          >
-                            <option value="">Select Second Skill</option>
-                            {getSecondSkillOptions().map((skill, i) => (
-                              <option key={i} value={skill.name}>
-                                {skill.name} ({skill.type})
-                              </option>
+                  {/* Starting Skills & Talents - Directly under Description */}
+                  <div className="mt-4">
+                    <h3 className="font-bold text-base mb-2">Starting Skills & Talents</h3>
+                    <div className="text-left p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto space-y-3">
+                      <div>
+                        <h4 className="font-semibold">Starting Skill</h4>
+                        <select
+                          value={selectedStartingSkill}
+                          onChange={handleStartingSkillChange}
+                          className="border border-black rounded px-2 py-1 w-full mt-1"
+                        >
+                          <option value="">Select Starting Skill</option>
+                          {getStartingSkillOptions().map((skill, index) => (
+                            <option key={index} value={skill.name}>
+                              {skill.name} ({skill.type})
+                            </option>
+                          ))}
+                        </select>
+
+                        {showSecondSkill && (
+                          <div className="mt-3">
+                            <label className="font-semibold block mb-1">Second Starting Skill</label>
+                            <select
+                              value={selectedStartingSkill2}
+                              onChange={handleStartingSkill2Change}
+                              className="border border-black rounded px-2 py-1 w-full"
+                            >
+                              <option value="">Select Second Skill</option>
+                              {getSecondSkillOptions().map((skill, i) => (
+                                <option key={i} value={skill.name}>
+                                  {skill.name} ({skill.type})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+
+                      {startingTalents.length > 0 && (
+                        <div className="mt-4">
+                          <h4 className="font-semibold">Starting Talents</h4>
+                          <div className="mt-2 space-y-2">
+                            {startingTalents.map((talent, idx) => (
+                              <div key={idx} className="border border-gray-400 rounded p-2 bg-white">
+                                <span className="font-semibold">{talent.name}:</span> {talent.description}
+                              </div>
                             ))}
-                          </select>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {startingTalents.length > 0 && (
-                      <div className="mt-4">
-                        <h4 className="font-semibold">Starting Talents</h4>
-                        <div className="mt-2 space-y-2">
-                          {startingTalents.map((talent, idx) => (
-                            <div key={idx} className="border border-gray-400 rounded p-2 bg-white">
-                              <span className="font-semibold">{talent.name}:</span> {talent.description}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1327,7 +1385,7 @@ export default function SWEotECharacterCreator() {
                 <td className="border border-black py-1">
                   <button onClick={() => updateStat('brawn', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                   <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('brawn')}</span>
-                  <button onClick={() => updateStat('brawn', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
+                  <button onClick={() => updateStat('brawn', 1)} classname="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 </td>
               </tr>
               <tr className="bg-gray-100">
@@ -1347,7 +1405,7 @@ export default function SWEotECharacterCreator() {
                 </td>
               </tr>
               <tr className="bg-gray-100">
-                <th className="border border-black py-1">Cunning</th>
+                <th className="border border-black py-11">Cunning</th>
                 <td className="border border-black py-1">
                   <button onClick={() => updateStat('cunning', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                   <span style={{ color: 'black', margin: '0 4px' }}>{getBaseStatValue('cunning')}</span>

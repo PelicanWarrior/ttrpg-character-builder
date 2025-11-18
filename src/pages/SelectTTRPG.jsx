@@ -5,337 +5,210 @@ import { supabase } from '../supabaseClient';
 export default function SelectTTRPG() {
   const [characters, setCharacters] = useState([]);
   const [selectedCharacter, setSelectedCharacter] = useState('');
+  const [staCharacters, setStaCharacters] = useState([]);
+  const [selectedStaCharacter, setSelectedStaCharacter] = useState('');
   const [feastlandsCharacters, setFeastlandsCharacters] = useState([]);
   const [selectedFeastlandsCharacter, setSelectedFeastlandsCharacter] = useState('');
+  const [animalAdventuresCharacters, setAnimalAdventuresCharacters] = useState([]);
+  const [selectedAnimalAdventuresCharacter, setSelectedAnimalAdventuresCharacter] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [playerId, setPlayerId] = useState(null); // <-- This is the ID from 'user' table
+  const [playerId, setPlayerId] = useState(null);
+
+  const [ttrpgVisibility, setTtrpgVisibility] = useState({
+    'Star Wars': true,
+    'Star Trek Adventures': true,
+    'Feastlands': false,
+    'Animal Adventures': false,
+  });
+
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchCharacters = async () => {
+    const fetchData = async () => {
       const username = localStorage.getItem('username');
-      if (!username) {
-        console.error('No username found in localStorage');
-        return;
-      }
+      if (!username) return;
 
-      // Fetch user data: id (Player ID) and admin status
-      const { data: userData, error: userError } = await supabase
+      const { data: userData } = await supabase
         .from('user')
         .select('id, admin')
         .eq('username', username)
         .single();
 
-      if (userError || !userData) {
-        console.error('Error fetching user:', userError?.message);
-        return;
-      }
+      if (!userData) return;
 
-      const fetchedPlayerId = userData.id;
-      setPlayerId(fetchedPlayerId);           // Store Player ID
-      setIsAdmin(!!userData.admin);           // Set admin flag
+      setPlayerId(userData.id);
+      setIsAdmin(!!userData.admin);
 
-      // Fetch Star Wars characters
-      const { data: swCharData, error: swCharError } = await supabase
-        .from('SW_player_characters')
-        .select('id, name')
-        .eq('user_number', fetchedPlayerId);
+      const [swRes, staRes, flRes] = await Promise.all([
+        supabase.from('SW_player_characters').select('id, name').eq('user_number', userData.id),
+        supabase.from('STA_player_characters').select('id, name').eq('playerID', userData.id),
+        supabase.from('FL_player_characters').select('id, name').eq('playerID', userData.id),
+      ]);
 
-      if (swCharError) {
-        console.error('Error fetching Star Wars characters:', swCharError);
-      } else {
-        setCharacters(swCharData || []);
-      }
+      setCharacters(swRes.data || []);
+      setStaCharacters(staRes.data || []);
+      setFeastlandsCharacters(flRes.data || []);
 
-      // Fetch Feastlands characters (kept in code, hidden in UI)
-      const { data: flCharData, error: flCharError } = await supabase
-        .from('FL_player_characters')
-        .select('id, name')
-        .eq('playerID', fetchedPlayerId);
+      const { data: ttrpgData } = await supabase
+        .from('TTRPGs')
+        .select('TTRPG_name, show');
 
-      if (flCharError) {
-        console.error('Error fetching Feastlands characters:', flCharError);
-      } else {
-        setFeastlandsCharacters(flCharData || []);
-      }
+      const visibilityMap = {};
+      ttrpgData?.forEach(row => visibilityMap[row.TTRPG_name] = row.show);
+
+      setTtrpgVisibility({
+        'Star Wars': visibilityMap['Star Wars'] ?? true,
+        'Star Trek Adventures': visibilityMap['Star Trek Adventures'] ?? true,
+        'Feastlands': visibilityMap['Feastlands'] ?? false,
+        'Animal Adventures': visibilityMap['Animal Adventures'] ?? false,
+      });
     };
 
-    fetchCharacters();
+    fetchData();
   }, []);
 
-  // === STAR WARS HANDLERS ===
-  const handleCreateCharacter = () => {
-    navigate('/sweote-character-creator', { state: { create_character: true } });
+  const toggleTTRPGVisibility = async (name, current) => {
+    const newVal = !current;
+    await supabase.from('TTRPGs').update({ show: newVal }).eq('TTRPG_name', name);
+    setTtrpgVisibility(prev => ({ ...prev, [name]: newVal }));
   };
 
-  const handleEditCharacter = async () => {
-    if (!selectedCharacter) {
-      alert('Please select a character to edit.');
-      return;
-    }
-
-    const username = localStorage.getItem('username');
-    if (!username) return;
-
-    const { data: userData, error: userError } = await supabase
-      .from('user')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !userData) return;
-
-    const selectedChar = characters.find(char => char.name === selectedCharacter);
-    if (!selectedChar) return;
-
-    const { data: charData, error: charError } = await supabase
-      .from('SW_player_characters')
-      .select('*')
-      .eq('user_number', userData.id)
-      .eq('id', selectedChar.id)
-      .single();
-
-    if (charError || !charData) {
-      console.error('Error fetching character:', charError);
-      return;
-    }
-
-    localStorage.setItem('loadedCharacterId', selectedChar.id);
-    navigate('/sweote-character-creator', { state: { create_character: false } });
-  };
-
-  const handleCharacterOverview = async () => {
-    if (!selectedCharacter) {
-      alert('Please select a character.');
-      return;
-    }
-
-    const username = localStorage.getItem('username');
-    if (!username) return;
-
-    const { data: userData, error: userError } = await supabase
-      .from('user')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !userData) return;
-
-    const selectedChar = characters.find(char => char.name === selectedCharacter);
-    if (!selectedChar) return;
-
-    const { data: charData, error: charError } = await supabase
-      .from('SW_player_characters')
-      .select('*')
-      .eq('user_number', userData.id)
-      .eq('id', selectedChar.id)
-      .single();
-
-    if (charError || !charData) return;
-
-    localStorage.setItem('loadedCharacterId', selectedChar.id);
-    navigate('/SW_character_overview');
-  };
-
-  // === FEASTLANDS HANDLERS (hidden but preserved) ===
-  const handleFeastlandsCreateCharacter = () => {
-    navigate('/feastlands-character-creator', { state: { create_character: true } });
-  };
-
-  const handleFeastlandsEditCharacter = async () => {
-    if (!selectedFeastlandsCharacter) {
-      alert('Please select a Feastlands character to edit.');
-      return;
-    }
-
-    const username = localStorage.getItem('username');
-    if (!username) return;
-
-    const { data: userData, error: userError } = await supabase
-      .from('user')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !userData) return;
-
-    const selectedChar = feastlandsCharacters.find(char => char.name === selectedFeastlandsCharacter);
-    if (!selectedChar) return;
-
-    const { data: charData, error: charError } = await supabase
-      .from('FL_player_characters')
-      .select('*')
-      .eq('playerID', userData.id)
-      .eq('id', selectedChar.id)
-      .single();
-
-    if (charError || !charData) return;
-
-    localStorage.setItem('loadedFeastlandsCharacterId', selectedChar.id);
-    navigate('/feastlands-character-creator', { state: { create_character: false } });
-  };
-
-  const handleFeastlandsCharacterOverview = async () => {
-    if (!selectedFeastlandsCharacter) {
-      alert('Please select a Feastlands character.');
-      return;
-    }
-
-    const username = localStorage.getItem('username');
-    if (!username) return;
-
-    const { data: userData, error: userError } = await supabase
-      .from('user')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !userData) return;
-
-    const selectedChar = feastlandsCharacters.find(char => char.name === selectedFeastlandsCharacter);
-    if (!selectedChar) return;
-
-    const { data: charData, error: charError } = await supabase
-      .from('FL_player_characters')
-      .select('*')
-      .eq('playerID', userData.id)
-      .eq('id', selectedChar.id)
-      .single();
-
-    if (charError || !charData) return;
-
-    localStorage.setItem('loadedFeastlandsCharacterId', selectedChar.id);
-    navigate('/FL_character_overview');
-  };
-
-  const handleLogOut = () => {
-    localStorage.removeItem('username');
-    localStorage.removeItem('loadedCharacterId');
-    localStorage.removeItem('loadedFeastlandsCharacterId');
-    window.location.href = '/';
-  };
+  const shouldShow = (name) => isAdmin || ttrpgVisibility[name] === true;
 
   const username = localStorage.getItem('username') || 'Guest';
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-white py-10">
-      <h1 className="text-2xl font-bold mb-6">Select TTRPG</h1>
-      <p className="mb-6">
-        Welcome {username}
-        {isAdmin && <span className="text-red-600 font-semibold"> (Admin)</span>}
-      </p>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-200 py-12 px-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-5xl font-bold text-center text-gray-800 mb-4">Select TTRPG</h1>
+        <p className="text-center text-2xl mb-12 text-gray-700">
+          Welcome {username}
+          {isAdmin && <span className="text-red-600 font-bold"> (Admin)</span>}
+        </p>
 
-      {/* TTRPG Sections */}
-      <div className="flex flex-row justify-center w-full max-w-4xl space-x-4">
-        {/* Star Wars Section */}
-        <div className="flex flex-col items-center w-1/2">
-          <img
-            src="/SWEotE.webp"
-            alt="Star Wars: Edge of the Empire"
-            className="w-64 mb-6"
-          />
-          <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4">
-            <label className="block font-semibold text-lg mb-2">Select Character</label>
-            <select
-              className="border border-black rounded px-2 py-1 w-1/2 text-center"
-              value={selectedCharacter}
-              onChange={(e) => setSelectedCharacter(e.target.value)}
-            >
-              <option value="">Select Character</option>
-              {characters.map((char) => (
-                <option key={char.id} value={char.name}>
-                  {char.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4">
-            <button
-              onClick={handleEditCharacter}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2"
-            >
-              Edit Character
-            </button>
-            <button
-              onClick={handleCharacterOverview}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 mr-2"
-            >
-              Character Overview
-            </button>
-            <button
-              onClick={handleCreateCharacter}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Create Character
-            </button>
-          </div>
-        </div>
+        {/* TOP ROW: Star Wars + Star Trek Adventures (NO HEADER) */}
+        {(shouldShow('Star Wars') || shouldShow('Star Trek Adventures')) && (
+          <div className="mb-20">
+            {/* Removed "Sci-Fi Adventures" header */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
 
-        {/* Feastlands - HIDDEN BUT CODE PRESERVED */}
-        {/*
-        <div className="flex flex-col items-center w-1/2">
-          <img src="/Feastlands.png" alt="Feastlands" className="w-64 mb-6" />
-          <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4">
-            <label className="block font-semibold text-lg mb-2">Select Character</label>
-            <select
-              className="border border-black rounded px-2 py-1 w-1/2 text-center"
-              value={selectedFeastlandsCharacter}
-              onChange={(e) => setSelectedFeastlandsCharacter(e.target.value)}
-            >
-              <option value="">Select Character</option>
-              {feastlandsCharacters.map((char) => (
-                <option key={char.id} value={char.name}>
-                  {char.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4">
-            <button
-              onClick={handleFeastlandsEditCharacter}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2"
-            >
-              Edit Character
-            </button>
-            <button
-              onClick={handleFeastlandsCharacterOverview}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 mr-2"
-            >
-              Character Overview
-            </button>
-            <button
-              onClick={handleFeastlandsCreateCharacter}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Create Character
-            </button>
-          </div>
-        </div>
-        */}
-      </div>
+              {/* STAR WARS */}
+              {shouldShow('Star Wars') && (
+                <div className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
+                  {isAdmin && (
+                    <div className="bg-gray-900 text-white p-4 flex items-center gap-4">
+                      <input type="checkbox" checked={ttrpgVisibility['Star Wars']} onChange={() => toggleTTRPGVisibility('Star Wars', ttrpgVisibility['Star Wars'])} className="w-6 h-6 rounded" />
+                      <span className="font-bold text-lg">Show Star Wars</span>
+                    </div>
+                  )}
+                  <div className="p-10 text-center">
+                    <img src="/Star Wars.png" alt="Star Wars" className="w-72 mx-auto mb-8" />
+                    <select className="w-full max-w-md mx-auto border-4 border-gray-800 rounded-xl px-6 py-4 text-lg mb-8 bg-white" value={selectedCharacter} onChange={(e) => setSelectedCharacter(e.target.value)}>
+                      <option>Select Character</option>
+                      {characters.map(c => <option key={c.id}>{c.name}</option>)}
+                    </select>
+                    <div className="flex justify-center gap-6">
+                      <button onClick={() => { if (!selectedCharacter) return alert('Select a character'); const char = characters.find(c => c.name === selectedCharacter); localStorage.setItem('loadedCharacterId', char.id); navigate('/sweote-character-creator', { state: { create_character: false } }); }} className="px-10 py-5 bg-blue-600 text-white font-bold text-xl rounded-xl hover:bg-blue-700 shadow-lg transition">Edit</button>
+                      <button onClick={() => { if (!selectedCharacter) return alert('Select a character'); const char = characters.find(c => c.name === selectedCharacter); localStorage.setItem('loadedCharacterId', char.id); navigate('/SW_character_overview'); }} className="px-10 py-5 bg-purple-600 text-white font-bold text-xl rounded-xl hover:bg-purple-700 shadow-lg transition">Overview</button>
+                      <button onClick={() => navigate('/sweote-character-creator', { state: { create_character: true } })} className="px-10 py-5 bg-green-600 text-white font-bold text-xl rounded-xl hover:bg-green-700 shadow-lg transition">Create</button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-      {/* Settings + Log Out */}
-      <div className="w-3/4 max-w-lg text-center mt-8">
-        <div className="flex justify-center gap-4">
-          <button
-            onClick={() =>
-              navigate('/settings', { state: { playerId } })
-            }
-            disabled={!playerId}
-            className={`px-4 py-2 rounded text-white font-medium transition ${
-              playerId
-                ? 'bg-gray-600 hover:bg-gray-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            Settings
-          </button>
-          <button
-            onClick={handleLogOut}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Log Out
-          </button>
+              {/* STAR TREK ADVENTURES */}
+              {shouldShow('Star Trek Adventures') && (
+                <div className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
+                  {isAdmin && (
+                    <div className="bg-gray-900 text-white p-4 flex items-center gap-4">
+                      <input type="checkbox" checked={ttrpgVisibility['Star Trek Adventures']} onChange={() => toggleTTRPGVisibility('Star Trek Adventures', ttrpgVisibility['Star Trek Adventures'])} className="w-6 h-6 rounded" />
+                      <span className="font-bold text-lg">Show Star Trek Adventures</span>
+                    </div>
+                  )}
+                  <div className="p-10 text-center">
+                    <img src="/Star Trek Adventures.png" alt="Star Trek Adventures" className="w-72 mx-auto mb-8" />
+                    <select className="w-full max-w-md mx-auto border-4 border-gray-800 rounded-xl px-6 py-4 text-lg mb-8 bg-white" value={selectedStaCharacter} onChange={(e) => setSelectedStaCharacter(e.target.value)}>
+                      <option>Select Character</option>
+                      {staCharacters.map(c => <option key={c.id}>{c.name}</option>)}
+                    </select>
+                    <div className="flex justify-center gap-6">
+                      <button onClick={() => { if (!selectedStaCharacter) return alert('Select a character'); const char = staCharacters.find(c => c.name === selectedStaCharacter); localStorage.setItem('loadedStaCharacterId', char.id); navigate('/sta-character-creator', { state: { create_character: false } }); }} className="px-10 py-5 bg-blue-600 text-white font-bold text-xl rounded-xl hover:bg-blue-700 shadow-lg transition">Edit</button>
+                      <button onClick={() => { if (!selectedStaCharacter) return alert('Select a character'); const char = staCharacters.find(c => c.name === selectedStaCharacter); localStorage.setItem('loadedStaCharacterId', char.id); navigate('/STA_character_overview'); }} className="px-10 py-5 bg-purple-600 text-white font-bold text-xl rounded-xl hover:bg-purple-700 shadow-lg transition">Overview</button>
+                      <button onClick={() => navigate('/sta-character-creator', { state: { create_character: true } })} className="px-10 py-5 bg-green-600 text-white font-bold text-xl rounded-xl hover:bg-green-700 shadow-lg transition">Create</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* D&D MODS ROW */}
+        {(shouldShow('Feastlands') || shouldShow('Animal Adventures')) && (
+          <div>
+            <h2 className="text-5xl font-bold text-purple-700 text-center mb-16">
+              Dungeons and Dragons Mods
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 max-w-6xl mx-auto">
+              {shouldShow('Feastlands') && (
+                <div className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
+                  {isAdmin && (
+                    <div className="bg-gray-900 text-white p-4 flex items-center gap-4">
+                      <input type="checkbox" checked={ttrpgVisibility['Feastlands']} onChange={() => toggleTTRPGVisibility('Feastlands', ttrpgVisibility['Feastlands'])} className="w-6 h-6 rounded" />
+                      <span className="font-bold text-lg">Show Feastlands</span>
+                    </div>
+                  )}
+                  <div className="p-10 text-center">
+                    <img src="/Feastlands.png" alt="Feastlands" className="w-72 mx-auto mb-8" />
+                    <select className="w-full max-w-md mx-auto border-4 border-gray-800 rounded-xl px-6 py-4 text-lg mb-8 bg-white" value={selectedFeastlandsCharacter} onChange={(e) => setSelectedFeastlandsCharacter(e.target.value)}>
+                      <option>Select Character</option>
+                      {feastlandsCharacters.map(c => <option key={c.id}>{c.name}</option>)}
+                    </select>
+                    <div className="flex justify-center gap-6">
+                      <button onClick={() => { if (!selectedFeastlandsCharacter) return alert('Select a character'); const char = feastlandsCharacters.find(c => c.name === selectedFeastlandsCharacter); localStorage.setItem('loadedFeastlandsCharacterId', char.id); navigate('/feastlands-character-creator', { state: { create_character: false } }); }} className="px-10 py-5 bg-blue-600 text-white font-bold text-xl rounded-xl hover:bg-blue-700 shadow-lg transition">Edit</button>
+                      <button onClick={() => { if (!selectedFeastlandsCharacter) return alert('Select a character'); const char = feastlandsCharacters.find(c => c.name === selectedFeastlandsCharacter); localStorage.setItem('loadedFeastlandsCharacterId', char.id); navigate('/FL_character_overview'); }} className="px-10 py-5 bg-purple-600 text-white font-bold text-xl rounded-xl hover:bg-purple-700 shadow-lg transition">Overview</button>
+                      <button onClick={() => navigate('/feastlands-character-creator', { state: { create_character: true } })} className="px-10 py-5 bg-green-600 text-white font-bold text-xl rounded-xl hover:bg-green-700 shadow-lg transition">Create</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {shouldShow('Animal Adventures') && (
+                <div className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
+                  {isAdmin && (
+                    <div className="bg-gray-900 text-white p-4 flex items-center gap-4">
+                      <input type="checkbox" checked={ttrpgVisibility['Animal Adventures']} onChange={() => toggleTTRPGVisibility('Animal Adventures', ttrpgVisibility['Animal Adventures'])} className="w-6 h-6 rounded" />
+                      <span className="font-bold text-lg">Show Animal Adventures</span>
+                    </div>
+                  )}
+                  <div className="p-10 text-center">
+                    <img src="/Animal Adventures.png" alt="Animal Adventures" className="w-72 mx-auto mb-8" />
+                    <select disabled className="w-full max-w-md mx-auto border-4 border-gray-400 rounded-xl px-6 py-4 text-lg mb-8 bg-gray-100 cursor-not-allowed">
+                      <option>No characters yet</option>
+                    </select>
+                    <div className="flex justify-center gap-6">
+                      <button disabled className="px-10 py-5 bg-gray-500 text-gray-300 font-bold text-xl rounded-xl cursor-not-allowed">Edit</button>
+                      <button disabled className="px-10 py-5 bg-gray-500 text-gray-300 font-bold text-xl rounded-xl cursor-not-allowed">Overview</button>
+                      <button disabled className="px-10 py-5 bg-gray-500 text-gray-300 font-bold text-xl rounded-xl cursor-not-allowed">Create</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Buttons */}
+        <div className="mt-24 text-center">
+          <div className="inline-flex gap-12">
+            <button onClick={() => navigate('/settings', { state: { playerId } })} className="px-16 py-6 bg-gray-800 text-white text-2xl font-bold rounded-2xl hover:bg-gray-900 shadow-2xl transition">
+              Settings
+            </button>
+            <button onClick={() => { localStorage.clear(); window.location.href = '/'; }} className="px-16 py-6 bg-red-600 text-white text-2xl font-bold rounded-2xl hover:bg-red-700 shadow-2xl transition">
+              Log Out
+            </button>
+          </div>
         </div>
       </div>
     </div>
