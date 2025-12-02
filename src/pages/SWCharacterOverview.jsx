@@ -17,9 +17,9 @@ export default function SWCharacterOverview() {
   const [skills, setSkills] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState('');
-  const [inventory, setInventory] = useState([]); // Weapons
-  const [armour, setArmour] = useState([]); // Armour
-  const [otherItems, setOtherItems] = useState([]); // Consumables / Other
+  const [inventory, setInventory] = useState([]);
+  const [armour, setArmour] = useState([]);
+  const [otherItems, setOtherItems] = useState([]);
   const [characterId, setCharacterId] = useState(null);
   const [playerId, setPlayerId] = useState(null);
   const [woundThreshold, setWoundThreshold] = useState(0);
@@ -33,6 +33,8 @@ export default function SWCharacterOverview() {
   const [skillBonuses, setSkillBonuses] = useState({});
   const [previousSoak, setPreviousSoak] = useState(null);
   const [raceAbilities, setRaceAbilities] = useState({ Race_Attack: '', ability: '' });
+  const [isForceSensitive, setIsForceSensitive] = useState(false);
+  const [forceRating, setForceRating] = useState(0);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -139,7 +141,7 @@ export default function SWCharacterOverview() {
 
       const { data: characterData, error: charError } = await supabase
         .from('SW_player_characters')
-        .select('*, wound_threshold, strain_threshold, wound_current, strain_current, credits, talents')
+        .select('*, wound_threshold, strain_threshold, wound_current, strain_current, credits, talents, force_rating')
         .eq('user_number', playerId)
         .eq('id', loadedCharacterId)
         .single();
@@ -162,6 +164,23 @@ export default function SWCharacterOverview() {
       setSpecialization(characterData.spec || '');
       setBackstory(characterData.backstory || '');
       setCredits(characterData.credits ?? 0);
+      setForceRating(characterData.force_rating ?? 0);
+
+      if (characterData.career) {
+        const { data: careerData, error: careerError } = await supabase
+          .from('SW_career')
+          .select('Force_Sensitive')
+          .eq('career', characterData.career)
+          .single();
+
+        if (!careerError && careerData && careerData.Force_Sensitive === true) {
+          setIsForceSensitive(true);
+        } else {
+          setIsForceSensitive(false);
+        }
+      } else {
+        setIsForceSensitive(false);
+      }
 
       let baseWoundThreshold = characterData.wound_threshold || 0;
       let baseStrainThreshold = characterData.strain_threshold || 0;
@@ -207,9 +226,7 @@ export default function SWCharacterOverview() {
         stat: skill.stat,
       }));
 
-      // Sort skills A-Z by name
       const sortedSkills = enrichedSkills.sort((a, b) => a.skill.localeCompare(b.skill));
-
       setSkills(sortedSkills);
 
       const { data: equipmentData, error: equipError } = await supabase
@@ -637,7 +654,6 @@ export default function SWCharacterOverview() {
 
   const consumableList = Object.values(consolidatedConsumables);
 
-  // MAIN STAT BOX
   const StatBox = ({ statName, value }) => {
     const canvasRef = useRef(null);
 
@@ -707,7 +723,72 @@ export default function SWCharacterOverview() {
     );
   };
 
-  // SOAK BOX
+  const ForceRatingBox = ({ value }) => {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas || value <= 0) return;
+
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+
+      img.onload = () => {
+        ctx.clearRect(0, 0, 112, 112);
+        ctx.drawImage(img, 0, 0, 112, 112);
+
+        ctx.font = 'bold 34px "Arial Black", Arial, sans-serif';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 4;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const x = 56;
+        const y = 56;
+
+        for (let i = 0; i < 4; i++) {
+          ctx.strokeText(value, x + i, y);
+          ctx.strokeText(value, x - i, y);
+          ctx.strokeText(value, x, y + i);
+          ctx.strokeText(value, x, y - i);
+        }
+        for (let dx = -2; dx <= 2; dx += 4) {
+          for (let dy = -2; dy <= 2; dy += 4) {
+            if (dx !== 0 || dy !== 0) {
+              ctx.strokeText(value, x + dx, y + dy);
+            }
+          }
+        }
+
+        ctx.fillText(value, x, y);
+      };
+
+      img.onerror = () => {
+        ctx.fillStyle = '#4B0082';
+        ctx.fillRect(0, 0, 112, 112);
+        ctx.font = 'bold 34px Arial';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(value, 56, 56);
+      };
+
+      img.src = '/SW_Force_Rating.png?t=' + Date.now();
+    }, [value]);
+
+    return value > 0 ? (
+      <canvas
+        ref={canvasRef}
+        width={112}
+        height={112}
+        className="w-28 h-28 inline-block align-top mr-6"
+        style={{ imageRendering: 'pixelated' }}
+      />
+    ) : null;
+  };
+
   const SoakBox = ({ value }) => {
     const canvasRef = useRef(null);
 
@@ -777,7 +858,6 @@ export default function SWCharacterOverview() {
     );
   };
 
-  // WOUND/STRAIN BOX — SAME SIZE AS OTHER STATS
   const WoundStrainSingleBox = ({ type, threshold, current, onChange }) => {
     const canvasRef = useRef(null);
 
@@ -876,7 +956,6 @@ export default function SWCharacterOverview() {
         <p>{race ? `${race} ${career} - ${specialization}` : `${career} - ${specialization}`}</p>
       </div>
 
-      {/* MAIN STATS ROW */}
       <div className="flex mb-8 items-center">
         <div className="mr-6"><StatBox statName="Brawn" value={brawn} /></div>
         <div className="mr-6"><StatBox statName="Agility" value={agility} /></div>
@@ -884,9 +963,11 @@ export default function SWCharacterOverview() {
         <div className="mr-6"><StatBox statName="Cunning" value={cunning} /></div>
         <div className="mr-6"><StatBox statName="Willpower" value={willpower} /></div>
         <div className="mr-6"><StatBox statName="Presence" value={presence} /></div>
+
+        <ForceRatingBox value={forceRating} />
+
         <div className="mr-6"><SoakBox value={totalSoak} /></div>
 
-        {/* WOUNDS */}
         <div className="flex items-center">
           <WoundStrainSingleBox 
             type="wound"
@@ -896,7 +977,6 @@ export default function SWCharacterOverview() {
           />
         </div>
 
-        {/* STRAIN */}
         <div className="flex items-center">
           <WoundStrainSingleBox 
             type="strain"
@@ -914,15 +994,14 @@ export default function SWCharacterOverview() {
           <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
         </div>
 
-        {/* SKILLS TAB — TIGHT COLUMN, NO WRAP */}
         {activeTab === 'skills' && (
           <div className="border-2 border-black rounded-lg p-4 text-left w-1/2 mr-4" style={{ minHeight: '400px' }}>
             <h2 className="font-bold text-lg mb-3">Skills</h2>
             <table className="border border-black text-left w-full" style={{ tableLayout: 'fixed', margin: '0' }}>
               <colgroup>
-                <col style={{ width: '200px' }} />  {/* Skill + (Stat) */}
-                <col style={{ width: '60px' }} />   {/* Rank */}
-                <col style={{ width: '80px' }} />   {/* Dice Pool */}
+                <col style={{ width: '200px' }} />
+                <col style={{ width: '60px' }} />
+                <col style={{ width: '80px' }} />
               </colgroup>
               <thead>
                 <tr className="bg-gray-100">

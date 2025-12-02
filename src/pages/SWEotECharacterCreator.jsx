@@ -12,8 +12,15 @@ export default function SWEotECharacterCreator() {
   const [statCosts, setStatCosts] = useState([]);
   const [exp, setExp] = useState(0);
   const [activeTab, setActiveTab] = useState('Species');
-  const [selectedStartingSkill, setSelectedStartingSkill] = useState('');
+
+  // Starting Skills — Two dropdowns for "X and Y" species
+  const [startingSkillOptions1, setStartingSkillOptions1] = useState([]); // First dropdown
+  const [startingSkillOptions2, setStartingSkillOptions2] = useState([]); // Second dropdown (only for "and")
+  const [selectedStartingSkill1, setSelectedStartingSkill1] = useState('');
   const [selectedStartingSkill2, setSelectedStartingSkill2] = useState('');
+  const [isPairedSkillRace, setIsPairedSkillRace] = useState(false);
+  const [showSecondMandalorianSkill, setShowSecondMandalorianSkill] = useState(false);
+
   const [skillRanks, setSkillRanks] = useState({});
   const [careers, setCareers] = useState([]);
   const [selectedCareer, setSelectedCareer] = useState('');
@@ -34,6 +41,7 @@ export default function SWEotECharacterCreator() {
   const [startingTalents, setStartingTalents] = useState([]);
   const [racePictures, setRacePictures] = useState([]);
   const [selectedPictureId, setSelectedPictureId] = useState(null);
+  const [isForceSensitiveCareer, setIsForceSensitiveCareer] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -43,9 +51,35 @@ export default function SWEotECharacterCreator() {
 
   const CHARACTERISTICS = ['Brawn', 'Agility', 'Intellect', 'Cunning', 'Willpower', 'Presence'];
 
+  // Parse "X and Y" or single skill
+  const parseStartingSkills = (text) => {
+    if (!text || typeof text !== 'string') return { isPaired: false, skills: [] };
+    const trimmed = text.trim();
+    const andMatch = trimmed.match(/^(.+?)\s+and\s+(.+)$/i);
+    if (andMatch) {
+      return {
+        isPaired: true,
+        skills: [andMatch[1].trim(), andMatch[2].trim()]
+      };
+    }
+    return {
+      isPaired: false,
+      skills: trimmed.split(',').map(s => s.trim()).filter(Boolean)
+    };
+  };
+
   useEffect(() => {
     const fetchAndLoadData = async () => {
-      const [raceResponse, skillResponse, statCostResponse, careerResponse, specResponse, abilityResponse, treeResponse, pictureResponse] = await Promise.all([
+      const [
+        raceResponse,
+        skillResponse,
+        statCostResponse,
+        careerResponse,
+        specResponse,
+        abilityResponse,
+        treeResponse,
+        pictureResponse
+      ] = await Promise.all([
         supabase.from('races').select('*'),
         supabase.from('skills').select('*'),
         supabase.from('SW_stat_increase').select('*'),
@@ -56,16 +90,14 @@ export default function SWEotECharacterCreator() {
         supabase.from('SW_pictures').select('*'),
       ]);
 
-      if (raceResponse.error) {
-        console.error('Error fetching races:', raceResponse.error);
-      } else {
+      if (raceResponse.error) console.error('Error fetching races:', raceResponse.error);
+      else {
         const sortedRaces = (raceResponse.data || []).sort((a, b) => a.name.localeCompare(b.name));
         setRaces(sortedRaces);
       }
 
-      if (skillResponse.error) {
-        console.error('Error fetching skills:', skillResponse.error);
-      } else {
+      if (skillResponse.error) console.error('Error fetching skills:', skillResponse.error);
+      else {
         const sortedSkills = (skillResponse.data || []).sort((a, b) => a.skill.localeCompare(b.skill));
         setSkills(sortedSkills);
         const initialRanks = {};
@@ -75,41 +107,23 @@ export default function SWEotECharacterCreator() {
         setSkillRanks(initialRanks);
       }
 
-      if (statCostResponse.error) {
-        console.error('Error fetching stat costs:', statCostResponse.error);
-      } else {
-        setStatCosts(statCostResponse.data || []);
-      }
+      if (statCostResponse.error) console.error('Error fetching stat costs:', statCostResponse.error);
+      else setStatCosts(statCostResponse.data || []);
 
-      if (careerResponse.error) {
-        console.error('Error fetching careers:', careerResponse.error);
-      } else {
-        setCareers(careerResponse.data || []);
-      }
+      if (careerResponse.error) console.error('Error fetching careers:', careerResponse.error);
+      else setCareers(careerResponse.data || []);
 
-      if (specResponse.error) {
-        console.error('Error fetching specializations:', specResponse.error);
-      } else {
-        setSpecializations(specResponse.data || []);
-      }
+      if (specResponse.error) console.error('Error fetching specializations:', specResponse.error);
+      else setSpecializations(specResponse.data || []);
 
-      if (abilityResponse.error) {
-        console.error('Error fetching abilities:', abilityResponse.error);
-      } else {
-        setAbilities(abilityResponse.data || []);
-      }
+      if (abilityResponse.error) console.error('Error fetching abilities:', abilityResponse.error);
+      else setAbilities(abilityResponse.data || []);
 
-      if (treeResponse.error) {
-        console.error('Error fetching talent tree:', treeResponse.error);
-      } else {
-        setTalentTree(treeResponse.data || []);
-      }
+      if (treeResponse.error) console.error('Error fetching talent tree:', treeResponse.error);
+      else setTalentTree(treeResponse.data || []);
 
-      if (pictureResponse.error) {
-        console.error('Error fetching pictures:', pictureResponse.error);
-      } else {
-        setRacePictures(pictureResponse.data || []);
-      }
+      if (pictureResponse.error) console.error('Error fetching pictures:', pictureResponse.error);
+      else setRacePictures(pictureResponse.data || []);
 
       if (!createCharacter) {
         const loadedCharacterId = localStorage.getItem('loadedCharacterId');
@@ -123,9 +137,8 @@ export default function SWEotECharacterCreator() {
               .eq('id', loadedCharacterId)
               .single();
 
-            if (playerError) {
-              console.error('Error fetching player data:', playerError);
-            } else if (playerData) {
+            if (playerError) console.error('Error fetching player data:', playerError);
+            else if (playerData) {
               setCharacterId(playerData.id);
               setCharacterName(playerData.name || '');
               const raceMatch = raceResponse.data?.find(r => r.name === playerData.race);
@@ -156,21 +169,32 @@ export default function SWEotECharacterCreator() {
 
               if (playerData.starting_skill) {
                 const skillsArray = playerData.starting_skill.split(',').map(s => s.trim()).filter(s => s);
-                if (skillsArray.length > 0) setSelectedStartingSkill(skillsArray[0]);
+                if (skillsArray.length > 0) setSelectedStartingSkill1(skillsArray[0]);
                 if (skillsArray.length > 1) setSelectedStartingSkill2(skillsArray[1]);
+              }
+
+              // Check for Mandalorian second skill visibility after loading starting skills
+              if (playerData.race === 'Human(Mandolorian)' && playerData.starting_skill) {
+                const skillsArray = playerData.starting_skill.split(',').map(s => s.trim()).filter(s => s);
+                if (skillsArray.length > 0) {
+                  const skillType = skillResponse.data?.find(s => s.skill === skillsArray[0])?.type;
+                  if (skillType === 'Knowledge') {
+                    setShowSecondMandalorianSkill(true);
+                  }
+                }
               }
 
               if (playerData.career) {
                 setSelectedCareer(playerData.career);
+                const careerRecord = careerResponse.data?.find(c => c.name === playerData.career);
+                setIsForceSensitiveCareer(!!careerRecord?.Force_Sensitive);
               }
               if (playerData.career_skills) {
                 const loadedCareerSkills = playerData.career_skills.split(',').map(skill => skill.trim()).filter(skill => skill);
                 setSelectedCareerSkills(loadedCareerSkills.concat(Array(4 - loadedCareerSkills.length).fill('')).slice(0, 4));
               }
 
-              if (playerData.spec) {
-                setSelectedSpecialization(playerData.spec);
-              }
+              if (playerData.spec) setSelectedSpecialization(playerData.spec);
 
               if (playerData.spec_skills) {
                 const specSkills = playerData.spec_skills.split(',').map(skill => skill.trim()).filter(skill => skill);
@@ -230,22 +254,10 @@ export default function SWEotECharacterCreator() {
                     const links = specTree[field] ? specTree[field].split(',').map(l => l.trim()) : [];
 
                     links.forEach(link => {
-                      if (link === 'Down' && row < 4) {
-                        const downIndex = (row + 1) * 4 + col;
-                        clickable.add(downIndex);
-                      }
-                      if (link === 'Up' && row > 0) {
-                        const upIndex = (row - 1) * 4 + col;
-                        clickable.add(upIndex);
-                      }
-                      if (link === 'Left' && col > 0) {
-                        const leftIndex = row * 4 + (col - 1);
-                        clickable.add(leftIndex);
-                      }
-                      if (link === 'Right' && col < 3) {
-                        const rightIndex = row * 4 + (col + 1);
-                        clickable.add(rightIndex);
-                      }
+                      if (link === 'Down' && row < 4) clickable.add((row + 1) * 4 + col);
+                      if (link === 'Up' && row > 0) clickable.add((row - 1) * 4 + col);
+                      if (link === 'Left' && col > 0) clickable.add(row * 4 + (col - 1));
+                      if (link === 'Right' && col < 3) clickable.add(row * 4 + (col + 1));
                     });
                   });
                 }
@@ -284,26 +296,75 @@ export default function SWEotECharacterCreator() {
     fetchAndLoadData();
   }, [createCharacter]);
 
+  // Update starting skill dropdowns when race changes
+  useEffect(() => {
+    if (!selectedRace || !skills.length) {
+      setStartingSkillOptions1([]);
+      setStartingSkillOptions2([]);
+      setIsPairedSkillRace(false);
+      setSelectedStartingSkill1('');
+      setSelectedStartingSkill2('');
+      return;
+    }
+
+    // Reset previous ranks
+    if (selectedStartingSkill1) {
+      setSkillRanks(prev => ({ ...prev, [selectedStartingSkill1]: Math.max(0, prev[selectedStartingSkill1] - 1) }));
+    }
+    if (selectedStartingSkill2) {
+      setSkillRanks(prev => ({ ...prev, [selectedStartingSkill2]: Math.max(0, prev[selectedStartingSkill2] - 1) }));
+    }
+
+    let firstOptions = [];
+    let secondOptions = [];
+
+    if (selectedRace.name === 'Human') {
+      firstOptions = skills;
+      secondOptions = skills;
+    } else if (selectedRace.name === 'Human(Mandolorian)') {
+      const combatKnowledge = skills.filter(s => s.type === 'Combat' || s.type === 'Knowledge');
+      const knowledge = skills.filter(s => s.type === 'Knowledge');
+      firstOptions = combatKnowledge;
+      secondOptions = knowledge;
+    } else if (selectedRace.Starting_Skill && selectedRace.Starting_Skill.trim()) {
+      const { isPaired, skills: parsedSkills } = parseStartingSkills(selectedRace.Starting_Skill);
+
+      if (isPaired) {
+        setIsPairedSkillRace(true);
+        firstOptions = skills.filter(s => s.skill === parsedSkills[0]);
+        secondOptions = skills.filter(s => s.skill === parsedSkills[1]);
+      } else {
+        setIsPairedSkillRace(false);
+        firstOptions = skills.filter(s => parsedSkills.includes(s.skill));
+        secondOptions = [];
+      }
+
+      // Auto-select single skill
+      if (firstOptions.length === 1) {
+        setSelectedStartingSkill1(firstOptions[0].skill);
+        setSkillRanks(prev => ({ ...prev, [firstOptions[0].skill]: (prev[firstOptions[0].skill] || 0) + 1 }));
+      }
+      if (secondOptions.length === 1) {
+        setSelectedStartingSkill2(secondOptions[0].skill);
+        setSkillRanks(prev => ({ ...prev, [secondOptions[0].skill]: (prev[secondOptions[0].skill] || 0) + 1 }));
+      }
+    }
+
+    setStartingSkillOptions1(firstOptions.sort((a, b) => a.skill.localeCompare(b.skill)));
+    setStartingSkillOptions2(secondOptions.sort((a, b) => a.skill.localeCompare(b.skill)));
+  }, [selectedRace, skills]);
+
   useEffect(() => {
     if (selectedRace && racePictures.length > 0) {
       const matchingPictures = racePictures.filter(pic => pic.race_ID === selectedRace.id);
-      console.log(`[DEBUG] Species: ${selectedRace.name} (ID: ${selectedRace.id})`);
-      console.log(`[DEBUG] Matching pictures in SW_pictures:`, matchingPictures);
-      
       if (matchingPictures.length > 0) {
         const randomPic = matchingPictures[Math.floor(Math.random() * matchingPictures.length)];
         setSelectedPictureId(randomPic.id);
-        console.log(`[DEBUG] Selected picture ID: ${randomPic.id}`);
-        console.log(`[DEBUG] Image URL: /SW_Pictures/Picture ${randomPic.id} Face.png`);
       } else {
         setSelectedPictureId(null);
-        console.log('[DEBUG] No matching pictures found for this species.');
       }
     } else {
       setSelectedPictureId(null);
-      if (selectedRace) {
-        console.log(`[DEBUG] No pictures loaded or racePictures is empty. racePictures length: ${racePictures.length}`);
-      }
     }
   }, [selectedRace, racePictures]);
 
@@ -349,21 +410,22 @@ export default function SWEotECharacterCreator() {
 
   const handleRaceChange = (e) => {
     const race = races.find((r) => r.name === e.target.value);
-    
-    if (selectedStartingSkill && skillRanks[selectedStartingSkill] !== undefined) {
-      setSkillRanks(prevRanks => ({
-        ...prevRanks,
-        [selectedStartingSkill]: Math.max(0, prevRanks[selectedStartingSkill] - 1),
-      }));
+
+    if (selectedStartingSkill1) {
+      setSkillRanks(prev => ({ ...prev, [selectedStartingSkill1]: Math.max(0, prev[selectedStartingSkill1] - 1) }));
     }
-    if (selectedStartingSkill2 && skillRanks[selectedStartingSkill2] !== undefined) {
-      setSkillRanks(prevRanks => ({
-        ...prevRanks,
-        [selectedStartingSkill2]: Math.max(0, prevRanks[selectedStartingSkill2] - 1),
-      }));
+    if (selectedStartingSkill2) {
+      setSkillRanks(prev => ({ ...prev, [selectedStartingSkill2]: Math.max(0, prev[selectedStartingSkill2] - 1) }));
     }
 
     setSelectedRace(race || null);
+    setSelectedStartingSkill1('');
+    setSelectedStartingSkill2('');
+    setIsPairedSkillRace(false);
+    setShowSecondMandalorianSkill(false);
+    setStartingSkillOptions1([]);
+    setStartingSkillOptions2([]);
+
     if (race) {
       setBaseStats({
         brawn: race.brawn,
@@ -377,32 +439,62 @@ export default function SWEotECharacterCreator() {
       setWoundThreshold((race.wound || 0) + (race.brawn || 0));
       setStrainThreshold((race.Strain || 0) + (race.willpower || 0));
     }
-    setSelectedStartingSkill('');
-    setSelectedStartingSkill2('');
     setSelectedTalents([]);
     setClickableTalents([0, 1, 2, 3]);
     setStartingTalents([]);
   };
 
+  const handleStartingSkill1Change = (e) => {
+    const newSkill = e.target.value;
+    if (selectedStartingSkill1) {
+      setSkillRanks(prev => ({ ...prev, [selectedStartingSkill1]: Math.max(0, prev[selectedStartingSkill1] - 1) }));
+    }
+    setSelectedStartingSkill1(newSkill);
+    if (newSkill) {
+      setSkillRanks(prev => ({ ...prev, [newSkill]: (prev[newSkill] || 0) + 1 }));
+    }
+
+    if (selectedRace?.name === 'Human(Mandolorian)') {
+      const skillType = skills.find(s => s.skill === newSkill)?.type;
+      if (skillType === 'Knowledge') {
+        setShowSecondMandalorianSkill(true);
+      } else {
+        setShowSecondMandalorianSkill(false);
+        if (selectedStartingSkill2) {
+          setSkillRanks(prev => ({ ...prev, [selectedStartingSkill2]: Math.max(0, prev[selectedStartingSkill2] - 1) }));
+          setSelectedStartingSkill2('');
+        }
+      }
+    }
+  };
+
+  const handleStartingSkill2Change = (e) => {
+    const newSkill = e.target.value;
+    if (selectedStartingSkill2) {
+      setSkillRanks(prev => ({ ...prev, [selectedStartingSkill2]: Math.max(0, prev[selectedStartingSkill2] - 1) }));
+    }
+    setSelectedStartingSkill2(newSkill);
+    if (newSkill) {
+      setSkillRanks(prev => ({ ...prev, [newSkill]: (prev[newSkill] || 0) + 1 }));
+    }
+  };
+
   const updateStat = (statName, delta) => {
     setSelectedRace(prevRace => {
       if (!prevRace) return prevRace;
-      const baseValue = baseStats[statName] || 0;
-      const currentValue = prevRace[statName] || baseValue;
+      const baseValue = baseStats[statName.toLowerCase()] || 0;
+      const currentValue = prevRace[statName.toLowerCase()] || baseValue;
       if (delta > 0) {
         const newRank = currentValue + delta;
         const cost = statCosts.find(c => c.rank === newRank)?.exp || 0;
         if (exp >= cost) {
           setExp(exp - cost);
-          const updatedRace = { ...prevRace, [statName]: newRank };
-          if (statName === 'brawn') {
-            setWoundThreshold(woundThreshold + delta);
-          } else if (statName === 'willpower') {
-            setStrainThreshold(strainThreshold + delta);
-          }
+          const updatedRace = { ...prevRace, [statName.toLowerCase()]: newRank };
+          if (statName === 'brawn') setWoundThreshold(woundThreshold + delta);
+          else if (statName === 'willpower') setStrainThreshold(strainThreshold + delta);
           return updatedRace;
         } else {
-          console.log('Not enough EXP to increase stat');
+          alert('Not enough EXP');
           return prevRace;
         }
       } else if (delta < 0) {
@@ -410,15 +502,12 @@ export default function SWEotECharacterCreator() {
           const currentRank = currentValue;
           const cost = statCosts.find(c => c.rank === currentRank)?.exp || 0;
           setExp(exp + cost);
-          const updatedRace = { ...prevRace, [statName]: currentValue + delta };
-          if (statName === 'brawn') {
-            setWoundThreshold(woundThreshold + delta);
-          } else if (statName === 'willpower') {
-            setStrainThreshold(strainThreshold + delta);
-          }
+          const updatedRace = { ...prevRace, [statName.toLowerCase()]: currentValue + delta };
+          if (statName === 'brawn') setWoundThreshold(woundThreshold + delta);
+          else if (statName === 'willpower') setStrainThreshold(strainThreshold + delta);
           return updatedRace;
         } else {
-          console.log('Cannot decrease below base value');
+          alert('Cannot decrease below base value');
           return prevRace;
         }
       }
@@ -440,17 +529,14 @@ export default function SWEotECharacterCreator() {
           return prevRanks;
         }
       } else if (delta < 0) {
-        if (skillName === selectedStartingSkill && currentRank === 1) {
-          alert('You cannot decrease your starter skill');
+        if ((skillName === selectedStartingSkill1 || skillName === selectedStartingSkill2) && currentRank === 1) {
+          alert('You cannot decrease your starting skill');
           return prevRanks;
         }
         if (currentRank > 0) {
           const currentCost = statCosts.find(c => c.rank === currentRank)?.exp || 0;
           setExp(exp + currentCost);
           return { ...prevRanks, [skillName]: currentRank + delta };
-        } else {
-          console.log('Cannot decrease below 0 rank');
-          return prevRanks;
         }
       }
       return prevRanks;
@@ -458,52 +544,11 @@ export default function SWEotECharacterCreator() {
   };
 
   const getBaseStatValue = (statName) => {
-    return selectedRace?.[statName.toLowerCase()] || 0;
+    const key = statName.toLowerCase();
+    return selectedRace?.[key] || 0;
   };
 
-  const handleStartingSkillChange = (e) => {
-    const newSkill = e.target.value;
-    setSelectedStartingSkill(newSkill);
-    
-    if (selectedStartingSkill && skillRanks[selectedStartingSkill] !== undefined) {
-      setSkillRanks((prevRanks) => ({
-        ...prevRanks,
-        [selectedStartingSkill]: Math.max(0, prevRanks[selectedStartingSkill] - 1),
-      }));
-    }
-
-    if (newSkill) {
-      setSkillRanks((prevRanks) => ({
-        ...prevRanks,
-        [newSkill]: (prevRanks[newSkill] || 0) + 1,
-      }));
-    }
-
-    if (selectedStartingSkill2 && selectedStartingSkill2 === newSkill) {
-      setSelectedStartingSkill2('');
-    }
-  };
-
-  const handleStartingSkill2Change = (e) => {
-    const newSkill = e.target.value;
-    setSelectedStartingSkill2(newSkill);
-    
-    if (selectedStartingSkill2 && skillRanks[selectedStartingSkill2] !== undefined) {
-      setSkillRanks((prevRanks) => ({
-        ...prevRanks,
-        [selectedStartingSkill2]: Math.max(0, prevRanks[selectedStartingSkill2] - 1),
-      }));
-    }
-
-    if (newSkill) {
-      setSkillRanks((prevRanks) => ({
-        ...prevRanks,
-        [newSkill]: (prevRanks[newSkill] || 0) + 1,
-      }));
-    }
-  };
-
-  const handleCareerChange = (e) => {
+  const handleCareerChange = async (e) => {
     const careerName = e.target.value;
 
     selectedCareerSkills.forEach(skill => {
@@ -535,6 +580,17 @@ export default function SWEotECharacterCreator() {
     setSelectedSpecSkill2('');
     setSelectedTalents([]);
     setClickableTalents([0, 1, 2, 3]);
+
+    if (careerName) {
+      const { data: careerData } = await supabase
+        .from('SW_career')
+        .select('Force_Sensitive')
+        .eq('name', careerName)
+        .single();
+      setIsForceSensitiveCareer(!!careerData?.Force_Sensitive);
+    } else {
+      setIsForceSensitiveCareer(false);
+    }
   };
 
   const handleSpecializationChange = (e) => {
@@ -623,58 +679,6 @@ export default function SWEotECharacterCreator() {
     return allSkills.filter(skill => !selectedSkills.includes(skill)).sort();
   };
 
-  const getStartingSkillOptions = () => {
-    if (!selectedRace) return [];
-
-    if (selectedRace.name === 'Human') {
-      return skills.map(s => ({ name: s.skill, type: s.type })).sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    if (selectedRace.name === 'Human(Mandolorian)') {
-      return skills
-        .filter(s => s.type === 'Combat' || s.type === 'Knowledge')
-        .map(s => ({ name: s.skill, type: s.type }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    return selectedRace.Starting_Skill?.split(',')
-      .map(s => s.trim())
-      .filter(s => s)
-      .map(skillName => {
-        const skill = skills.find(s => s.skill === skillName);
-        return { name: skillName, type: skill?.type || '' };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name)) || [];
-  };
-
-  const showSecondSkill = selectedRace?.name === 'Human' || 
-    (selectedRace?.name === 'Human(Mandolorian)' && 
-     selectedStartingSkill && 
-     skills.find(s => s.skill === selectedStartingSkill)?.type === 'Knowledge');
-
-  const getSecondSkillOptions = () => {
-    if (!showSecondSkill) return [];
-    
-    if (selectedRace?.name === 'Human') {
-      return skills
-        .filter(s => s.skill !== selectedStartingSkill)
-        .map(s => ({ name: s.skill, type: s.type }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    }
-    
-    if (selectedRace?.name === 'Human(Mandolorian)' && selectedStartingSkill) {
-      const firstSkillType = skills.find(s => s.skill === selectedStartingSkill)?.type;
-      if (firstSkillType === 'Knowledge') {
-        return skills
-          .filter(s => s.type === 'Knowledge' && s.skill !== selectedStartingSkill)
-          .map(s => ({ name: s.skill, type: s.type }))
-          .sort((a, b) => a.name.localeCompare(b.name));
-      }
-    }
-    
-    return [];
-  };
-
   const getSkillRank = (skillName) => {
     return skillRanks[skillName] !== undefined ? skillRanks[skillName] : 0;
   };
@@ -690,9 +694,6 @@ export default function SWEotECharacterCreator() {
         dicePool[i] = 'Y';
       }
       dicePool = dicePool.join('');
-    } else if (rank < 0) {
-      const yCount = Math.max(0, baseStat + rank);
-      dicePool = 'G'.repeat(yCount) + 'Y'.repeat(baseStat - yCount);
     }
     return dicePool;
   };
@@ -728,6 +729,8 @@ export default function SWEotECharacterCreator() {
     return startingTalents.map(t => t.name).join(', ');
   };
 
+  const getForceRating = () => (isForceSensitiveCareer ? 1 : 0);
+
   const handleSave = async () => {
     const username = localStorage.getItem('username');
     if (!username) {
@@ -762,81 +765,61 @@ export default function SWEotECharacterCreator() {
     const careerSkillsString = selectedCareerSkills.filter(skill => skill).join(', ');
     const specSkillsString = [selectedSpecSkill1, selectedSpecSkill2].filter(skill => skill).join(', ');
     const startingTalentsString = buildStartingTalentsString();
-
     const finalSpecSkills = [specSkillsString, startingTalentsString].filter(s => s).join(', ');
 
     const { talentTreeString, talentString } = buildTalentStrings();
     const startingTalentsForTalentsField = startingTalentsString ? (talentString ? `${talentString}, ${startingTalentsString}` : startingTalentsString) : talentString;
 
     const startingSkillCombined = selectedStartingSkill2 
-      ? `${selectedStartingSkill}, ${selectedStartingSkill2}` 
-      : selectedStartingSkill;
+      ? `${selectedStartingSkill1}, ${selectedStartingSkill2}` 
+      : selectedStartingSkill1;
+
+    const commonFields = {
+      name: characterName,
+      race: selectedRace?.name || '',
+      brawn: selectedRace?.brawn || 0,
+      agility: selectedRace?.agility || 0,
+      intellect: selectedRace?.intellect || 0,
+      cunning: selectedRace?.cunning || 0,
+      willpower: selectedRace?.willpower || 0,
+      presence: selectedRace?.presence || 0,
+      exp: exp,
+      starting_skill: startingSkillCombined,
+      career: selectedCareer,
+      career_skills: careerSkillsString,
+      spec: selectedSpecialization,
+      spec_skills: finalSpecSkills,
+      talent_tree: talentTreeString,
+      talents: startingTalentsForTalentsField,
+      skills_rank: skillsRankString,
+      backstory: backstory,
+      wound_threshold: woundThreshold,
+      strain_threshold: strainThreshold,
+      force_rating: getForceRating(),
+    };
 
     if (characterId) {
       const { error: updateError } = await supabase
         .from('SW_player_characters')
-        .update({
-          name: characterName,
-          race: selectedRace?.name || '',
-          brawn: selectedRace?.brawn,
-          agility: selectedRace?.agility,
-          intellect: selectedRace?.intellect,
-          cunning: selectedRace?.cunning,
-          willpower: selectedRace?.willpower,
-          presence: selectedRace?.presence,
-          exp: exp,
-          starting_skill: startingSkillCombined,
-          career: selectedCareer,
-          career_skills: careerSkillsString,
-          spec: selectedSpecialization,
-          spec_skills: finalSpecSkills,
-          talent_tree: talentTreeString,
-          talents: startingTalentsForTalentsField,
-          skills_rank: skillsRankString,
-          backstory: backstory,
-          wound_threshold: woundThreshold,
-          strain_threshold: strainThreshold,
-        })
+        .update(commonFields)
         .eq('user_number', userId)
         .eq('id', characterId);
 
-      if (updateError) {
-        console.error('Error updating character:', updateError);
-      } else {
-        alert(`${characterName} is saved`);
-      }
+      if (updateError) console.error('Error updating character:', updateError);
+      else alert(`${characterName} is saved`);
     } else {
-      const { data, error } = await supabase.from('SW_player_characters').insert([
-        {
+      const { data, error } = await supabase
+        .from('SW_player_characters')
+        .insert([{
+          ...commonFields,
           user_number: userId,
-          name: characterName,
-          race: selectedRace?.name || '',
-          brawn: selectedRace?.brawn || 0,
-          agility: selectedRace?.agility || 0,
-          intellect: selectedRace?.intellect || 0,
-          cunning: selectedRace?.cunning || 0,
-          willpower: selectedRace?.willpower || 0,
-          presence: selectedRace?.presence || 0,
-          exp: exp,
-          starting_skill: startingSkillCombined,
-          career: selectedCareer,
-          career_skills: careerSkillsString,
-          spec: selectedSpecialization,
-          spec_skills: finalSpecSkills,
-          talent_tree: talentTreeString,
-          talents: startingTalentsForTalentsField,
-          skills_rank: skillsRankString,
-          backstory: backstory,
-          wound_threshold: woundThreshold,
-          strain_threshold: strainThreshold,
           wound_current: woundThreshold,
           strain_current: strainThreshold,
-        },
-      ]).select();
+        }])
+        .select();
 
-      if (error) {
-        console.error('Error saving character:', error);
-      } else {
+      if (error) console.error('Error saving character:', error);
+      else {
         setCharacterId(data[0].id);
         alert(`${characterName} is saved`);
       }
@@ -844,120 +827,9 @@ export default function SWEotECharacterCreator() {
   };
 
   const handleFinishCharacter = async () => {
-    const username = localStorage.getItem('username');
-    if (!username) {
-      console.error('No username found in localStorage');
-      return;
-    }
-
-    const { data: userData, error: userError } = await supabase
-      .from('user')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !userData) {
-      console.error('Error fetching user id:', userError);
-      return;
-    }
-
-    const userId = userData.id;
-
-    let skillsRankString = '';
-    for (const skill in skillRanks) {
-      const rank = skillRanks[skill];
-      if (rank > 0) {
-        for (let i = 0; i < rank; i++) {
-          skillsRankString += skill + (i < rank - 1 || Object.keys(skillRanks).some(s => skillRanks[s] > 0 && s !== skill) ? ', ' : '');
-        }
-      }
-    }
-    skillsRankString = skillsRankString.replace(/, $/, '');
-
-    const careerSkillsString = selectedCareerSkills.filter(skill => skill).join(', ');
-    const specSkillsString = [selectedSpecSkill1, selectedSpecSkill2].filter(skill => skill).join(', ');
-    const startingTalentsString = buildStartingTalentsString();
-
-    const finalSpecSkills = [specSkillsString, startingTalentsString].filter(s => s).join(', ');
-
-    const { talentTreeString, talentString } = buildTalentStrings();
-    const startingTalentsForTalentsField = startingTalentsString ? (talentString ? `${talentString}, ${startingTalentsString}` : startingTalentsString) : talentString;
-
-    const startingSkillCombined = selectedStartingSkill2 
-      ? `${selectedStartingSkill}, ${selectedStartingSkill2}` 
-      : selectedStartingSkill;
-
-    if (characterId) {
-      const { error: updateError } = await supabase
-        .from('SW_player_characters')
-        .update({
-          name: characterName,
-          race: selectedRace?.name || '',
-          brawn: selectedRace?.brawn,
-          agility: selectedRace?.agility,
-          intellect: selectedRace?.intellect,
-          cunning: selectedRace?.cunning,
-          willpower: selectedRace?.willpower,
-          presence: selectedRace?.presence,
-          exp: exp,
-          starting_skill: startingSkillCombined,
-          career: selectedCareer,
-          career_skills: careerSkillsString,
-          spec: selectedSpecialization,
-          spec_skills: finalSpecSkills,
-          talent_tree: talentTreeString,
-          talents: startingTalentsForTalentsField,
-          skills_rank: skillsRankString,
-          backstory: backstory,
-          wound_threshold: woundThreshold,
-          strain_threshold: strainThreshold,
-        })
-        .eq('user_number', userId)
-        .eq('id', characterId);
-
-      if (updateError) {
-        console.error('Error updating character:', updateError);
-      } else {
-        localStorage.setItem('loadedCharacterId', characterId);
-        navigate('/SW_character_overview');
-      }
-    } else {
-      const { data, error } = await supabase.from('SW_player_characters').insert([
-        {
-          user_number: userId,
-          name: characterName,
-          race: selectedRace?.name || '',
-          brawn: selectedRace?.brawn || 0,
-          agility: selectedRace?.agility || 0,
-          intellect: selectedRace?.intellect || 0,
-          cunning: selectedRace?.cunning || 0,
-          willpower: selectedRace?.willpower || 0,
-          presence: selectedRace?.presence || 0,
-          exp: exp,
-          starting_skill: startingSkillCombined,
-          career: selectedCareer,
-          career_skills: careerSkillsString,
-          spec: selectedSpecialization,
-          spec_skills: finalSpecSkills,
-          talent_tree: talentTreeString,
-          talents: startingTalentsForTalentsField,
-          skills_rank: skillsRankString,
-          backstory: backstory,
-          wound_threshold: woundThreshold,
-          strain_threshold: strainThreshold,
-          wound_current: woundThreshold,
-          strain_current: strainThreshold,
-        },
-      ]).select();
-
-      if (error) {
-        console.error('Error saving character:', error);
-      } else {
-        setCharacterId(data[0].id);
-        localStorage.setItem('loadedCharacterId', data[0].id);
-        navigate('/SW_character_overview');
-      }
-    }
+    await handleSave();
+    localStorage.setItem('loadedCharacterId', characterId || localStorage.getItem('loadedCharacterId'));
+    navigate('/SW_character_overview');
   };
 
   const handleSelectTTRPG = () => {
@@ -981,9 +853,7 @@ export default function SWEotECharacterCreator() {
         let choiceType = null;
         if (requiresChoice) {
           const match = description.match(/choose 1 (combat|knowledge|general)/i);
-          if (match) {
-            choiceType = match[1].toLowerCase();
-          }
+          if (match) choiceType = match[1].toLowerCase();
         }
         const isDedication = ability?.ability === 'Dedication';
         treeData.push({
@@ -1054,18 +924,10 @@ export default function SWEotECharacterCreator() {
           const field = `ability_${(selRow + 1) * 5}_${selCol + 1}_links`;
           const links = specTree[field] ? specTree[field].split(',').map(l => l.trim()) : [];
           links.forEach(link => {
-            if (link === 'Down' && selRow < 4) {
-              newClickable.add((selRow + 1) * 4 + selCol);
-            }
-            if (link === 'Up' && selRow > 0) {
-              newClickable.add((selRow - 1) * 4 + selCol);
-            }
-            if (link === 'Left' && selCol > 0) {
-              newClickable.add(selRow * 4 + (selCol - 1));
-            }
-            if (link === 'Right' && selCol < 3) {
-              newClickable.add(selRow * 4 + (selCol + 1));
-            }
+            if (link === 'Down' && selRow < 4) newClickable.add((selRow + 1) * 4 + selCol);
+            if (link === 'Up' && selRow > 0) newClickable.add((selRow - 1) * 4 + selCol);
+            if (link === 'Left' && selCol > 0) newClickable.add(selRow * 4 + (selCol - 1));
+            if (link === 'Right' && selCol < 3) newClickable.add(selRow * 4 + (selCol + 1));
           });
         });
       }
@@ -1086,18 +948,10 @@ export default function SWEotECharacterCreator() {
 
       const newClickable = new Set(clickableTalents);
       newClickable.add(index);
-      if (talentData.links.includes('Down') && row < 4) {
-        newClickable.add((row + 1) * 4 + (index % 4));
-      }
-      if (talentData.links.includes('Up') && row > 0) {
-        newClickable.add((row - 1) * 4 + (index % 4));
-      }
-      if (talentData.links.includes('Left') && index % 4 > 0) {
-        newClickable.add(index - 1);
-      }
-      if (talentData.links.includes('Right') && index % 4 < 3) {
-        newClickable.add(index + 1);
-      }
+      if (talentData.links.includes('Down') && row < 4) newClickable.add((row + 1) * 4 + (index % 4));
+      if (talentData.links.includes('Up') && row > 0) newClickable.add((row - 1) * 4 + (index % 4));
+      if (talentData.links.includes('Left') && index % 4 > 0) newClickable.add(index - 1);
+      if (talentData.links.includes('Right') && index % 4 < 3) newClickable.add(index + 1);
       setClickableTalents(Array.from(newClickable));
     } else {
       alert('Not enough EXP to unlock this talent');
@@ -1154,28 +1008,18 @@ export default function SWEotECharacterCreator() {
     }
   };
 
+  const formatCareerName = (career) => {
+    return career.Force_Sensitive ? `${career.name} (Force Sensitive)` : career.name;
+  };
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-white py-10" style={{ maxWidth: '1600px', minWidth: '1600px', margin: '0 auto' }}>
-      <img
-        src="/SWEotE.webp"
-        alt="Star Wars: Edge of the Empire"
-        className="w-64 mb-6"
-      />
+      <img src="/SWEotE.webp" alt="Star Wars: Edge of the Empire" className="w-64 mb-6" />
 
       <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '100px' }}>
         <div className="flex space-x-2">
-          <button
-            onClick={handleSave}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Save
-          </button>
-          <button
-            onClick={handleSelectTTRPG}
-            className="flex-1 px-2 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Select TTRPG
-          </button>
+          <button onClick={handleSave} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
+          <button onClick={handleSelectTTRPG} className="flex-1 px-2 py-2 bg-green-600 text-white rounded hover:bg-green-700">Select TTRPG</button>
         </div>
       </div>
 
@@ -1194,69 +1038,22 @@ export default function SWEotECharacterCreator() {
 
           <div className="flex items-center justify-center space-x-6">
             <h2 className="font-bold text-xl">EXP:</h2>
-            <button
-              onClick={() => handleExpChange(-1)}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-lg"
-            >
-              −
-            </button>
-            <span className="border-4 border-black rounded px-8 py-3 font-bold text-3xl min-w-32 text-center">
-              {exp}
-            </span>
-            <button
-              onClick={() => handleExpChange(1)}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-lg"
-            >
-              +
-            </button>
+            <button onClick={() => handleExpChange(-1)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-lg">-</button>
+            <span className="border-4 border-black rounded px-8 py-3 font-bold text-3xl min-w-32 text-center">{exp}</span>
+            <button onClick={() => handleExpChange(1)} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-lg">+</button>
           </div>
         </div>
       </div>
 
       <div className="w-full mb-4">
         <div className="flex border-2 border-black rounded-lg overflow-hidden">
-          <button
-            onClick={() => handleTabClick('Species')}
-            className={`px-6 py-2 font-semibold ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
-          >
-            Species
-          </button>
-          <button
-            onClick={() => handleTabClick('Stats')}
-            className={`px-6 py-2 font-semibold ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
-          >
-            Stats
-          </button>
-          <button
-            onClick={() => handleTabClick('Skills')}
-            className={`px-6 py-2 font-semibold ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
-          >
-            Skills
-          </button>
-          <button
-            onClick={() => handleTabClick('Career')}
-            className={`px-6 py-2 font-semibold ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
-          >
-            Career
-          </button>
-          <button
-            onClick={() => handleTabClick('Talent Tree')}
-            className={`px-6 py-2 font-semibold ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
-          >
-            Talent Tree
-          </button>
-          <button
-            onClick={() => handleTabClick('Backstory')}
-            className={`px-6 py-2 font-semibold ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
-          >
-            Backstory
-          </button>
-          <button
-            onClick={() => handleTabClick('Finish')}
-            className={`px-6 py-2 font-semibold ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}
-          >
-            Finish
-          </button>
+          <button onClick={() => handleTabClick('Species')} className={`px-6 py-2 font-semibold ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Species</button>
+          <button onClick={() => handleTabClick('Stats')} className={`px-6 py-2 font-semibold ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Stats</button>
+          <button onClick={() => handleTabClick('Skills')} className={`px-6 py-2 font-semibold ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Skills</button>
+          <button onClick={() => handleTabClick('Career')} className={`px-6 py-2 font-semibold ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Career</button>
+          <button onClick={() => handleTabClick('Talent Tree')} className={`px-6 py-2 font-semibold ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Talent Tree</button>
+          <button onClick={() => handleTabClick('Backstory')} className={`px-6 py-2 font-semibold ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Backstory</button>
+          <button onClick={() => handleTabClick('Finish')} className={`px-6 py-2 font-semibold ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Finish</button>
         </div>
       </div>
 
@@ -1264,16 +1061,10 @@ export default function SWEotECharacterCreator() {
         <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
           <h2 className="font-bold text-lg mb-4">Select Species</h2>
           <div className="flex justify-center mb-6">
-            <select
-              onChange={handleRaceChange}
-              className="border border-black rounded px-4 py-2 text-lg"
-              value={selectedRace?.name || ''}
-            >
+            <select onChange={handleRaceChange} className="border border-black rounded px-4 py-2 text-lg" value={selectedRace?.name || ''}>
               <option value="">Select Species</option>
               {races.map((race) => (
-                <option key={race.id} value={race.name}>
-                  {race.name}
-                </option>
+                <option key={race.id} value={race.name}>{race.name}</option>
               ))}
             </select>
           </div>
@@ -1281,21 +1072,10 @@ export default function SWEotECharacterCreator() {
           {selectedRace && (
             <>
               <div className="flex gap-8 mb-6">
-                {/* Species Image - Shrunk to fit image only */}
                 <div className="flex flex-col items-center">
                   <h3 className="font-bold text-base mb-2">Species Image</h3>
                   {selectedPictureId ? (
-                    <img
-                      src={`/SW_Pictures/Picture ${selectedPictureId} Face.png`}
-                      alt={`${selectedRace.name} portrait`}
-                      className="border border-black rounded object-contain"
-                      style={{ maxHeight: '200px', width: 'auto' }}
-                      onLoad={() => console.log(`[DEBUG] Image loaded: /SW_Pictures/Picture ${selectedPictureId} Face.png`)}
-                      onError={(e) => {
-                        console.error(`[DEBUG] Failed to load: /SW_Pictures/Picture ${selectedPictureId} Face.png`);
-                        console.error('[DEBUG] Check filename and path.');
-                      }}
-                    />
+                    <img src={`/SW_Pictures/Picture ${selectedPictureId} Face.png`} alt={`${selectedRace.name} portrait`} className="border border-black rounded object-contain" style={{ maxHeight: '200px', width: 'auto' }} />
                   ) : (
                     <div className="w-48 h-48 border border-dashed border-gray-400 rounded flex items-center justify-center bg-gray-100">
                       <p className="text-gray-500">No image</p>
@@ -1303,46 +1083,90 @@ export default function SWEotECharacterCreator() {
                   )}
                 </div>
 
-                {/* Species Description */}
                 <div className="flex-1">
                   <h3 className="font-bold text-base mb-2">Species Description</h3>
                   <div className="text-left p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto">
                     {selectedRace.description || 'No description available'}
                   </div>
 
-                  {/* Starting Skills & Talents - Directly under Description */}
                   <div className="mt-4">
                     <h3 className="font-bold text-base mb-2">Starting Skills & Talents</h3>
-                    <div className="text-left p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto space-y-3">
-                      <div>
-                        <h4 className="font-semibold">Starting Skill</h4>
-                        <select
-                          value={selectedStartingSkill}
-                          onChange={handleStartingSkillChange}
-                          className="border border-black rounded px-2 py-1 w-full mt-1"
-                        >
-                          <option value="">Select Starting Skill</option>
-                          {getStartingSkillOptions().map((skill, index) => (
-                            <option key={index} value={skill.name}>
-                              {skill.name} ({skill.type})
-                            </option>
-                          ))}
-                        </select>
+                    <div className="text-left p-4 border border-black rounded bg-gray-50 h-64 overflow-y-auto space-y-4">
 
-                        {showSecondSkill && (
+                      <div>
+                        <h4 className="font-semibold">Starting Skill Selection</h4>
+
+                        {/* First Skill Dropdown */}
+                        <div className="mt-2">
+                          <label className="block font-semibold">Skill 1</label>
+                          <select
+                            value={selectedStartingSkill1}
+                            onChange={handleStartingSkill1Change}
+                            className="border border-black rounded px-2 py-1 w-full mt-1"
+                            disabled={startingSkillOptions1.length === 0}
+                          >
+                            <option value="">
+                              {startingSkillOptions1.length === 0 ? 'No starting skill' : 'Select Skill'}
+                            </option>
+                            {startingSkillOptions1.map((s, i) => (
+                              <option key={i} value={s.skill}>{s.skill} ({s.type})</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Second Skill Dropdown — only for "and" species */}
+                        {isPairedSkillRace && (
                           <div className="mt-3">
-                            <label className="font-semibold block mb-1">Second Starting Skill</label>
+                            <label className="block font-semibold">Skill 2</label>
                             <select
                               value={selectedStartingSkill2}
                               onChange={handleStartingSkill2Change}
-                              className="border border-black rounded px-2 py-1 w-full"
+                              className="border border-black rounded px-2 py-1 w-full mt-1"
                             >
-                              <option value="">Select Second Skill</option>
-                              {getSecondSkillOptions().map((skill, i) => (
-                                <option key={i} value={skill.name}>
-                                  {skill.name} ({skill.type})
-                                </option>
-                              ))}
+                              <option value="">Select Skill</option>
+                              {startingSkillOptions2
+                                .filter(s => s.skill !== selectedStartingSkill1)
+                                .map((s, i) => (
+                                  <option key={i} value={s.skill}>{s.skill} ({s.type})</option>
+                                ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Human gets free choice for second skill */}
+                        {selectedRace.name === 'Human' && selectedStartingSkill1 && !isPairedSkillRace && (
+                          <div className="mt-3">
+                            <label className="block font-semibold">Free Second Skill</label>
+                            <select
+                              value={selectedStartingSkill2}
+                              onChange={handleStartingSkill2Change}
+                              className="border border-black rounded px-2 py-1 w-full mt-1"
+                            >
+                              <option value="">Select Any Skill</option>
+                              {startingSkillOptions2
+                                .filter(s => s.skill !== selectedStartingSkill1)
+                                .map((s, i) => (
+                                  <option key={i} value={s.skill}>{s.skill} ({s.type})</option>
+                                ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Mandalorian gets additional knowledge skill if first is knowledge */}
+                        {selectedRace.name === 'Human(Mandolorian)' && selectedStartingSkill1 && showSecondMandalorianSkill && !isPairedSkillRace && (
+                          <div className="mt-3">
+                            <label className="block font-semibold">Additional Knowledge Skill</label>
+                            <select
+                              value={selectedStartingSkill2}
+                              onChange={handleStartingSkill2Change}
+                              className="border border-black rounded px-2 py-1 w-full mt-1"
+                            >
+                              <option value="">Select Knowledge Skill</option>
+                              {startingSkillOptions2
+                                .filter(s => s.skill !== selectedStartingSkill1)
+                                .map((s, i) => (
+                                  <option key={i} value={s.skill}>{s.skill} ({s.type})</option>
+                                ))}
                             </select>
                           </div>
                         )}
@@ -1369,77 +1193,20 @@ export default function SWEotECharacterCreator() {
         </div>
       )}
 
-      {!selectedRace && activeTab !== 'Species' && (
-        <div className="border-2 border-black rounded-lg p-8 w-full text-center mb-4" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p className="text-3xl font-bold text-red-600">Please choose a Species first</p>
-        </div>
-      )}
-
       {selectedRace && activeTab === 'Stats' && (
         <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '400px', display: 'flex', justifyContent: 'center' }}>
           <h2 className="font-bold text-lg mb-3">Stats</h2>
           <table className="border border-black text-center" style={{ tableLayout: 'auto', margin: '0 auto' }}>
             <tbody>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-1">Brawn</th>
-                <td className="border border-black py-1">
-                  <button onClick={() => updateStat('brawn', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
-                  <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('brawn')}</span>
-                  <button onClick={() => updateStat('brawn', 1)} classname="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
-                </td>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-1">Agility</th>
-                <td className="border border-black py-1">
-                  <button onClick={() => updateStat('agility', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
-                  <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('agility')}</span>
-                  <button onClick={() => updateStat('agility', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
-                </td>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-1">Intellect</th>
-                <td className="border border-black py-1">
-                  <button onClick={() => updateStat('intellect', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
-                  <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('intellect')}</span>
-                  <button onClick={() => updateStat('intellect', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
-                </td>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-11">Cunning</th>
-                <td className="border border-black py-1">
-                  <button onClick={() => updateStat('cunning', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
-                  <span style={{ color: 'black', margin: '0 4px' }}>{getBaseStatValue('cunning')}</span>
-                  <button onClick={() => updateStat('cunning', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
-                </td>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-1">Willpower</th>
-                <td className="border border-black py-1">
-                  <button onClick={() => updateStat('willpower', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
-                  <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('willpower')}</span>
-                  <button onClick={() => updateStat('willpower', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
-                </td>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-1">Presence</th>
-                <td className="border border-black py-1">
-                  <button onClick={() => updateStat('presence', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
-                  <span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('presence')}</span>
-                  <button onClick={() => updateStat('presence', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
-                </td>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-1">Wound Threshold</th>
-                <td className="border border-black py-1" style={{ color: 'black' }}>{woundThreshold}</td>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-1">Strain Threshold</th>
-                <td className="border border-black py-1" style={{ color: 'black' }}>{strainThreshold}</td>
-              </tr>
-              <tr className="bg-gray-100">
-                <th className="border border-black py-1">Species Attack</th>
-                <td className="border border-black py-1" style={{ color: 'black' }}>{selectedRace.Race_Attack}</td>
-              </tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Brawn</th><td className="border border-black py-1"><button onClick={() => updateStat('brawn', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('brawn')}</span><button onClick={() => updateStat('brawn', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Agility</th><td className="border border-black py-1"><button onClick={() => updateStat('agility', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('agility')}</span><button onClick={() => updateStat('agility', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Intellect</th><td className="border border-black py-1"><button onClick={() => updateStat('intellect', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('intellect')}</span><button onClick={() => updateStat('intellect', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Cunning</th><td className="border border-black py-1"><button onClick={() => updateStat('cunning', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 4px' }}>{getBaseStatValue('cunning')}</span><button onClick={() => updateStat('cunning', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Willpower</th><td className="border border-black py-1"><button onClick={() => updateStat('willpower', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('willpower')}</span><button onClick={() => updateStat('willpower', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Presence</th><td className="border border-black py-1"><button onClick={() => updateStat('presence', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('presence')}</span><button onClick={() => updateStat('presence', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Wound Threshold</th><td className="border border-black py-1" style={{ color: 'black' }}>{woundThreshold}</td></tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Strain Threshold</th><td className="border border-black py-1" style={{ color: 'black' }}>{strainThreshold}</td></tr>
+              <tr className="bg-gray-100"><th className="border border-black py-1">Species Attack</th><td className="border border-black py-1" style={{ color: 'black' }}>{selectedRace.Race_Attack}</td></tr>
             </tbody>
           </table>
         </div>
@@ -1490,7 +1257,7 @@ export default function SWEotECharacterCreator() {
                   <option value="">Select Career</option>
                   {careers.map((career) => (
                     <option key={career.id} value={career.name}>
-                      {career.name}
+                      {formatCareerName(career)}
                     </option>
                   ))}
                 </select>
@@ -1513,9 +1280,7 @@ export default function SWEotECharacterCreator() {
                         >
                           <option value="">Select Skill</option>
                           {getAvailableSkills(index).map((skill, i) => (
-                            <option key={i} value={skill}>
-                              {skill}
-                            </option>
+                            <option key={i} value={skill}>{skill}</option>
                           ))}
                         </select>
                       </div>
@@ -1614,19 +1379,13 @@ export default function SWEotECharacterCreator() {
                           const isTalentBox = colIndex % 2 === 0 && colIndex < 8 && isTalentRow;
                           const index = adjustedRowIndex * 4 + talentIndex;
                           const talent = isTalentBox ? getTalentTreeData()[index] : null;
-                          const isFirstInRow = talentIndex === 0;
-                          const isFirstInCol = adjustedRowIndex === 0;
                           return (
-                            <td
-                              key={colIndex}
-                              className={isTalentBox ? 'p-2 align-top' : 'p-2'}
-                              style={{
-                                position: 'relative',
-                                border: isTalentBox ? '2px solid black' : 'none',
-                                width: isTalentBox ? '388.8px' : '16px',
-                                height: isTalentBox ? '176px' : '16px',
-                              }}
-                            >
+                            <td key={colIndex} className={isTalentBox ? 'p-2 align-top' : 'p-2'} style={{
+                              position: 'relative',
+                              border: isTalentBox ? '2px solid black' : 'none',
+                              width: isTalentBox ? '388.8px' : '16px',
+                              height: isTalentBox ? '176px' : '16px',
+                            }}>
                               {isTalentBox && (
                                 <div
                                   className="talent-box"
@@ -1658,10 +1417,7 @@ export default function SWEotECharacterCreator() {
                                         value={talentChoices[index] || ''}
                                         onChange={(e) => {
                                           const value = e.target.value;
-                                          setTalentChoices(prev => ({
-                                            ...prev,
-                                            [index]: value
-                                          }));
+                                          setTalentChoices(prev => ({ ...prev, [index]: value }));
                                         }}
                                         onClick={(e) => e.stopPropagation()}
                                         className="w-full text-xs border border-black rounded px-1 py-0.5"
@@ -1687,11 +1443,7 @@ export default function SWEotECharacterCreator() {
                                       >
                                         <option value="">Choose Characteristic...</option>
                                         {CHARACTERISTICS.map(char => (
-                                          <option 
-                                            key={char} 
-                                            value={char}
-                                            disabled={getBaseStatValue(char.toLowerCase()) >= 6}
-                                          >
+                                          <option key={char} value={char} disabled={getBaseStatValue(char.toLowerCase()) >= 6}>
                                             {char} ({getBaseStatValue(char.toLowerCase())})
                                           </option>
                                         ))}
@@ -1702,57 +1454,17 @@ export default function SWEotECharacterCreator() {
                               )}
                               {isTalentBox && talent && talent.links && talent.links.length > 0 && (
                                 <>
-                                  {talent.links.includes('Up') && !isFirstInCol && adjustedRowIndex > 0 && (
-                                    <div
-                                      style={{
-                                        position: 'absolute',
-                                        top: '-26px',
-                                        left: '50%',
-                                        width: '2px',
-                                        height: '26px',
-                                        backgroundColor: 'black',
-                                        transform: 'translateX(-50%)',
-                                      }}
-                                    />
+                                  {talent.links.includes('Up') && adjustedRowIndex > 0 && (
+                                    <div style={{ position: 'absolute', top: '-26px', left: '50%', width: '2px', height: '26px', backgroundColor: 'black', transform: 'translateX(-50%)' }} />
                                   )}
                                   {talent.links.includes('Down') && adjustedRowIndex < 4 && (
-                                    <div
-                                      style={{
-                                        position: 'absolute',
-                                        bottom: '-26px',
-                                        left: '50%',
-                                        width: '2px',
-                                        height: '26px',
-                                        backgroundColor: 'black',
-                                        transform: 'translateX(-50%)',
-                                      }}
-                                    />
+                                    <div style={{ position: 'absolute', bottom: '-26px', left: '50%', width: '2px', height: '26px', backgroundColor: 'black', transform: 'translateX(-50%)' }} />
                                   )}
-                                  {talent.links.includes('Left') && !isFirstInRow && talentIndex > 0 && (
-                                    <div
-                                      style={{
-                                        position: 'absolute',
-                                        top: '50%',
-                                        left: '-10px',
-                                        width: '10px',
-                                        height: '2px',
-                                        backgroundColor: 'black',
-                                        transform: 'translateY(-50%)',
-                                      }}
-                                    />
+                                  {talent.links.includes('Left') && talentIndex > 0 && (
+                                    <div style={{ position: 'absolute', top: '50%', left: '-10px', width: '10px', height: '2px', backgroundColor: 'black', transform: 'translateY(-50%)' }} />
                                   )}
                                   {talent.links.includes('Right') && talentIndex < 3 && (
-                                    <div
-                                      style={{
-                                        position: 'absolute',
-                                        top: '50%',
-                                        right: '-10px',
-                                        width: '10px',
-                                        height: '2px',
-                                        backgroundColor: 'black',
-                                        transform: 'translateY(-50%)',
-                                      }}
-                                    />
+                                    <div style={{ position: 'absolute', top: '50%', right: '-10px', width: '10px', height: '2px', backgroundColor: 'black', transform: 'translateY(-50%)' }} />
                                   )}
                                 </>
                               )}
@@ -1786,12 +1498,15 @@ export default function SWEotECharacterCreator() {
       {selectedRace && activeTab === 'Finish' && (
         <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
           <h2 className="font-bold text-lg mb-6">Finish</h2>
-          <button
-            onClick={handleFinishCharacter}
-            className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
+          <button onClick={handleFinishCharacter} className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700">
             Finish Character
           </button>
+        </div>
+      )}
+
+      {!selectedRace && activeTab !== 'Species' && (
+        <div className="border-2 border-black rounded-lg p-8 w-full text-center mb-4" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p className="text-3xl font-bold text-red-600">Please choose a Species first</p>
         </div>
       )}
     </div>
