@@ -29,12 +29,19 @@ export default function SWCharacterOverview() {
   const [credits, setCredits] = useState(0);
   const [totalSoak, setTotalSoak] = useState(0);
   const [activeTab, setActiveTab] = useState('skills');
-  const [abilities, setabilities] = useState([]);
+  const [abilities, setAbilities] = useState([]);
   const [skillBonuses, setSkillBonuses] = useState({});
   const [previousSoak, setPreviousSoak] = useState(null);
   const [raceAbilities, setRaceAbilities] = useState({ Race_Attack: '', ability: '' });
   const [isForceSensitive, setIsForceSensitive] = useState(false);
   const [forceRating, setForceRating] = useState(0);
+
+  // NEW: Dynamic popup state
+  const [dicePopup, setDicePopup] = useState(null); // { pool, details, x, y }
+  const [selectedDifficulty, setSelectedDifficulty] = useState(0);
+  const [rollResults, setRollResults] = useState(null); // { poolResults: [], diffResults: [] }
+
+  const [diceMap, setDiceMap] = useState({});
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -57,40 +64,13 @@ export default function SWCharacterOverview() {
     return skillData ? getFinalDicePool(skillData.skill, skillData.stat) : '';
   };
 
-  const getEquipmentRange = () => {
-    const equip = getEquipment();
-    return equip?.range || 'N/A';
-  };
-
-  const getEquipmentDamage = () => {
-    const equip = getEquipment();
-    return equip?.damage || '';
-  };
-
-  const getEquipmentCritical = () => {
-    const equip = getEquipment();
-    return equip?.critical || '';
-  };
-
-  const getEquipmentSpecial = () => {
-    const equip = getEquipment();
-    return equip?.special || '';
-  };
-
-  const getEquipmentSoak = () => {
-    const equip = getEquipment();
-    return equip?.soak || '';
-  };
-
-  const getEquipmentDefenceMelee = () => {
-    const equip = getEquipment();
-    return equip?.defence_melee || '';
-  };
-
-  const getEquipmentDefenceRange = () => {
-    const equip = getEquipment();
-    return equip?.defence_range || '';
-  };
+  const getEquipmentRange = () => getEquipment()?.range || 'N/A';
+  const getEquipmentDamage = () => getEquipment()?.damage || '';
+  const getEquipmentCritical = () => getEquipment()?.critical || '';
+  const getEquipmentSpecial = () => getEquipment()?.special || '';
+  const getEquipmentSoak = () => getEquipment()?.soak || '';
+  const getEquipmentDefenceMelee = () => getEquipment()?.defence_melee || '';
+  const getEquipmentDefenceRange = () => getEquipment()?.defence_range || '';
 
   const getFinalDicePool = (skillName, statName) => {
     const baseStat = { brawn, agility, intellect, cunning, willpower, presence }[statName.toLowerCase()] || 0;
@@ -110,6 +90,278 @@ export default function SWCharacterOverview() {
     const blueBonus = skillBonuses[skillName] || '';
     return dicePool + blueBonus;
   };
+
+  // NEW: Click handler that captures position
+  const handleDicePoolClick = (e, pool, label) => {
+    if (!pool) return;
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    let x = rect.right + window.scrollX + 12;
+    let y = rect.top + window.scrollY - 10;
+
+    // Optional: flip to left if too close to right edge
+    if (x + 300 > window.innerWidth + window.scrollX) {
+      x = rect.left + window.scrollX - 312;
+    }
+
+    const details = pool.split('').map(color => ({
+      color,
+      name: diceMap[color] || 'Unknown'
+    }));
+
+    setDicePopup({ pool, details, x, y, label: label || pool, boosts: [], setbacks: [] });
+    setRollResults(null); // clear previous roll results when opening a new popup
+  };
+
+  const getDiceColorStyle = (letter) => {
+    // Map common dice letters to colours used by the UI. Adjust as needed.
+    switch ((letter || '').toUpperCase()) {
+      case 'G': return { backgroundColor: '#6bbf59' }; // green / Ability
+      case 'Y': return { backgroundColor: '#ffd24d' }; // yellow / Proficiency
+      case 'B': return { backgroundColor: '#6fb7ff' }; // blue / Boost
+      case 'R': return { backgroundColor: '#ff6b6b' }; // red / Difficulty
+      case 'P': return { backgroundColor: '#b36bff' }; // purple / Challenge
+      case 'K': return { backgroundColor: '#333333' }; // black / Setback
+      default: return { backgroundColor: '#e5e7eb' }; // neutral grey
+    }
+  };
+
+  const formatResultInline = (text) => {
+    if (text === null || text === undefined) return '';
+    let s = String(text);
+    // remove commas and collapse whitespace so result fits on one line
+    s = s.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+    return s;
+  };
+
+  const splitResultLines = (text) => {
+    if (text === null || text === undefined) return [''];
+    const s = String(text).trim();
+    if (!s.includes(',')) return [s];
+    const parts = s.split(',');
+    const first = parts[0].trim();
+    const rest = parts.slice(1).join(',').trim();
+    return [first, rest];
+  };
+
+  const parseRollResults = (poolResultsArray, diffResultsArray) => {
+    // Count each result type from pool and difficulty results
+    const counts = {
+      success: 0,
+      failure: 0,
+      triumph: 0,
+      despair: 0,
+      advantage: 0,
+      threat: 0,
+    };
+
+    const parseResultText = (text) => {
+      if (!text) return;
+      const lc = String(text).toLowerCase();
+      
+      // Count occurrences of each symbol (some dice have multiple symbols)
+      const successMatches = lc.match(/success/g);
+      const failureMatches = lc.match(/failure/g);
+      const triumphMatches = lc.match(/triumph/g);
+      const despairMatches = lc.match(/despair/g);
+      const advantageMatches = lc.match(/advantage/g);
+      const threatMatches = lc.match(/threat/g);
+      
+      if (successMatches) counts.success += successMatches.length;
+      if (failureMatches) counts.failure += failureMatches.length;
+      if (triumphMatches) counts.triumph += triumphMatches.length;
+      if (despairMatches) counts.despair += despairMatches.length;
+      if (advantageMatches) counts.advantage += advantageMatches.length;
+      if (threatMatches) counts.threat += threatMatches.length;
+    };
+
+    // Parse pool results (includes pool dice, boosts)
+    (poolResultsArray || []).forEach(r => parseResultText(r));
+    // Parse difficulty/setback results
+    (diffResultsArray || []).forEach(r => parseResultText(r));
+
+    // Apply cancellation rules
+    // Triumph counts as success; despair counts as failure
+    const totalSuccess = counts.success + counts.triumph;
+    const totalFailure = counts.failure + counts.despair;
+
+    // Cancel success vs failure
+    let netSuccess = 0;
+    let netFailure = 0;
+    if (totalSuccess > totalFailure) {
+      netSuccess = totalSuccess - totalFailure;
+    } else if (totalFailure > totalSuccess) {
+      netFailure = totalFailure - totalSuccess;
+    }
+    // If equal, both cancel out to 0
+
+    // Cancel advantage vs threat
+    let netAdvantage = 0;
+    let netThreat = 0;
+    if (counts.advantage > counts.threat) {
+      netAdvantage = counts.advantage - counts.threat;
+    } else if (counts.threat > counts.advantage) {
+      netThreat = counts.threat - counts.advantage;
+    }
+    // If equal, both cancel out to 0
+
+    return {
+      counts,
+      netSuccess,
+      netFailure,
+      netAdvantage,
+      netThreat,
+      totalSuccess,
+      totalFailure,
+    };
+  };
+
+  const handleRoll = async () => {
+    if (!dicePopup || !dicePopup.details) return;
+
+    const poolResults = [];
+
+    const combinedDice = [...(dicePopup.details || []), ...((dicePopup.boosts || []))];
+
+    for (const die of combinedDice) {
+      try {
+        // Try single-row format first (columns like side1 .. Side 1 etc.)
+        const { data: singleRow, error: singleErr } = await supabase
+          .from('SW_dice')
+          .select('*')
+          .eq('colour', die.color)
+          .single();
+
+        let available = [];
+
+        if (!singleErr && singleRow) {
+          for (let s = 1; s <= 12; s++) {
+            const variants = [`side${s}`, `Side${s}`, `Side ${s}`, `side ${s}`];
+            for (const key of variants) {
+              if (Object.prototype.hasOwnProperty.call(singleRow, key) && singleRow[key] != null) {
+                available.push(singleRow[key]);
+                break;
+              }
+            }
+          }
+        }
+
+        // Fallback to one-row-per-side format
+        if (available.length === 0) {
+          const { data: rows } = await supabase
+            .from('SW_dice')
+            .select('side, result')
+            .eq('colour', die.color)
+            .in('side', Array.from({ length: 12 }, (_, i) => i + 1));
+          if (rows && rows.length > 0) {
+            available = rows.map(r => r.result).filter(r => r != null);
+          }
+        }
+
+        if (available.length === 0) {
+          poolResults.push('—');
+        } else {
+          poolResults.push(available[Math.floor(Math.random() * available.length)]);
+        }
+      } catch (err) {
+        poolResults.push('—');
+      }
+    }
+
+    // Difficulty / challenge dice (purple 'P')
+    const diffResults = [];
+    if (selectedDifficulty > 0) {
+      try {
+        const { data: pRow, error: pErr } = await supabase.from('SW_dice').select('*').eq('colour', 'P').single();
+        let availableP = [];
+        if (!pErr && pRow) {
+          for (let s = 1; s <= 12; s++) {
+            const variants = [`side${s}`, `Side${s}`, `Side ${s}`, `side ${s}`];
+            for (const key of variants) {
+              if (Object.prototype.hasOwnProperty.call(pRow, key) && pRow[key] != null) {
+                availableP.push(pRow[key]);
+                break;
+              }
+            }
+          }
+        }
+
+        if (availableP.length === 0) {
+          const { data: prowRows } = await supabase
+            .from('SW_dice')
+            .select('side, result')
+            .eq('colour', 'P')
+            .in('side', Array.from({ length: 12 }, (_, i) => i + 1));
+          if (prowRows && prowRows.length > 0) availableP = prowRows.map(r => r.result).filter(r => r != null);
+        }
+
+        for (let i = 0; i < selectedDifficulty; i++) {
+          if (availableP.length === 0) diffResults.push('—');
+          else diffResults.push(availableP[Math.floor(Math.random() * availableP.length)]);
+        }
+      } catch (err) {
+        for (let i = 0; i < selectedDifficulty; i++) diffResults.push('—');
+      }
+    }
+
+    // Setback dice (black) — roll for each setback in popup.setbacks
+    if (dicePopup.setbacks && dicePopup.setbacks.length > 0) {
+      try {
+        const { data: kRow, error: kErr } = await supabase.from('SW_dice').select('*').eq('colour', 'Black').single();
+        let availableK = [];
+        if (!kErr && kRow) {
+          for (let s = 1; s <= 12; s++) {
+            const variants = [`side${s}`, `Side${s}`, `Side ${s}`, `side ${s}`];
+            for (const key of variants) {
+              if (Object.prototype.hasOwnProperty.call(kRow, key) && kRow[key] != null) {
+                availableK.push(kRow[key]);
+                break;
+              }
+            }
+          }
+        }
+
+        if (availableK.length === 0) {
+          const { data: krowRows } = await supabase
+            .from('SW_dice')
+            .select('*')
+            .eq('colour', 'Black');
+          if (krowRows && krowRows.length > 0) {
+            for (const row of krowRows) {
+              for (let s = 1; s <= 12; s++) {
+                const variants = [`side${s}`, `Side${s}`, `Side ${s}`, `side ${s}`];
+                for (const key of variants) {
+                  if (Object.prototype.hasOwnProperty.call(row, key) && row[key] != null) {
+                    availableK.push(row[key]);
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        for (let i = 0; i < dicePopup.setbacks.length; i++) {
+          if (availableK.length === 0) diffResults.push('—');
+          else diffResults.push(availableK[Math.floor(Math.random() * availableK.length)]);
+        }
+      } catch (err) {
+        console.error('Error rolling setback dice:', err);
+        for (let i = 0; i < (dicePopup.setbacks?.length || 0); i++) diffResults.push('—');
+      }
+    }
+
+    setRollResults({ poolResults, diffResults });
+  };
+
+  // Close popup when clicking anywhere else
+  useEffect(() => {
+    if (!dicePopup) return;
+    const handler = () => setDicePopup(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [dicePopup]);
 
   useEffect(() => {
     const fetchCharacterData = async () => {
@@ -288,7 +540,7 @@ export default function SWCharacterOverview() {
         .in('ability', uniqueCleanTalents);
       if (abilitiesError || !abilitiesData) {
         console.error('Error fetching abilities:', abilitiesError);
-        setabilities([]);
+        setAbilities([]);
         setSkillBonuses({});
       } else {
         const processedAbilities = abilitiesData.map(ability => {
@@ -320,7 +572,7 @@ export default function SWCharacterOverview() {
         });
 
         const sortedAbilities = processedAbilities.sort((a, b) => a.displayName.localeCompare(b.displayName));
-        setabilities(sortedAbilities);
+        setAbilities(sortedAbilities);
 
         let woundBonus = 0;
         let strainBonus = 0;
@@ -382,6 +634,17 @@ export default function SWCharacterOverview() {
         }
       }
 
+      const { data: diceData, error: diceError } = await supabase.from('SW_dice').select('colour, name');
+      if (diceError) {
+        console.error('Error fetching dice data:', diceError);
+      } else {
+        const map = diceData.reduce((acc, d) => {
+          acc[d.colour] = d.name;
+          return acc;
+        }, {});
+        setDiceMap(map);
+      }
+
       setTotalSoak(characterData.brawn || 0);
       setPreviousSoak(characterData.brawn || 0);
     };
@@ -404,9 +667,9 @@ export default function SWCharacterOverview() {
     } else if (newSoak !== previousSoak) {
       const diff = newSoak - previousSoak;
       if (diff > 0) {
-        console.log(`Soak increased by +${diff} to Total: ${newSoak} (Brawn: ${brawn} + Armor: ${newSoak - brawn})`);
+        console.log(`Soak increased by +${diff} to Total: ${newSoak}`);
       } else if (diff < 0) {
-        console.log(`Soak decreased by ${diff} to Total: ${newSoak} (Brawn: ${brawn} + Armor: ${newSoak - brawn})`);
+        console.log(`Soak decreased by ${diff} to Total: ${newSoak}`);
       }
       setPreviousSoak(newSoak);
       setTotalSoak(newSoak);
@@ -453,13 +716,10 @@ export default function SWCharacterOverview() {
 
           if (equipmentToAdd.consumable) {
             setOtherItems(prev => [...prev, newItem]);
-            console.log('Consumable added to Other Items:', selectedEquipment);
           } else if (equipmentToAdd.soak) {
             setArmour(prev => [...prev, newItem]);
-            console.log('Armour added to inventory:', selectedEquipment);
           } else {
             setInventory(prev => [...prev, newItem]);
-            console.log('Weapon added to inventory:', selectedEquipment);
           }
           setSelectedEquipment('');
         }
@@ -523,7 +783,6 @@ export default function SWCharacterOverview() {
           const updatedOtherItems = [...otherItems];
           updatedOtherItems.splice(index, 1);
           setOtherItems(updatedOtherItems);
-          console.log('Other item deleted:', itemToDelete.equipment_name);
         }
       }
     }
@@ -543,7 +802,6 @@ export default function SWCharacterOverview() {
       console.error('Error using consumable:', error);
     } else {
       setOtherItems(prev => prev.filter(item => item.id !== itemToRemove.id));
-      console.log(`Used 1 ${name}. Remaining: ${itemsToUse.length - 1}`);
     }
   };
 
@@ -563,7 +821,6 @@ export default function SWCharacterOverview() {
             const updatedArmour = [...armour];
             updatedArmour.splice(index, 1);
             setArmour(updatedArmour);
-            console.log('Armour deleted:', itemToDelete.equipment_name);
           }
         }
       }
@@ -582,7 +839,6 @@ export default function SWCharacterOverview() {
             const updatedInventory = [...inventory];
             updatedInventory.splice(index, 1);
             setInventory(updatedInventory);
-            console.log('Weapon deleted:', itemToDelete.equipment_name);
           }
         }
       }
@@ -868,7 +1124,7 @@ export default function SWCharacterOverview() {
       const ctx = canvas.getContext('2d');
       const img = new Image();
       img.crossOrigin = "anonymous";
-      
+
       img.onload = () => {
         ctx.clearRect(0, 0, 112, 112);
         ctx.drawImage(img, 0, 0, 112, 112);
@@ -994,6 +1250,7 @@ export default function SWCharacterOverview() {
           <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
         </div>
 
+        {/* ==================== SKILLS TAB ==================== */}
         {activeTab === 'skills' && (
           <div className="border-2 border-black rounded-lg p-4 text-left w-1/2 mr-4" style={{ minHeight: '400px' }}>
             <h2 className="font-bold text-lg mb-3">Skills</h2>
@@ -1011,24 +1268,33 @@ export default function SWCharacterOverview() {
                 </tr>
               </thead>
               <tbody>
-                {skills.map((skill, index) => (
-                  <tr key={index} className="bg-gray-100">
-                    <td className="border border-black py-1 text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                      {skill.skill} ({skill.stat})
-                    </td>
-                    <td className="border border-black py-1 text-xs text-center font-bold">
-                      {skill.rank}
-                    </td>
-                    <td className="border border-black py-1 text-xs text-center font-mono">
-                      {getFinalDicePool(skill.skill, skill.stat)}
-                    </td>
-                  </tr>
-                ))}
+                {skills.map((skill, index) => {
+                  const pool = getFinalDicePool(skill.skill, skill.stat);
+                  return (
+                    <tr key={index} className="bg-gray-100">
+                      <td className="border border-black py-1 text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                        {skill.skill} ({skill.stat})
+                      </td>
+                      <td className="border border-black py-1 text-xs text-center font-bold">
+                        {skill.rank}
+                      </td>
+                      <td className="border border-black py-1 text-xs text-center font-mono">
+                        <span 
+                          className="cursor-pointer hover:underline text-blue-700"
+                          onClick={(e) => handleDicePoolClick(e, pool, skill.skill)}
+                        >
+                          {pool}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
 
+        {/* ==================== EQUIPMENT TAB ==================== */}
         {activeTab === 'equipment' && (
           <div className="flex-1 text-left" style={{ minHeight: '600px' }}>
             <h2 className="font-bold text-lg mb-3">Equipment</h2>
@@ -1077,7 +1343,14 @@ export default function SWCharacterOverview() {
                       ) : (
                         <>
                           <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
-                            {getEquipmentSkill()} ({getDicePoolForSkill()})
+                            {getEquipmentSkill()} (
+                            <span 
+                              className="cursor-pointer hover:underline text-blue-700"
+                              onClick={(e) => handleDicePoolClick(e, getDicePoolForSkill(), getEquipmentSkill())}
+                            >
+                              {getDicePoolForSkill()}
+                            </span>
+                            )
                           </td>
                           <td className="border border-black py-1" style={{ minWidth: '150px' }}>{getEquipmentRange()}</td>
                           <td className="border border-black py-1" style={{ minWidth: '50px' }}>{getEquipmentDamage()}</td>
@@ -1095,6 +1368,7 @@ export default function SWCharacterOverview() {
                 </button>
               </div>
 
+              {/* Weapons Table */}
               <h3 className="font-bold text-lg mt-4">Weapons</h3>
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed' }}>
                 <thead>
@@ -1110,27 +1384,38 @@ export default function SWCharacterOverview() {
                   </tr>
                 </thead>
                 <tbody>
-                  {inventory.map((item, index) => (
-                    <tr key={index} className="bg-gray-100">
-                      <td className="border border-black py-1">
-                        <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
-                      </td>
-                      <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
-                        {item.skill} ({getFinalDicePool(item.skill, skills.find(s => s.skill === item.skill)?.stat || 'agility')})
-                      </td>
-                      <td className="border border-black py-1" style={{ minWidth: '150px' }}>{item.range}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '50px' }}>{item.damage || ''}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '50px' }}>{item.critical || ''}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special || ''}</td>
-                      <td className="border border-black py-1">
-                        <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {inventory.map((item, index) => {
+                    const pool = getFinalDicePool(item.skill, skills.find(s => s.skill === item.skill)?.stat || 'agility');
+                    return (
+                      <tr key={index} className="bg-gray-100">
+                        <td className="border border-black py-1">
+                          <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
+                        </td>
+                        <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
+                          {item.skill} (
+                          <span 
+                            className="cursor-pointer hover:underline text-blue-700"
+                            onClick={(e) => handleDicePoolClick(e, pool, item.skill)}
+                          >
+                            {pool}
+                          </span>
+                          )
+                        </td>
+                        <td className="border border-black py-1" style={{ minWidth: '150px' }}>{item.range}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '50px' }}>{item.damage || ''}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '50px' }}>{item.critical || ''}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special || ''}</td>
+                        <td className="border border-black py-1">
+                          <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
+              {/* Armour Table */}
               <h3 className="font-bold text-lg mt-4">Armour</h3>
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed' }}>
                 <thead>
@@ -1163,6 +1448,7 @@ export default function SWCharacterOverview() {
                 </tbody>
               </table>
 
+              {/* Other Items */}
               <h3 className="font-bold text-lg mt-4">Other Items</h3>
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <colgroup>
@@ -1202,6 +1488,7 @@ export default function SWCharacterOverview() {
           </div>
         )}
 
+        {/* ==================== ACTIONS TAB ==================== */}
         {activeTab === 'actions' && (
           <div className="flex-1 text-left" style={{ minHeight: '600px' }}>
             <h2 className="font-bold text-lg mb-3">Actions</h2>
@@ -1221,18 +1508,28 @@ export default function SWCharacterOverview() {
               <tbody>
                 {inventory
                   .filter(item => item.equipped && item.skill)
-                  .map((item, index) => (
-                    <tr key={index} className="bg-gray-100">
-                      <td className="border border-black py-1" style={{ minWidth: '200px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
-                        {item.skill} ({getFinalDicePool(item.skill, skills.find(s => s.skill === item.skill)?.stat || 'agility')})
-                      </td>
-                      <td className="border border-black py-1" style={{ minWidth: '150px' }}>{item.range}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '100px' }}>{item.damage || ''}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '100px' }}>{item.critical || ''}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special || ''}</td>
-                    </tr>
-                  ))}
+                  .map((item, index) => {
+                    const pool = getFinalDicePool(item.skill, skills.find(s => s.skill === item.skill)?.stat || 'agility');
+                    return (
+                      <tr key={index} className="bg-gray-100">
+                        <td className="border border-black py-1" style={{ minWidth: '200px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
+                          {item.skill} (
+                          <span 
+                            className="cursor-pointer hover:underline text-blue-700"
+                            onClick={(e) => handleDicePoolClick(e, pool, item.skill)}
+                          >
+                            {pool}
+                          </span>
+                          )
+                        </td>
+                        <td className="border border-black py-1" style={{ minWidth: '150px' }}>{item.range}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '100px' }}>{item.damage || ''}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '100px' }}>{item.critical || ''}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special || ''}</td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
 
@@ -1341,14 +1638,392 @@ export default function SWCharacterOverview() {
               })}
           </div>
         )}
-      </div>
 
-      {backstory && (
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mt-4" style={{ minHeight: '500px' }}>
-          <h3 className="font-bold text-lg mb-3">Backstory</h3>
-          <p className="text-left">{backstory}</p>
-        </div>
-      )}
+        {backstory && (
+          <div className="border-2 border-black rounded-lg p-4 w-full text-center mt-4" style={{ minHeight: '500px' }}>
+            <h3 className="font-bold text-lg mb-3">Backstory</h3>
+            <p className="text-left">{backstory}</p>
+          </div>
+        )}
+
+        {/* NEW: Dynamic Dice Pool Popup */}
+        {dicePopup && (
+          <div
+              style={{
+                position: 'absolute',
+                left: `${dicePopup.x}px`,
+                top: `${dicePopup.y}px`,
+                backgroundColor: 'white',
+                border: '3px solid black',
+                padding: '18px',
+                borderRadius: '10px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                zIndex: 9999,
+                minWidth: '760px',
+                display: 'flex',
+                flexDirection: 'column',
+                pointerEvents: 'auto',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+            <button
+              onClick={() => setDicePopup(null)}
+              style={{ position: 'absolute', top: 8, right: 8, zIndex: 10000 }}
+              className="text-2xl font-bold text-red-600 hover:text-red-800 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
+              aria-label="Close dice popup"
+            >
+              ×
+            </button>
+            <h3 className="font-bold text-lg mb-4">{dicePopup.label || 'Dice Pool'}</h3>
+
+            {/* MAIN FLEX: left column + outcome panel */}
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+
+            {/* LEFT COLUMN: pool, boosts, setbacks, difficulty, roll */}
+            <div style={{ flex: '0 0 420px' }}>
+
+            <div className="flex items-end mb-1" style={{ gap: 8, alignItems: 'flex-end' }}>
+              {dicePopup.details.map((d, i) => (
+                <div key={i} className="flex flex-col items-center" style={{ minWidth: 56 }}>
+                  <button
+                    onClick={() => {
+                      setDicePopup(prev => {
+                        const updated = { ...prev };
+                        updated.details = [...(prev?.details || [])];
+                        updated.details.splice(i, 1);
+                        return updated;
+                      });
+                      setRollResults(null);
+                    }}
+                    className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs font-bold mb-1"
+                  >
+                    Remove
+                  </button>
+                  {d.color === 'Y' ? (
+                    <button
+                      onClick={() => {
+                        setDicePopup(prev => {
+                          const updated = { ...prev };
+                          updated.details = [...(prev?.details || [])];
+                          updated.details[i] = { ...updated.details[i], color: 'G', name: diceMap['G'] || 'Ability' };
+                          return updated;
+                        });
+                        setRollResults(null);
+                      }}
+                      className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-bold mb-1"
+                    >
+                      Downgrade
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setDicePopup(prev => {
+                          const updated = { ...prev };
+                          updated.details = [...(prev?.details || [])];
+                          updated.details[i] = { ...updated.details[i], color: 'Y', name: diceMap['Y'] || 'Proficiency' };
+                          return updated;
+                        });
+                        setRollResults(null);
+                      }}
+                      className="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs font-bold mb-1"
+                    >
+                      Upgrade
+                    </button>
+                  )}
+                  <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80 }}>{d.name}</div>
+                  <div
+                    aria-hidden
+                    style={{
+                      width: 48,
+                      height: 48,
+                      border: '3px solid black',
+                      borderRadius: 8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 4,
+                      ...getDiceColorStyle(d.color),
+                    }}
+                  >
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+                        {splitResultLines(rollResults?.poolResults?.[i] || '').map((ln, idx) => (
+                          <div key={idx} style={{ fontSize: 12, lineHeight: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 72, color: '#000' }}>
+                            {ln}
+                          </div>
+                        ))}
+                      </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Boost and Threat (setback) controls to the right of top dice */}
+              <div style={{ display: 'flex', gap: 8, marginLeft: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <button
+                    onClick={() => {
+                      setDicePopup(prev => ({ 
+                        ...(prev || {}), 
+                        details: [...(prev?.details || []), { color: 'G', name: diceMap['G'] || 'Ability' }] 
+                      }));
+                      setRollResults(null);
+                    }}
+                    className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-bold"
+                  >
+                    + Ability
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  {dicePopup?.boosts && dicePopup.boosts.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setDicePopup(prev => {
+                          const cur = prev || {};
+                          const curBoosts = cur.boosts || [];
+                          return { ...cur, boosts: curBoosts.slice(0, -1) };
+                        });
+                        setRollResults(null);
+                      }}
+                      className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-bold"
+                    >
+                      - Boost
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setDicePopup(prev => ({ ...(prev || {}), boosts: [...(prev?.boosts || []), { color: 'B', name: diceMap['B'] || 'Boost' }] }));
+                      setRollResults(null);
+                    }}
+                    className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-bold"
+                  >
+                    + Boost
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Render any boost dice underneath the top row */}
+            {dicePopup.boosts && dicePopup.boosts.length > 0 && (
+              <div className="flex items-end mt-2" style={{ gap: 8 }}>
+                {dicePopup.boosts.map((b, bi) => {
+                  const idx = (dicePopup.details?.length || 0) + bi;
+                  return (
+                    <div key={bi} className="flex flex-col items-center" style={{ minWidth: 56 }}>
+                      <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80 }}>{b.name}</div>
+                      <div
+                        aria-hidden
+                        style={{
+                          width: 48,
+                          height: 48,
+                          border: '3px solid black',
+                          borderRadius: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 4,
+                          ...getDiceColorStyle(b.color),
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+                          {splitResultLines(rollResults?.poolResults?.[idx] || '').map((ln, idx2) => (
+                            <div key={idx2} style={{ fontSize: 12, lineHeight: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 72, color: '#000' }}>
+                              {ln}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            
+
+            <div className="mt-6 pt-4 border-t border-gray-300">
+              <label className="text-xs font-medium mb-2 block">Difficulty (1-5)</label>
+              <div className="flex gap-2 mb-3 items-center">
+                {[1, 2, 3, 4, 5].map(num => (
+                  <button
+                    key={num}
+                    onClick={() => setSelectedDifficulty(num)}
+                    className={`w-8 h-8 rounded font-bold text-sm ${
+                      selectedDifficulty === num
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+
+                {/* Setback controls to the right of difficulty numbers (to the right of 5) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginLeft: 8 }}>
+                  {dicePopup?.setbacks && dicePopup.setbacks.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setDicePopup(prev => {
+                          const cur = prev || {};
+                          const curSetbacks = cur.setbacks || [];
+                          return { ...cur, setbacks: curSetbacks.slice(0, -1) };
+                        });
+                        setRollResults(null);
+                      }}
+                      className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-bold"
+                    >
+                      - Setback
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setDicePopup(prev => ({ ...(prev || {}), setbacks: [...(prev?.setbacks || []), { color: 'K', name: diceMap['K'] || diceMap['Black'] || 'Setback' }] }));
+                      setRollResults(null);
+                    }}
+                    className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 text-xs font-bold"
+                  >
+                    + Setback
+                  </button>
+                </div>
+              </div>
+              {selectedDifficulty > 0 && (
+                <div className="flex items-end gap-2">
+                  {Array.from({ length: selectedDifficulty }).map((_, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        border: '3px solid black',
+                        borderRadius: 6,
+                        backgroundColor: '#b36bff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        padding: 4,
+                        textAlign: 'center',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                          {splitResultLines(rollResults?.diffResults?.[i] || '').map((ln, idx) => (
+                          <div key={idx} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 48, lineHeight: '1rem' }}>
+                            {ln}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Render any setback dice underneath difficulty */}
+              {dicePopup?.setbacks && dicePopup.setbacks.length > 0 && (
+                <div className="flex items-end gap-2 mt-2">
+                  {dicePopup.setbacks.map((s, si) => {
+                    const idx = (selectedDifficulty || 0) + si;
+                    return (
+                      <div
+                        key={si}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          border: '3px solid black',
+                          borderRadius: 6,
+                          backgroundColor: '#333333',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          padding: 4,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                          {splitResultLines(rollResults?.diffResults?.[idx] || '').map((ln, idx2) => (
+                            <div key={idx2} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 48, lineHeight: '1rem', color: '#fff' }}>
+                              {ln}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="mt-3">
+                <button
+                  onClick={handleRoll}
+                  className="w-full px-3 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700"
+                >
+                  Roll
+                </button>
+              </div>
+
+              {/* rollResults displayed inside the dice boxes; no separate results area */}
+            </div>
+            </div>
+
+            {/* Outcome panel to the right */}
+            <div style={{ flex: '0 0 260px', borderLeft: '1px solid #e5e7eb', paddingLeft: 12 }}>
+              <h4 className="font-bold text-lg mb-2">Outcome</h4>
+              {!rollResults && (
+                <div className="text-sm text-gray-500">No roll yet. Press <strong>Roll</strong> to show outcome.</div>
+              )}
+
+              {rollResults && (
+                <div className="text-sm">
+                  {(() => {
+                    const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
+                    return (
+                      <>
+                        {parsed.netSuccess > 0 && (
+                          <div className="mb-2">
+                            {parsed.netSuccess} Success
+                            {parsed.counts.triumph > 0 && (
+                              <span className="text-xs text-gray-600"> (includes {parsed.counts.triumph} Triumph)</span>
+                            )}
+                          </div>
+                        )}
+                        {parsed.netFailure > 0 && (
+                          <div className="mb-2">
+                            {parsed.netFailure} Failure
+                            {parsed.counts.despair > 0 && (
+                              <span className="text-xs text-gray-600"> (includes {parsed.counts.despair} Despair)</span>
+                            )}
+                          </div>
+                        )}
+                        {parsed.netSuccess === 0 && parsed.netFailure === 0 && (
+                          <div className="mb-2 text-gray-500">No net success/failure</div>
+                        )}
+
+                        {parsed.netAdvantage > 0 && (
+                          <div className="mb-2">
+                            {parsed.netAdvantage} Advantage (Positive Side Effect)
+                          </div>
+                        )}
+                        {parsed.netThreat > 0 && (
+                          <div className="mb-2">
+                            {parsed.netThreat} Threat (Negative Side Effect)
+                          </div>
+                        )}
+                        {parsed.netAdvantage === 0 && parsed.netThreat === 0 && (
+                          <div className="mb-2 text-gray-500">No net advantage/threat</div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
