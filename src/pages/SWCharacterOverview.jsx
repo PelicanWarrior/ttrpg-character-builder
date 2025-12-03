@@ -1674,7 +1674,7 @@ export default function SWCharacterOverview() {
             >
               ×
             </button>
-            <h3 className="font-bold text-lg mb-4">{dicePopup.label || 'Dice Pool'}</h3>
+            <h3 className="font-bold text-lg mb-4" style={{ color: '#000' }}>{dicePopup.label || 'Dice Pool'}</h3>
 
             {/* MAIN FLEX: left column + outcome panel */}
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -1730,7 +1730,7 @@ export default function SWCharacterOverview() {
                       Upgrade
                     </button>
                   )}
-                  <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80 }}>{d.name}</div>
+                  <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{d.name}</div>
                   <div
                     aria-hidden
                     style={{
@@ -1810,7 +1810,7 @@ export default function SWCharacterOverview() {
                   const idx = (dicePopup.details?.length || 0) + bi;
                   return (
                     <div key={bi} className="flex flex-col items-center" style={{ minWidth: 56 }}>
-                      <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80 }}>{b.name}</div>
+                      <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{b.name}</div>
                       <div
                         aria-hidden
                         style={{
@@ -1842,7 +1842,7 @@ export default function SWCharacterOverview() {
             
 
             <div className="mt-6 pt-4 border-t border-gray-300">
-              <label className="text-xs font-medium mb-2 block">Difficulty (1-5)</label>
+              <label className="text-xs font-medium mb-2 block" style={{ color: '#000' }}>Difficulty (1-5)</label>
               <div className="flex gap-2 mb-3 items-center">
                 {[1, 2, 3, 4, 5].map(num => (
                   <button
@@ -1970,13 +1970,13 @@ export default function SWCharacterOverview() {
 
             {/* Outcome panel to the right */}
             <div style={{ flex: '0 0 260px', borderLeft: '1px solid #e5e7eb', paddingLeft: 12 }}>
-              <h4 className="font-bold text-lg mb-2">Outcome</h4>
+              <h4 className="font-bold text-lg mb-2" style={{ color: '#000' }}>Outcome</h4>
               {!rollResults && (
                 <div className="text-sm text-gray-500">No roll yet. Press <strong>Roll</strong> to show outcome.</div>
               )}
 
               {rollResults && (
-                <div className="text-sm">
+                <div className="text-sm" style={{ color: '#000' }}>
                   {(() => {
                     const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
                     return (
