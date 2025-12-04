@@ -1157,55 +1157,57 @@ export default function SWEotECharacterCreator() {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-white py-10" style={{ maxWidth: '1600px', minWidth: '1600px', margin: '0 auto' }}>
-      <img src="/SWEotE.webp" alt="Star Wars: Edge of the Empire" className="w-64 mb-6" />
+    <div className="flex flex-col items-center min-h-screen bg-white py-4 sm:py-6 md:py-10 px-2 sm:px-4" style={{ maxWidth: '100vw' }}>
+      <img src="/SWEotE.webp" alt="Star Wars: Edge of the Empire" className="w-40 sm:w-48 md:w-64 mb-4 sm:mb-6" />
 
-      <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '100px' }}>
-        <div className="flex space-x-2">
-          <button onClick={handleSave} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save</button>
-          <button onClick={handleSelectTTRPG} className="flex-1 px-2 py-2 bg-green-600 text-white rounded hover:bg-green-700">Select TTRPG</button>
+      <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '80px' }}>
+        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
+          <button onClick={handleSave} className="flex-1 px-2 sm:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base">Save</button>
+          <button onClick={handleSelectTTRPG} className="flex-1 px-2 sm:px-2 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm sm:text-base">Select TTRPG</button>
         </div>
       </div>
 
-      <div className="border-2 border-black rounded-lg p-6 w-full text-center mb-4">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-1/2">
-            <label className="block font-bold text-lg mb-2">Character Name</label>
+      <div className="border-2 border-black rounded-lg p-3 sm:p-6 w-full text-center mb-4">
+        <div className="flex flex-col items-center space-y-3 sm:space-y-4">
+          <div className="w-full sm:w-1/2">
+            <label className="block font-bold text-base sm:text-lg mb-2">Character Name</label>
             <input
               type="text"
               value={characterName}
               onChange={(e) => setCharacterName(e.target.value)}
-              className="border border-black rounded px-4 py-2 w-full text-center text-xl"
+              className="border border-black rounded px-3 sm:px-4 py-2 w-full text-center text-lg sm:text-xl"
               placeholder="Enter character name"
             />
           </div>
 
-          <div className="flex items-center justify-center space-x-6">
-            <h2 className="font-bold text-xl">EXP:</h2>
-            <button onClick={() => handleExpChange(-1)} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-lg">-</button>
-            <span className="border-4 border-black rounded px-8 py-3 font-bold text-3xl min-w-32 text-center">{exp}</span>
-            <button onClick={() => handleExpChange(1)} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-lg">+</button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
+            <h2 className="font-bold text-lg sm:text-xl">EXP:</h2>
+            <div className="flex items-center gap-2 sm:gap-0 sm:space-x-2">
+              <button onClick={() => handleExpChange(-1)} className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-base sm:text-lg">-</button>
+              <span className="border-4 border-black rounded px-4 sm:px-8 py-2 sm:py-3 font-bold text-2xl sm:text-3xl min-w-20 sm:min-w-32 text-center">{exp}</span>
+              <button onClick={() => handleExpChange(1)} className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-base sm:text-lg">+</button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="w-full mb-4">
-        <div className="flex border-2 border-black rounded-lg overflow-hidden">
-          <button onClick={() => handleTabClick('Species')} className={`px-6 py-2 font-semibold ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Species</button>
-          <button onClick={() => handleTabClick('Stats')} className={`px-6 py-2 font-semibold ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Stats</button>
-          <button onClick={() => handleTabClick('Skills')} className={`px-6 py-2 font-semibold ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Skills</button>
-          <button onClick={() => handleTabClick('Career')} className={`px-6 py-2 font-semibold ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Career</button>
-          <button onClick={() => handleTabClick('Talent Tree')} className={`px-6 py-2 font-semibold ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Talent Tree</button>
-          <button onClick={() => handleTabClick('Backstory')} className={`px-6 py-2 font-semibold ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Backstory</button>
-          <button onClick={() => handleTabClick('Finish')} className={`px-6 py-2 font-semibold ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Finish</button>
+        <div className="flex flex-wrap border-2 border-black rounded-lg overflow-hidden">
+          <button onClick={() => handleTabClick('Species')} className={`flex-1 min-w-max px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Species</button>
+          <button onClick={() => handleTabClick('Stats')} className={`flex-1 min-w-max px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Stats</button>
+          <button onClick={() => handleTabClick('Skills')} className={`flex-1 min-w-max px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Skills</button>
+          <button onClick={() => handleTabClick('Career')} className={`flex-1 min-w-max px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Career</button>
+          <button onClick={() => handleTabClick('Talent Tree')} className={`flex-1 min-w-max px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Talent Tree</button>
+          <button onClick={() => handleTabClick('Backstory')} className={`flex-1 min-w-max px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Backstory</button>
+          <button onClick={() => handleTabClick('Finish')} className={`flex-1 min-w-max px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Finish</button>
         </div>
       </div>
 
       {activeTab === 'Species' && (
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
+        <div className="border-2 border-black rounded-lg p-3 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
           <h2 className="font-bold text-lg mb-4">Select Species</h2>
           <div className="flex justify-center mb-6">
-            <select onChange={handleRaceChange} className="border border-black rounded px-4 py-2 text-lg" value={selectedRace?.name || ''}>
+            <select onChange={handleRaceChange} className="border border-black rounded px-3 sm:px-4 py-2 text-base sm:text-lg" value={selectedRace?.name || ''}>
               <option value="">Select Species</option>
               {races.map((race) => (
                 <option key={race.id} value={race.name}>{race.name}</option>
@@ -1215,27 +1217,27 @@ export default function SWEotECharacterCreator() {
 
           {selectedRace && (
             <>
-              <div className="flex gap-8 mb-6">
-                <div className="flex flex-col items-center">
+              <div className="flex flex-col md:flex-row gap-4 md:gap-8 mb-6">
+                <div className="flex flex-col items-center md:flex-none">
                   <h3 className="font-bold text-base mb-2">Species Image</h3>
                   {selectedPictureId ? (
                     <img src={`/SW_Pictures/Picture ${selectedPictureId} Face.png`} alt={`${selectedRace.name} portrait`} className="border border-black rounded object-contain" style={{ maxHeight: '200px', width: 'auto' }} />
                   ) : (
-                    <div className="w-48 h-48 border border-dashed border-gray-400 rounded flex items-center justify-center bg-gray-100">
-                      <p className="text-gray-500">No image</p>
+                    <div className="w-40 sm:w-48 h-40 sm:h-48 border border-dashed border-gray-400 rounded flex items-center justify-center bg-gray-100">
+                      <p className="text-gray-500 text-sm">No image</p>
                     </div>
                   )}
                 </div>
 
                 <div className="flex-1">
                   <h3 className="font-bold text-base mb-2">Species Description</h3>
-                  <div className="text-left p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto">
+                  <div className="text-left p-3 sm:p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto text-sm sm:text-base">
                     {selectedRace.description || 'No description available'}
                   </div>
 
                   <div className="mt-4">
                     <h3 className="font-bold text-base mb-2">Starting Skills & Talents</h3>
-                    <div className="text-left p-4 border border-black rounded bg-gray-50 h-64 overflow-y-auto space-y-4">
+                    <div className="text-left p-3 sm:p-4 border border-black rounded bg-gray-50 h-64 overflow-y-auto space-y-4 text-sm sm:text-base">
 
                       <div>
                         <h4 className="font-semibold">Starting Skill Selection</h4>
@@ -1338,9 +1340,9 @@ export default function SWEotECharacterCreator() {
       )}
 
       {selectedRace && activeTab === 'Stats' && (
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '400px', display: 'flex', justifyContent: 'center' }}>
-          <h2 className="font-bold text-lg mb-3">Stats</h2>
-          <table className="border border-black text-center" style={{ tableLayout: 'auto', margin: '0 auto' }}>
+        <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4 overflow-x-auto" style={{ minHeight: '400px', display: 'flex', justifyContent: 'center' }}>
+          <h2 className="font-bold text-base sm:text-lg mb-3">Stats</h2>
+          <table className="border border-black text-center text-xs sm:text-sm md:text-base" style={{ tableLayout: 'auto', margin: '0 auto' }}>
             <tbody>
               <tr className="bg-gray-100"><th className="border border-black py-1">Brawn</th><td className="border border-black py-1"><button onClick={() => updateStat('brawn', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('brawn')}</span><button onClick={() => updateStat('brawn', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
               <tr className="bg-gray-100"><th className="border border-black py-1">Agility</th><td className="border border-black py-1"><button onClick={() => updateStat('agility', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('agility')}</span><button onClick={() => updateStat('agility', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
@@ -1357,9 +1359,9 @@ export default function SWEotECharacterCreator() {
       )}
 
       {selectedRace && activeTab === 'Skills' && skills.length > 0 && (
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '400px', display: 'flex', justifyContent: 'center' }}>
-          <h2 className="font-bold text-lg mb-3">Skills</h2>
-          <table className="border border-black text-center" style={{ tableLayout: 'auto', margin: '0 auto' }}>
+        <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4 overflow-x-auto" style={{ minHeight: '400px', display: 'flex', justifyContent: 'center' }}>
+          <h2 className="font-bold text-base sm:text-lg mb-3">Skills</h2>
+          <table className="border border-black text-center text-xs sm:text-sm md:text-base" style={{ tableLayout: 'auto', margin: '0 auto' }}>
             <thead>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Skill</th>
@@ -1580,11 +1582,11 @@ export default function SWEotECharacterCreator() {
       )}
 
       {selectedRace && activeTab === 'Talent Tree' && specializations.length > 0 && (
-        <div className="border-2 border-black rounded-lg p-6 w-full text-center mb-4" style={{ minHeight: '500px' }}>
-          <h2 className="font-bold text-lg mb-4">Talent Tree</h2>
+        <div className="border-2 border-black rounded-lg p-2 sm:p-4 md:p-6 w-full text-center mb-4 overflow-x-auto" style={{ minHeight: '500px' }}>
+          <h2 className="font-bold text-base sm:text-lg md:text-xl mb-4">Talent Tree</h2>
           {selectedSpecialization ? (
             <div className="flex justify-center">
-              <table className="border-separate text-center" style={{ borderSpacing: '0' }}>
+              <table className="border-separate text-center text-xs sm:text-sm" style={{ borderSpacing: '0' }}>
                 <tbody>
                   {Array.from({ length: 9 }, (_, rowIndex) => {
                     const expValues = [5, 10, 15, 20, 25];
@@ -1703,29 +1705,29 @@ export default function SWEotECharacterCreator() {
       )}
 
       {selectedRace && activeTab === 'Backstory' && (
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
-          <h2 className="font-bold text-lg mb-3">Backstory</h2>
+        <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
+          <h2 className="font-bold text-base sm:text-lg mb-3">Backstory</h2>
           <textarea
             value={backstory}
             onChange={(e) => setBackstory(e.target.value)}
-            className="border border-black rounded p-2 w-full h-96 text-left"
+            className="border border-black rounded p-2 w-full h-96 text-left text-sm sm:text-base"
             placeholder="Enter your character's backstory here..."
           />
         </div>
       )}
 
       {selectedRace && activeTab === 'Finish' && (
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
-          <h2 className="font-bold text-lg mb-6">Finish</h2>
-          <button onClick={handleFinishCharacter} className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700">
+        <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
+          <h2 className="font-bold text-base sm:text-lg mb-6">Finish</h2>
+          <button onClick={handleFinishCharacter} className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base">
             Finish Character
           </button>
         </div>
       )}
 
       {!selectedRace && activeTab !== 'Species' && (
-        <div className="border-2 border-black rounded-lg p-8 w-full text-center mb-4" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p className="text-3xl font-bold text-red-600">Please choose a Species first</p>
+        <div className="border-2 border-black rounded-lg p-4 sm:p-8 w-full text-center mb-4" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p className="text-2xl sm:text-3xl font-bold text-red-600">Please choose a Species first</p>
         </div>
       )}
     </div>
