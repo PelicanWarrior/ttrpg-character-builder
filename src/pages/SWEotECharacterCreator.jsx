@@ -7,6 +7,7 @@ export default function SWEotECharacterCreator() {
   const [characterId, setCharacterId] = useState(null);
   const [races, setRaces] = useState([]);
   const [selectedRace, setSelectedRace] = useState(null);
+  const [tempSelectedRace, setTempSelectedRace] = useState(null);
   const [baseStats, setBaseStats] = useState({});
   const [skills, setSkills] = useState([]);
   const [statCosts, setStatCosts] = useState([]);
@@ -40,6 +41,9 @@ export default function SWEotECharacterCreator() {
   const [woundThreshold, setWoundThreshold] = useState(0);
   const [strainThreshold, setStrainThreshold] = useState(0);
   const [startingTalents, setStartingTalents] = useState([]);
+  const [modalStartingTalents, setModalStartingTalents] = useState([]);
+  const [modalStartingSkillOptions1, setModalStartingSkillOptions1] = useState([]);
+  const [modalStartingSkillOptions2, setModalStartingSkillOptions2] = useState([]);
   const [racePictures, setRacePictures] = useState([]);
   const [selectedPictureId, setSelectedPictureId] = useState(null);
   const [isForceSensitiveCareer, setIsForceSensitiveCareer] = useState(false);
@@ -436,6 +440,47 @@ export default function SWEotECharacterCreator() {
       setStrainThreshold(baseStrain);
     }
   }, [selectedRace, selectedTalents, abilities, baseStats]);
+
+  // Populate modal data when tempSelectedRace changes
+  useEffect(() => {
+    if (tempSelectedRace && abilities.length > 0 && skills.length > 0) {
+      // Get starting talents for modal
+      if (tempSelectedRace.Starting_Talents) {
+        const talentNames = tempSelectedRace.Starting_Talents.split(',').map(t => t.trim()).filter(t => t);
+        const talentsWithDesc = talentNames.map(name => {
+          const ability = abilities.find(a => a.ability === name);
+          return {
+            name,
+            description: ability ? ability.description : 'No description found'
+          };
+        });
+        setModalStartingTalents(talentsWithDesc);
+      } else {
+        setModalStartingTalents([]);
+      }
+
+      // Parse starting skills for modal using the same logic as selectedRace
+      const { isPaired, skills: parsedSkills } = parseStartingSkills(tempSelectedRace.Starting_Skill);
+      
+      let modalOptions1 = [];
+      let modalOptions2 = [];
+      
+      if (isPaired) {
+        modalOptions1 = skills.filter(s => s.skill === parsedSkills[0]);
+        modalOptions2 = skills.filter(s => s.skill === parsedSkills[1]);
+      } else {
+        modalOptions1 = skills.filter(s => parsedSkills.includes(s.skill));
+        modalOptions2 = [];
+      }
+
+      setModalStartingSkillOptions1(modalOptions1.sort((a, b) => a.skill.localeCompare(b.skill)));
+      setModalStartingSkillOptions2(modalOptions2.sort((a, b) => a.skill.localeCompare(b.skill)));
+    } else {
+      setModalStartingTalents([]);
+      setModalStartingSkillOptions1([]);
+      setModalStartingSkillOptions2([]);
+    }
+  }, [tempSelectedRace, abilities, skills]);
 
   const handleRaceChange = (e) => {
     const race = races.find((r) => r.name === e.target.value);
@@ -1161,9 +1206,9 @@ export default function SWEotECharacterCreator() {
       <img src="/SWEotE.webp" alt="Star Wars: Edge of the Empire" className="w-40 sm:w-48 md:w-64 mb-4 sm:mb-6" />
 
       <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '80px' }}>
-        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
+        <div className="flex flex-row gap-2">
           <button onClick={handleSave} className="flex-1 px-2 sm:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base">Save</button>
-          <button onClick={handleSelectTTRPG} className="flex-1 px-2 sm:px-2 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm sm:text-base">Select TTRPG</button>
+          <button onClick={handleSelectTTRPG} className="flex-1 px-2 sm:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm sm:text-base">Select TTRPG</button>
         </div>
       </div>
 
@@ -1205,18 +1250,76 @@ export default function SWEotECharacterCreator() {
 
       {activeTab === 'Species' && (
         <div className="border-2 border-black rounded-lg p-3 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
-          <h2 className="font-bold text-lg mb-4">Select Species</h2>
-          <div className="flex justify-center mb-6">
-            <select onChange={handleRaceChange} className="border border-black rounded px-3 sm:px-4 py-2 text-base sm:text-lg" value={selectedRace?.name || ''}>
-              <option value="">Select Species</option>
-              {races.map((race) => (
-                <option key={race.id} value={race.name}>{race.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {selectedRace && (
+          {!selectedRace ? (
             <>
+              <h2 className="font-bold text-lg mb-6">Select Species</h2>
+
+              {/* Species Card Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                {races.map((race) => {
+                  // Get a random picture for this race
+                  const raceSpecificPictures = racePictures.filter(pic => pic.race_ID === race.id);
+                  const randomPicture = raceSpecificPictures.length > 0 
+                    ? raceSpecificPictures[Math.floor(Math.random() * raceSpecificPictures.length)] 
+                    : null;
+
+                  return (
+                    <div
+                      key={race.id}
+                      onClick={() => {
+                        console.log('Clicked race:', race);
+                        setTempSelectedRace(race);
+                      }}
+                      className="border-2 border-black rounded-lg p-3 bg-white hover:bg-gray-100 cursor-pointer transition-colors flex items-center gap-3"
+                      style={{ minHeight: '120px' }}
+                    >
+                      {/* Species Picture - Left */}
+                      <div className="flex-shrink-0">
+                        {randomPicture ? (
+                          <img 
+                            src={`/SW_Pictures/Picture ${randomPicture.id} Face.png`} 
+                            alt={`${race.name} portrait`} 
+                            className="rounded object-contain" 
+                            style={{ width: '80px', height: '100px' }} 
+                          />
+                        ) : (
+                          <div className="w-20 h-24 border border-dashed border-gray-400 rounded flex items-center justify-center bg-gray-100">
+                            <p className="text-gray-500 text-xs text-center">No image</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Species Name - Center */}
+                      <div className="flex-1">
+                        <p className="font-bold text-sm sm:text-base">{race.name}</p>
+                      </div>
+
+                      {/* Blue Arrow - Right */}
+                      <div className="flex-shrink-0">
+                        <img 
+                          src="/Blue_Arrow.png" 
+                          alt="Select" 
+                          className="object-contain" 
+                          style={{ width: '30px', height: '30px' }} 
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
+                <h2 className="font-bold text-lg">{selectedRace.name}</h2>
+                <button
+                  onClick={() => setSelectedRace(null)}
+                  className="px-4 sm:px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base mt-4 sm:mt-0"
+                >
+                  Choose Another Species
+                </button>
+              </div>
+
               <div className="flex flex-col md:flex-row gap-4 md:gap-8 mb-6">
                 <div className="flex flex-col items-center md:flex-none">
                   <h3 className="font-bold text-base mb-2">Species Image</h3>
@@ -1730,6 +1833,101 @@ export default function SWEotECharacterCreator() {
       {!selectedRace && activeTab !== 'Species' && (
         <div className="border-2 border-black rounded-lg p-4 sm:p-8 w-full text-center mb-4" style={{ minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <p className="text-2xl sm:text-3xl font-bold text-red-600">Please choose a Species first</p>
+        </div>
+      )}
+
+      {/* Species Modal - Positioned at top level */}
+      {tempSelectedRace && (
+        <div className="fixed inset-0 bg-black flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 1)' }}>
+          <div className="bg-black border-4 border-white rounded-lg p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-xl sm:text-2xl mb-4" style={{ color: '#FFFFFF' }}>{tempSelectedRace.name}</h3>
+
+            {/* Species Description */}
+            <div className="mb-6">
+              <h4 className="font-bold text-base mb-2" style={{ color: '#FFFFFF' }}>Description</h4>
+              <div className="text-left p-3 sm:p-4 border border-white rounded bg-black text-sm sm:text-base" style={{ color: '#FFFFFF' }}>
+                {tempSelectedRace.description || 'No description available'}
+              </div>
+            </div>
+
+            {/* Starting Skills Display */}
+            {modalStartingSkillOptions1.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-bold text-base mb-3" style={{ color: '#FFFFFF' }}>Can Choose</h4>
+                <div className="space-y-2">
+                  {modalStartingSkillOptions1.map((s, i) => (
+                    <div key={i} className="border border-white rounded p-3 bg-black text-sm sm:text-base" style={{ color: '#FFFFFF' }}>
+                      {s.skill} ({s.type})
+                    </div>
+                  ))}
+                  {modalStartingSkillOptions2.length > 0 && (
+                    <>
+                      <p className="font-semibold mt-4" style={{ color: '#FFFFFF' }}>And</p>
+                      {modalStartingSkillOptions2.map((s, i) => (
+                        <div key={i + modalStartingSkillOptions1.length} className="border border-white rounded p-3 bg-black text-sm sm:text-base" style={{ color: '#FFFFFF' }}>
+                          {s.skill} ({s.type})
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Human free choice for second skill */}
+            {tempSelectedRace.name === 'Human' && modalStartingSkillOptions2.length === 0 && (
+              <div className="mb-6">
+                <h4 className="font-bold text-base mb-3" style={{ color: '#FFFFFF' }}>Can Choose</h4>
+                <div className="text-sm sm:text-base" style={{ color: '#FFFFFF' }}>
+                  <p className="mb-3">One skill, then a free second skill from any available skills</p>
+                </div>
+              </div>
+            )}
+
+            {/* Mandalorian special rule */}
+            {tempSelectedRace.name === 'Human(Mandolorian)' && modalStartingSkillOptions2.length === 0 && (
+              <div className="mb-6">
+                <h4 className="font-bold text-base mb-3" style={{ color: '#FFFFFF' }}>Can Choose</h4>
+                <div className="text-sm sm:text-base" style={{ color: '#FFFFFF' }}>
+                  <p className="mb-3">One skill. If Knowledge, can choose an additional Knowledge skill</p>
+                </div>
+              </div>
+            )}
+
+            {/* Starting Talents */}
+            {modalStartingTalents.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-bold text-base mb-2" style={{ color: '#FFFFFF' }}>Starting Talents</h4>
+                <div className="space-y-2">
+                  {modalStartingTalents.map((talent, idx) => (
+                    <div key={idx} className="border border-white rounded p-3 bg-black text-left text-sm sm:text-base" style={{ color: '#FFFFFF' }}>
+                      <span className="font-semibold">{talent.name}:</span> {talent.description}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                onClick={() => setTempSelectedRace(null)}
+                className="px-4 sm:px-6 py-2 border-2 border-white rounded font-semibold bg-white hover:bg-gray-200 text-sm sm:text-base" style={{ color: '#000000' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  handleRaceChange({ target: { value: tempSelectedRace.name } });
+                  setTempSelectedRace(null);
+                }}
+                className="px-4 sm:px-6 py-2 border-2 border-white rounded font-semibold bg-white hover:bg-gray-200 text-sm sm:text-base"
+                style={{ color: '#000000' }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
