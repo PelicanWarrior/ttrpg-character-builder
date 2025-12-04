@@ -86,6 +86,16 @@ export default function SelectTTRPG() {
           {isAdmin && <span className="text-red-600 font-bold"> (Admin)</span>}
         </p>
 
+        {/* Settings and Log Out Buttons */}
+        <div className="flex justify-center gap-6 mb-20">
+          <button onClick={() => navigate('/settings', { state: { playerId } })} className="px-12 py-4 bg-gray-800 text-white text-lg font-bold rounded-xl hover:bg-gray-900 shadow-lg transition">
+            Settings
+          </button>
+          <button onClick={() => { localStorage.clear(); window.location.href = '/'; }} className="px-12 py-4 bg-red-600 text-white text-lg font-bold rounded-xl hover:bg-red-700 shadow-lg transition">
+            Log Out
+          </button>
+        </div>
+
         {/* TOP ROW: Star Wars + Star Trek Adventures (NO HEADER) */}
         {(shouldShow('Star Wars') || shouldShow('Star Trek Adventures')) && (
           <div className="mb-20">
@@ -199,17 +209,6 @@ export default function SelectTTRPG() {
           </div>
         )}
 
-        {/* Bottom Buttons */}
-        <div className="mt-24 text-center">
-          <div className="inline-flex gap-12">
-            <button onClick={() => navigate('/settings', { state: { playerId } })} className="px-16 py-6 bg-gray-800 text-white text-2xl font-bold rounded-2xl hover:bg-gray-900 shadow-2xl transition">
-              Settings
-            </button>
-            <button onClick={() => { localStorage.clear(); window.location.href = '/'; }} className="px-16 py-6 bg-red-600 text-white text-2xl font-bold rounded-2xl hover:bg-red-700 shadow-2xl transition">
-              Log Out
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

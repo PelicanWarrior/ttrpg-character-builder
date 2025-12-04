@@ -29,6 +29,7 @@ export default function SWEotECharacterCreator() {
   const [selectedSpecialization, setSelectedSpecialization] = useState('');
   const [selectedSpecSkill1, setSelectedSpecSkill1] = useState('');
   const [selectedSpecSkill2, setSelectedSpecSkill2] = useState('');
+  const [selectedSpecSkill3, setSelectedSpecSkill3] = useState('');
   const [talentTree, setTalentTree] = useState([]);
   const [abilities, setAbilities] = useState([]);
   const [clickableTalents, setClickableTalents] = useState([]);
@@ -42,6 +43,12 @@ export default function SWEotECharacterCreator() {
   const [racePictures, setRacePictures] = useState([]);
   const [selectedPictureId, setSelectedPictureId] = useState(null);
   const [isForceSensitiveCareer, setIsForceSensitiveCareer] = useState(false);
+  const [isDroidSpecies, setIsDroidSpecies] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [careerPictures, setCareerPictures] = useState([]);
+  const [selectedCareerPictureId, setSelectedCareerPictureId] = useState(null);
+  const [specPictures, setSpecPictures] = useState([]);
+  const [selectedSpecPictureId, setSelectedSpecPictureId] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -70,6 +77,21 @@ export default function SWEotECharacterCreator() {
 
   useEffect(() => {
     const fetchAndLoadData = async () => {
+      const username = localStorage.getItem('username');
+      
+      // Fetch admin status
+      if (username) {
+        const { data: userData } = await supabase
+          .from('user')
+          .select('admin')
+          .eq('username', username)
+          .single();
+        
+        if (userData) {
+          setIsAdmin(!!userData.admin);
+        }
+      }
+
       const [
         raceResponse,
         skillResponse,
@@ -124,6 +146,13 @@ export default function SWEotECharacterCreator() {
 
       if (pictureResponse.error) console.error('Error fetching pictures:', pictureResponse.error);
       else setRacePictures(pictureResponse.data || []);
+
+      // Separate race and career pictures
+      const allPictures = pictureResponse.data || [];
+      const careerPicsOnly = allPictures.filter(pic => pic.career_ID);
+      const specPicsOnly = allPictures.filter(pic => pic.spec_ID);
+      setCareerPictures(careerPicsOnly);
+      setSpecPictures(specPicsOnly);
 
       if (!createCharacter) {
         const loadedCharacterId = localStorage.getItem('loadedCharacterId');
@@ -410,6 +439,8 @@ export default function SWEotECharacterCreator() {
 
   const handleRaceChange = (e) => {
     const race = races.find((r) => r.name === e.target.value);
+    const wasNonDroid = !isDroidSpecies;
+    const isNowDroid = race?.name === 'Droid';
 
     if (selectedStartingSkill1) {
       setSkillRanks(prev => ({ ...prev, [selectedStartingSkill1]: Math.max(0, prev[selectedStartingSkill1] - 1) }));
@@ -419,6 +450,7 @@ export default function SWEotECharacterCreator() {
     }
 
     setSelectedRace(race || null);
+    setIsDroidSpecies(isNowDroid);
     setSelectedStartingSkill1('');
     setSelectedStartingSkill2('');
     setIsPairedSkillRace(false);
@@ -442,6 +474,29 @@ export default function SWEotECharacterCreator() {
     setSelectedTalents([]);
     setClickableTalents([0, 1, 2, 3]);
     setStartingTalents([]);
+
+    // If switching away from Droid, remove extra skills
+    if (wasNonDroid === false && isNowDroid === false) {
+      // Switching from Droid to non-Droid: remove last 2 career skills
+      const newCareerSkills = selectedCareerSkills.slice(0, 4);
+      const skillsToRemove = selectedCareerSkills.slice(4);
+      skillsToRemove.forEach(skill => {
+        if (skill && skillRanks[skill] > 0) {
+          setSkillRanks(prev => ({ ...prev, [skill]: prev[skill] - 1 }));
+        }
+      });
+      setSelectedCareerSkills(newCareerSkills);
+
+      // Remove last specialization skill(s)
+      if (selectedSpecSkill2 && skillRanks[selectedSpecSkill2] > 0) {
+        setSkillRanks(prev => ({ ...prev, [selectedSpecSkill2]: prev[selectedSpecSkill2] - 1 }));
+      }
+      if (selectedSpecSkill3 && skillRanks[selectedSpecSkill3] > 0) {
+        setSkillRanks(prev => ({ ...prev, [selectedSpecSkill3]: prev[selectedSpecSkill3] - 1 }));
+      }
+      setSelectedSpecSkill2('');
+      setSelectedSpecSkill3('');
+    }
   };
 
   const handleStartingSkill1Change = (e) => {
@@ -572,24 +627,46 @@ export default function SWEotECharacterCreator() {
         [selectedSpecSkill2]: Math.max(0, prevRanks[selectedSpecSkill2] - 1),
       }));
     }
+    if (selectedSpecSkill3 && skillRanks[selectedSpecSkill3] > 0) {
+      setSkillRanks(prevRanks => ({
+        ...prevRanks,
+        [selectedSpecSkill3]: Math.max(0, prevRanks[selectedSpecSkill3] - 1),
+      }));
+    }
 
     setSelectedCareer(careerName);
-    setSelectedCareerSkills(['', '', '', '']);
+    const initialCareerSkills = isDroidSpecies ? ['', '', '', '', '', ''] : ['', '', '', ''];
+    setSelectedCareerSkills(initialCareerSkills);
     setSelectedSpecialization('');
     setSelectedSpecSkill1('');
     setSelectedSpecSkill2('');
+    setSelectedSpecSkill3('');
     setSelectedTalents([]);
     setClickableTalents([0, 1, 2, 3]);
 
     if (careerName) {
       const { data: careerData } = await supabase
         .from('SW_career')
-        .select('Force_Sensitive')
+        .select('id, Force_Sensitive')
         .eq('name', careerName)
         .single();
       setIsForceSensitiveCareer(!!careerData?.Force_Sensitive);
+
+      // Find career picture(s) and randomly pick one
+      if (careerData && careerPictures.length > 0) {
+        const matchingPictures = careerPictures.filter(pic => pic.career_ID === careerData.id);
+        if (matchingPictures.length > 0) {
+          const randomPic = matchingPictures[Math.floor(Math.random() * matchingPictures.length)];
+          setSelectedCareerPictureId(randomPic.id);
+        } else {
+          setSelectedCareerPictureId(null);
+        }
+      } else {
+        setSelectedCareerPictureId(null);
+      }
     } else {
       setIsForceSensitiveCareer(false);
+      setSelectedCareerPictureId(null);
     }
   };
 
@@ -610,8 +687,30 @@ export default function SWEotECharacterCreator() {
     setSelectedSpecialization(specName);
     setSelectedSpecSkill1('');
     setSelectedSpecSkill2('');
+    setSelectedSpecSkill3('');
     setSelectedTalents([]);
     setClickableTalents([0, 1, 2, 3]);
+
+    // Find spec picture(s) and randomly pick one, ensuring it's different from career picture
+    if (specName) {
+      const spec = specializations.find(s => s.spec_name === specName);
+      if (spec && specPictures.length > 0) {
+        const matchingPictures = specPictures.filter(pic => pic.spec_ID === spec.id);
+        if (matchingPictures.length > 0) {
+          // Filter out pictures that match the career picture
+          const availablePictures = matchingPictures.filter(pic => pic.id !== selectedCareerPictureId);
+          const picturesToChooseFrom = availablePictures.length > 0 ? availablePictures : matchingPictures;
+          const randomPic = picturesToChooseFrom[Math.floor(Math.random() * picturesToChooseFrom.length)];
+          setSelectedSpecPictureId(randomPic.id);
+        } else {
+          setSelectedSpecPictureId(null);
+        }
+      } else {
+        setSelectedSpecPictureId(null);
+      }
+    } else {
+      setSelectedSpecPictureId(null);
+    }
   };
 
   const handleSpecSkill1Change = (e) => {
@@ -650,18 +749,40 @@ export default function SWEotECharacterCreator() {
     setSelectedSpecSkill2(newSkill);
   };
 
-  const handleCareerSkillChange = (index) => (e) => {
-    const newSkill = e.target.value;
-    const oldSkill = selectedCareerSkills[index];
-    const newSkills = [...selectedCareerSkills];
-    newSkills[index] = newSkill;
-    setSelectedCareerSkills(newSkills);
+  const handleSpecSkill3Change = (e) => {
+    const newSkill = e.target.value.trim();
+    const oldSkill = selectedSpecSkill3;
+    if (oldSkill && skillRanks[oldSkill] !== undefined) {
+      setSkillRanks(prevRanks => ({
+        ...prevRanks,
+        [oldSkill]: Math.max(0, prevRanks[oldSkill] - 1),
+      }));
+    }
     if (newSkill) {
       setSkillRanks(prevRanks => ({
         ...prevRanks,
         [newSkill]: (prevRanks[newSkill] || 0) + 1,
       }));
     }
+    setSelectedSpecSkill3(newSkill);
+  };
+
+  const handleCareerSkillChange = (index) => (e) => {
+    const newSkill = e.target.value;
+    const oldSkill = selectedCareerSkills[index];
+    const newSkills = [...selectedCareerSkills];
+    newSkills[index] = newSkill;
+    setSelectedCareerSkills(newSkills);
+    
+    // Add rank for new skill
+    if (newSkill) {
+      setSkillRanks(prevRanks => ({
+        ...prevRanks,
+        [newSkill]: (prevRanks[newSkill] || 0) + 1,
+      }));
+    }
+    
+    // Remove rank for old skill if it exists and changed
     if (oldSkill && oldSkill !== newSkill) {
       const currentRank = skillRanks[oldSkill] || 0;
       if (currentRank > 0) {
@@ -763,7 +884,7 @@ export default function SWEotECharacterCreator() {
     skillsRankString = skillsRankString.replace(/, $/, '');
 
     const careerSkillsString = selectedCareerSkills.filter(skill => skill).join(', ');
-    const specSkillsString = [selectedSpecSkill1, selectedSpecSkill2].filter(skill => skill).join(', ');
+    const specSkillsString = [selectedSpecSkill1, selectedSpecSkill2, selectedSpecSkill3].filter(skill => skill).join(', ');
     const startingTalentsString = buildStartingTalentsString();
     const finalSpecSkills = [specSkillsString, startingTalentsString].filter(s => s).join(', ');
 
@@ -1012,6 +1133,29 @@ export default function SWEotECharacterCreator() {
     return career.Force_Sensitive ? `${career.name} (Force Sensitive)` : career.name;
   };
 
+  const handleCopyPrompt = () => {
+    if (!selectedCareer || !selectedSpecialization || !selectedRace) {
+      alert('Please select a career, specialization, and race first');
+      return;
+    }
+
+    const careerData = careers.find(c => c.name === selectedCareer);
+    const specData = specializations.find(s => s.spec_name === selectedSpecialization);
+    
+    const careerDesc = careerData?.description || 'No description';
+    const specDesc = specData?.description || 'No description';
+    const raceName = selectedRace.name;
+
+    const prompt = `write a prompt for ${careerDesc} ${specDesc} the race is ${raceName}`;
+    
+    navigator.clipboard.writeText(prompt).then(() => {
+      alert('Prompt copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      alert('Failed to copy prompt');
+    });
+  };
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-white py-10" style={{ maxWidth: '1600px', minWidth: '1600px', margin: '0 auto' }}>
       <img src="/SWEotE.webp" alt="Star Wars: Edge of the Empire" className="w-64 mb-6" />
@@ -1247,55 +1391,78 @@ export default function SWEotECharacterCreator() {
           <h2 className="font-bold text-lg mb-3">Career</h2>
           <div className="flex justify-between" style={{ minHeight: 'calc(100% - 40px)' }}>
             <div className="w-1/2 pr-4 text-left">
-              <div className="mb-4">
-                <label className="block font-bold text-base mb-2">Select Career</label>
+              <div className="mb-4 flex items-center gap-2">
+                <label className="block text-base whitespace-nowrap" style={{fontWeight: 'bold'}}>Select Career</label>
                 <select
                   value={selectedCareer}
                   onChange={handleCareerChange}
-                  className="border border-black rounded px-2 py-1 w-full text-center"
+                  className="border border-black rounded px-2 py-1 flex-1 text-center"
                 >
                   <option value="">Select Career</option>
-                  {careers.map((career) => (
-                    <option key={career.id} value={career.name}>
-                      {formatCareerName(career)}
-                    </option>
-                  ))}
+                  {careers
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((career) => (
+                      <option key={career.id} value={career.name}>
+                        {formatCareerName(career)}
+                      </option>
+                    ))}
                 </select>
               </div>
               {selectedCareer && (
-                <div>
-                  <h3 className="font-bold text-base mb-1">Description</h3>
-                  <div className="text-gray-700 mb-4" style={{ maxHeight: '100px', overflowY: 'auto' }}>
-                    {careers.find(c => c.name === selectedCareer)?.description || 'No description available'}
-                  </div>
-                  <div className="mt-4">
-                    <h3 className="font-bold text-base mb-1">Career Skills</h3>
-                    {['First Skill', 'Second Skill', 'Third Skill', 'Fourth Skill'].map((label, index) => (
-                      <div key={index} className="mb-2">
-                        <label className="block font-bold text-base mb-1">{label}</label>
-                        <select
-                          value={selectedCareerSkills[index] || ''}
-                          onChange={handleCareerSkillChange(index)}
-                          className="border border-black rounded px-2 py-1 w-full text-center"
-                        >
-                          <option value="">Select Skill</option>
-                          {getAvailableSkills(index).map((skill, i) => (
-                            <option key={i} value={skill}>{skill}</option>
-                          ))}
-                        </select>
+                <>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                    {selectedCareerPictureId && (
+                      <img 
+                        src={`/SW_Pictures/Picture ${selectedCareerPictureId}.png`} 
+                        alt={`${selectedCareer} portrait`} 
+                        className="rounded object-contain"
+                        style={{ 
+                          maxWidth: '150px', 
+                          height: 'auto',
+                          marginRight: '16px',
+                          marginBottom: '16px',
+                          flexShrink: 0
+                        }} 
+                      />
+                    )}
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Description</label>
+                      <div className="text-gray-700 mb-4" style={{ height: '140px' }}>
+                        {careers.find(c => c.name === selectedCareer)?.description || 'No description available'}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
+                  <label className="block text-base mt-4" style={{fontWeight: 'bold'}}>Career Skills{isDroidSpecies && ' (6 available)'}</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      {Array.from({ length: isDroidSpecies ? 6 : 4 }).map((_, index) => (
+                        <div key={index} className="mb-2">
+                          <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill {index + 1}</label>
+                          <select
+                            value={selectedCareerSkills[index] || ''}
+                            onChange={handleCareerSkillChange(index)}
+                            className="border border-black rounded px-2 py-1 w-full text-center"
+                          >
+                            <option value="">Select Skill</option>
+                            {getAvailableSkills(index).map((skill, i) => (
+                              <option key={i} value={skill}>{skill}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
             <div className="w-1/2 pl-4 text-left">
-              <div className="mb-4">
-                <h3 className="font-bold text-base mb-2">Career Specialization</h3>
+              <div className="mb-4 flex items-center gap-2">
+                <label className="block text-base whitespace-nowrap" style={{fontWeight: 'bold'}}>Career Specialization</label>
                 <select
                   value={selectedSpecialization}
                   onChange={handleSpecializationChange}
-                  className="border border-black rounded px-2 py-1 w-full text-center"
+                  className="border border-black rounded px-2 py-1 flex-1 text-center"
                 >
                   <option value="">Select Specialization</option>
                   {specializations
@@ -1303,6 +1470,7 @@ export default function SWEotECharacterCreator() {
                       const career = careers.find(c => c.id === spec.Career);
                       return career && career.name === selectedCareer;
                     })
+                    .sort((a, b) => a.spec_name.localeCompare(b.spec_name))
                     .map((spec, index) => (
                       <option key={index} value={spec.spec_name}>
                         {spec.spec_name}
@@ -1311,48 +1479,99 @@ export default function SWEotECharacterCreator() {
                 </select>
               </div>
               {selectedSpecialization && (
-                <div>
-                  <h4 className="font-bold text-base mb-1">Description</h4>
-                  <div className="text-gray-700 mb-4" style={{ maxHeight: '100px', overflowY: 'auto' }}>
-                    {specializations.find(s => s.spec_name === selectedSpecialization)?.description || 'No description available'}
+                <>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    {selectedSpecPictureId && (
+                      <img 
+                        src={`/SW_Pictures/Picture ${selectedSpecPictureId}.png`} 
+                        alt={`${selectedSpecialization} portrait`} 
+                        className="rounded object-contain"
+                        style={{ 
+                          maxWidth: '150px', 
+                          height: 'auto',
+                          marginRight: '16px',
+                          marginBottom: '16px',
+                          flexShrink: 0
+                        }} 
+                      />
+                    )}
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Description</label>
+                      <div className="text-gray-700 mb-4" style={{ height: '140px' }}>
+                        {specializations.find(s => s.spec_name === selectedSpecialization)?.description || 'No description available'}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-2">
-                    <label className="block font-bold text-base mb-1">Specialization Skill 1</label>
-                    <select
-                      value={selectedSpecSkill1}
-                      onChange={handleSpecSkill1Change}
-                      className="border border-black rounded px-2 py-1 w-full text-center"
-                    >
-                      <option value="">Select Skill</option>
-                      {specializations
-                        .find(s => s.spec_name === selectedSpecialization)
-                        ?.spec_skills?.split(',')
-                        .map((skill, i) => (
-                          <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill2}>
-                            {skill.trim()}
-                          </option>
-                        )) || []}
-                    </select>
+                  <label className="block text-base mt-4" style={{fontWeight: 'bold'}}>Specialization Skills</label>
+                  <div>
+                    <div className="mt-2">
+                      <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 1</label>
+                      <select
+                        value={selectedSpecSkill1}
+                        onChange={handleSpecSkill1Change}
+                        className="border border-black rounded px-2 py-1 w-full text-center"
+                      >
+                        <option value="">Select Skill</option>
+                        {specializations
+                          .find(s => s.spec_name === selectedSpecialization)
+                          ?.spec_skills?.split(',')
+                          .map((skill, i) => (
+                            <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill2}>
+                              {skill.trim()}
+                            </option>
+                          )) || []}
+                      </select>
+                    </div>
+                    <div className="mt-2">
+                      <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 2</label>
+                      <select
+                        value={selectedSpecSkill2}
+                        onChange={handleSpecSkill2Change}
+                        className="border border-black rounded px-2 py-1 w-full text-center"
+                      >
+                        <option value="">Select Skill</option>
+                        {specializations
+                          .find(s => s.spec_name === selectedSpecialization)
+                          ?.spec_skills?.split(',')
+                          .map((skill, i) => (
+                            <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill1}>
+                              {skill.trim()}
+                            </option>
+                          )) || []}
+                      </select>
+                    </div>
+                    {isDroidSpecies && (
+                      <div className="mt-2">
+                        <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 3</label>
+                        <select
+                          value={selectedSpecSkill3 || ''}
+                          onChange={handleSpecSkill3Change}
+                          className="border border-black rounded px-2 py-1 w-full text-center"
+                        >
+                          <option value="">Select Skill</option>
+                          {specializations
+                            .find(s => s.spec_name === selectedSpecialization)
+                            ?.spec_skills?.split(',')
+                            .map((skill, i) => (
+                              <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill1 || skill.trim() === selectedSpecSkill2}>
+                                {skill.trim()}
+                              </option>
+                            )) || []}
+                        </select>
+                      </div>
+                    )}
+                    {isAdmin && (
+                      <div className="mt-4">
+                        <button
+                          onClick={handleCopyPrompt}
+                          className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 font-semibold"
+                        >
+                          Copy Prompt
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-2">
-                    <label className="block font-bold text-base mb-1">Specialization Skill 2</label>
-                    <select
-                      value={selectedSpecSkill2}
-                      onChange={handleSpecSkill2Change}
-                      className="border border-black rounded px-2 py-1 w-full text-center"
-                    >
-                      <option value="">Select Skill</option>
-                      {specializations
-                        .find(s => s.spec_name === selectedSpecialization)
-                        ?.spec_skills?.split(',')
-                        .map((skill, i) => (
-                          <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill1}>
-                            {skill.trim()}
-                          </option>
-                        )) || []}
-                    </select>
-                  </div>
-                </div>
+                </>
               )}
             </div>
           </div>

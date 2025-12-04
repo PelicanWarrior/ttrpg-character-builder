@@ -34,6 +34,18 @@ export default function LoginPage() {
           navigate('/select-ttrpg'); // Navigate to new page
         }
       } else {
+        // Check if username already exists
+        const { data: existingUser, error: checkError } = await supabase
+          .from('user')
+          .select('username')
+          .eq('username', username)
+          .single();
+
+        if (existingUser) {
+          setMessage('Username already exists. Please choose a different username.');
+          return;
+        }
+
         // Create a new account with admin: false
         const { error } = await supabase
           .from('user')
