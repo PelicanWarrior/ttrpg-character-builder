@@ -1437,8 +1437,8 @@ export default function SWEotECharacterCreator() {
                       </div>
                     </div>
                   </div>
-                  <label className="block text-base mt-4" style={{fontWeight: 'bold'}}>Career Skills{isDroidSpecies && ' (6 available)'}</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                  <label className="block text-base mt-4 md:mt-4 mb-2" style={{fontWeight: 'bold'}}>Career Skills{isDroidSpecies && ' (6 available)'}</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', marginTop: '20px' }}>
                     <div style={{ flex: 1, minWidth: '150px' }}>
                       {Array.from({ length: isDroidSpecies ? 6 : 4 }).map((_, index) => (
                         <div key={index} className="mb-2">
@@ -1506,8 +1506,8 @@ export default function SWEotECharacterCreator() {
                       </div>
                     </div>
                   </div>
-                  <label className="block text-base mt-4" style={{fontWeight: 'bold'}}>Specialization Skills</label>
-                  <div>
+                  <label className="block text-base mt-4 md:mt-4 mb-2" style={{fontWeight: 'bold'}}>Specialization Skills</label>
+                  <div style={{ marginTop: '20px' }}>
                     <div className="mt-2">
                       <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 1</label>
                       <select
