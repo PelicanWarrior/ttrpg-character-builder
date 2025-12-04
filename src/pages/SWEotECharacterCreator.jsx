@@ -1387,16 +1387,16 @@ export default function SWEotECharacterCreator() {
       )}
 
       {selectedRace && activeTab === 'Career' && careers.length > 0 && (
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4" style={{ minHeight: '500px', position: 'relative' }}>
+        <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px', position: 'relative' }}>
           <h2 className="font-bold text-lg mb-3">Career</h2>
-          <div className="flex justify-between" style={{ minHeight: 'calc(100% - 40px)' }}>
-            <div className="w-1/2 pr-4 text-left">
-              <div className="mb-4 flex items-center gap-2">
+          <div className="flex flex-col md:flex-row justify-between" style={{ minHeight: 'calc(100% - 40px)' }}>
+            <div className="w-full md:w-1/2 md:pr-4 text-left mb-4 md:mb-0">
+              <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
                 <label className="block text-base whitespace-nowrap" style={{fontWeight: 'bold'}}>Select Career</label>
                 <select
                   value={selectedCareer}
                   onChange={handleCareerChange}
-                  className="border border-black rounded px-2 py-1 flex-1 text-center"
+                  className="border border-black rounded px-2 py-1 w-full sm:flex-1 text-center"
                 >
                   <option value="">Select Career</option>
                   {careers
@@ -1418,7 +1418,7 @@ export default function SWEotECharacterCreator() {
                         alt={`${selectedCareer} portrait`} 
                         className="rounded object-contain"
                         style={{ 
-                          maxWidth: '150px', 
+                          maxWidth: '120px', 
                           height: 'auto',
                           marginRight: '16px',
                           marginBottom: '16px',
@@ -1426,7 +1426,7 @@ export default function SWEotECharacterCreator() {
                         }} 
                       />
                     )}
-                    <div style={{ flex: 1, minWidth: '200px' }}>
+                    <div style={{ flex: 1, minWidth: '150px' }}>
                       <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Description</label>
                       <div className="text-gray-700 mb-4" style={{ height: '140px' }}>
                         {careers.find(c => c.name === selectedCareer)?.description || 'No description available'}
@@ -1435,7 +1435,7 @@ export default function SWEotECharacterCreator() {
                   </div>
                   <label className="block text-base mt-4" style={{fontWeight: 'bold'}}>Career Skills{isDroidSpecies && ' (6 available)'}</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: '200px' }}>
+                    <div style={{ flex: 1, minWidth: '150px' }}>
                       {Array.from({ length: isDroidSpecies ? 6 : 4 }).map((_, index) => (
                         <div key={index} className="mb-2">
                           <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill {index + 1}</label>
@@ -1456,13 +1456,13 @@ export default function SWEotECharacterCreator() {
                 </>
               )}
             </div>
-            <div className="w-1/2 pl-4 text-left">
-              <div className="mb-4 flex items-center gap-2">
+            <div className="w-full md:w-1/2 md:pl-4 text-left">
+              <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
                 <label className="block text-base whitespace-nowrap" style={{fontWeight: 'bold'}}>Career Specialization</label>
                 <select
                   value={selectedSpecialization}
                   onChange={handleSpecializationChange}
-                  className="border border-black rounded px-2 py-1 flex-1 text-center"
+                  className="border border-black rounded px-2 py-1 w-full sm:flex-1 text-center"
                 >
                   <option value="">Select Specialization</option>
                   {specializations
@@ -1487,7 +1487,7 @@ export default function SWEotECharacterCreator() {
                         alt={`${selectedSpecialization} portrait`} 
                         className="rounded object-contain"
                         style={{ 
-                          maxWidth: '150px', 
+                          maxWidth: '120px', 
                           height: 'auto',
                           marginRight: '16px',
                           marginBottom: '16px',
@@ -1495,7 +1495,7 @@ export default function SWEotECharacterCreator() {
                         }} 
                       />
                     )}
-                    <div style={{ flex: 1, minWidth: '200px' }}>
+                    <div style={{ flex: 1, minWidth: '150px' }}>
                       <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Description</label>
                       <div className="text-gray-700 mb-4" style={{ height: '140px' }}>
                         {specializations.find(s => s.spec_name === selectedSpecialization)?.description || 'No description available'}
@@ -1575,7 +1575,7 @@ export default function SWEotECharacterCreator() {
               )}
             </div>
           </div>
-          <div style={{ position: 'absolute', top: '40px', left: '50%', width: '2px', height: 'calc(100% - 40px)', backgroundColor: 'black', transform: 'translateX(-50%)' }}></div>
+          <div className="hidden md:block" style={{ position: 'absolute', top: '40px', left: '50%', width: '2px', height: 'calc(100% - 40px)', backgroundColor: 'black', transform: 'translateX(-50%)' }}></div>
         </div>
       )}
 
