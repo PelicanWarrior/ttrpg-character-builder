@@ -1221,7 +1221,7 @@ export default function SWEotECharacterCreator() {
                 <div className="flex flex-col items-center md:flex-none">
                   <h3 className="font-bold text-base mb-2">Species Image</h3>
                   {selectedPictureId ? (
-                    <img src={`/SW_Pictures/Picture ${selectedPictureId} Face.png`} alt={`${selectedRace.name} portrait`} className="border border-black rounded object-contain" style={{ maxHeight: '200px', width: 'auto' }} />
+                    <img src={`/SW_Pictures/Picture ${selectedPictureId} Face.png`} alt={`${selectedRace.name} portrait`} className="rounded object-contain" style={{ maxHeight: '200px', width: 'auto' }} />
                   ) : (
                     <div className="w-40 sm:w-48 h-40 sm:h-48 border border-dashed border-gray-400 rounded flex items-center justify-center bg-gray-100">
                       <p className="text-gray-500 text-sm">No image</p>
@@ -1231,13 +1231,13 @@ export default function SWEotECharacterCreator() {
 
                 <div className="flex-1">
                   <h3 className="font-bold text-base mb-2">Species Description</h3>
-                  <div className="text-left p-3 sm:p-4 border border-black rounded bg-gray-50 h-48 overflow-y-auto text-sm sm:text-base">
+                  <div className="text-left p-3 sm:p-4 border border-black rounded bg-white h-48 overflow-y-auto text-sm sm:text-base text-gray-800">
                     {selectedRace.description || 'No description available'}
                   </div>
 
                   <div className="mt-4">
                     <h3 className="font-bold text-base mb-2">Starting Skills & Talents</h3>
-                    <div className="text-left p-3 sm:p-4 border border-black rounded bg-gray-50 h-64 overflow-y-auto space-y-4 text-sm sm:text-base">
+                    <div className="text-left p-3 sm:p-4 border border-black rounded bg-white h-64 overflow-y-auto space-y-4 text-sm sm:text-base text-gray-800">
 
                       <div>
                         <h4 className="font-semibold">Starting Skill Selection</h4>
@@ -1359,9 +1359,10 @@ export default function SWEotECharacterCreator() {
       )}
 
       {selectedRace && activeTab === 'Skills' && skills.length > 0 && (
-        <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4 overflow-x-auto" style={{ minHeight: '400px', display: 'flex', justifyContent: 'center' }}>
+        <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '400px' }}>
           <h2 className="font-bold text-base sm:text-lg mb-3">Skills</h2>
-          <table className="border border-black text-center text-xs sm:text-sm md:text-base" style={{ tableLayout: 'auto', margin: '0 auto' }}>
+          <div className="overflow-x-auto flex justify-center">
+            <table className="border border-black text-center text-xs sm:text-sm md:text-base" style={{ tableLayout: 'auto' }}>
             <thead>
               <tr className="bg-gray-100">
                 <th className="border border-black py-1">Skill</th>
@@ -1385,6 +1386,7 @@ export default function SWEotECharacterCreator() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
