@@ -97,13 +97,9 @@ export default function SWCharacterOverview() {
     e.stopPropagation();
 
     const rect = e.currentTarget.getBoundingClientRect();
-    let x = rect.right + window.scrollX + 12;
-    let y = rect.top + window.scrollY - 10;
-
-    // Optional: flip to left if too close to right edge
-    if (x + 300 > window.innerWidth + window.scrollX) {
-      x = rect.left + window.scrollX - 312;
-    }
+    // Position at left edge of screen (x=0), just below the clicked pool button
+    let x = 0;
+    let y = rect.bottom + window.scrollY + 8;
 
     const details = pool.split('').map(color => ({
       color,
