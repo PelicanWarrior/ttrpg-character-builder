@@ -1290,13 +1290,13 @@ export default function SWEotECharacterCreator() {
 
       <div className="w-full mb-4">
         <div className="flex flex-wrap border-2 border-black rounded-lg overflow-hidden">
-          <button onClick={() => handleTabClick('Species')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Species</button>
-          <button onClick={() => handleTabClick('Stats')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Stats</button>
-          <button onClick={() => handleTabClick('Skills')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Skills</button>
-          <button onClick={() => handleTabClick('Career')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Career</button>
-          <button onClick={() => handleTabClick('Talent Tree')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Talent Tree</button>
-          <button onClick={() => handleTabClick('Backstory')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Backstory</button>
-          <button onClick={() => handleTabClick('Finish')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Finish</button>
+          <button onClick={() => handleTabClick('Species')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-white text-white hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Species</button>
+          <button onClick={() => handleTabClick('Stats')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-white hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Stats</button>
+          <button onClick={() => handleTabClick('Skills')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-white hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Skills</button>
+          <button onClick={() => handleTabClick('Career')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-white hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Career</button>
+          <button onClick={() => handleTabClick('Talent Tree')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-white hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Talent Tree</button>
+          <button onClick={() => handleTabClick('Backstory')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-white hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Backstory</button>
+          <button onClick={() => handleTabClick('Finish')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-white hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Finish</button>
         </div>
       </div>
 
@@ -1608,15 +1608,15 @@ export default function SWEotECharacterCreator() {
           <h2 className="font-bold text-base sm:text-lg mb-3">Stats</h2>
           <table className="border border-black text-center text-xs sm:text-sm md:text-base" style={{ tableLayout: 'auto', margin: '0 auto' }}>
             <tbody>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Brawn</th><td className="border border-black py-1"><button onClick={() => updateStat('brawn', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('brawn')}</span><button onClick={() => updateStat('brawn', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Agility</th><td className="border border-black py-1"><button onClick={() => updateStat('agility', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('agility')}</span><button onClick={() => updateStat('agility', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Intellect</th><td className="border border-black py-1"><button onClick={() => updateStat('intellect', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('intellect')}</span><button onClick={() => updateStat('intellect', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Cunning</th><td className="border border-black py-1"><button onClick={() => updateStat('cunning', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 4px' }}>{getBaseStatValue('cunning')}</span><button onClick={() => updateStat('cunning', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Willpower</th><td className="border border-black py-1"><button onClick={() => updateStat('willpower', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('willpower')}</span><button onClick={() => updateStat('willpower', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Presence</th><td className="border border-black py-1"><button onClick={() => updateStat('presence', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('presence')}</span><button onClick={() => updateStat('presence', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Wound Threshold</th><td className="border border-black py-1" style={{ color: 'black' }}>{woundThreshold}</td></tr>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Strain Threshold</th><td className="border border-black py-1" style={{ color: 'black' }}>{strainThreshold}</td></tr>
-              <tr className="bg-gray-100"><th className="border border-black py-1">Species Attack</th><td className="border border-black py-1" style={{ color: 'black' }}>{selectedRace.Race_Attack}</td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Brawn</th><td className="border border-black py-1" style={{ backgroundColor: 'white' }}><button onClick={() => updateStat('brawn', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('brawn')}</span><button onClick={() => updateStat('brawn', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Agility</th><td className="border border-black py-1" style={{ backgroundColor: 'white' }}><button onClick={() => updateStat('agility', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('agility')}</span><button onClick={() => updateStat('agility', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Intellect</th><td className="border border-black py-1" style={{ backgroundColor: 'white' }}><button onClick={() => updateStat('intellect', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('intellect')}</span><button onClick={() => updateStat('intellect', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Cunning</th><td className="border border-black py-1" style={{ backgroundColor: 'white' }}><button onClick={() => updateStat('cunning', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 4px' }}>{getBaseStatValue('cunning')}</span><button onClick={() => updateStat('cunning', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Willpower</th><td className="border border-black py-1" style={{ backgroundColor: 'white' }}><button onClick={() => updateStat('willpower', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('willpower')}</span><button onClick={() => updateStat('willpower', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Presence</th><td className="border border-black py-1" style={{ backgroundColor: 'white' }}><button onClick={() => updateStat('presence', -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button><span style={{ color: 'black', margin: '0 8px' }}>{getBaseStatValue('presence')}</span><button onClick={() => updateStat('presence', 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button></td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Wound Threshold</th><td className="border border-black py-1" style={{ color: 'black', backgroundColor: 'white' }}>{woundThreshold}</td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Strain Threshold</th><td className="border border-black py-1" style={{ color: 'black', backgroundColor: 'white' }}>{strainThreshold}</td></tr>
+              <tr className="bg-white"><th className="border border-black py-1">Species Attack</th><td className="border border-black py-1" style={{ color: 'black', backgroundColor: 'white' }}>{selectedRace.Race_Attack}</td></tr>
             </tbody>
           </table>
         </div>
@@ -1628,7 +1628,7 @@ export default function SWEotECharacterCreator() {
           <div className="overflow-x-auto flex justify-center">
             <table className="border border-black text-center text-xs sm:text-sm md:text-base" style={{ tableLayout: 'auto' }}>
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-white">
                 <th className="border border-black py-1">Skill</th>
                 <th className="border border-black py-1">Rank</th>
                 <th className="border border-black py-1">Dice Pool</th>
@@ -1636,14 +1636,14 @@ export default function SWEotECharacterCreator() {
             </thead>
             <tbody>
               {skills.map((skill, index) => (
-                <tr key={index} className="bg-gray-100">
+                <tr key={index} className="bg-white">
                   <td className="border border-black py-1">{skill.skill}</td>
-                  <td className="border border-black py-1">
+                  <td className="border border-black py-1" style={{ backgroundColor: 'white' }}>
                     <button onClick={() => updateSkillRank(skill.skill, -1)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">-</button>
                     <span style={{ color: 'black', margin: '0 8px' }}>{getSkillRank(skill.skill)}</span>
                     <button onClick={() => updateSkillRank(skill.skill, 1)} className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700">+</button>
                   </td>
-                  <td className="border border-black py-1" style={{ color: 'black' }}>
+                  <td className="border border-black py-1" style={{ color: 'black', backgroundColor: 'white' }}>
                     {getDicePool(skill.skill, skill.stat)}
                   </td>
                 </tr>
@@ -1656,7 +1656,7 @@ export default function SWEotECharacterCreator() {
 
       {selectedRace && activeTab === 'Career' && careers.length > 0 && (
         <>
-          <div className="rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: 'auto', position: 'relative', border: '4px solid #2563eb', backgroundColor: '#f0f9ff' }}>
+          <div className="rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: 'auto', position: 'relative', border: '4px solid #2563eb', backgroundColor: '#f0f9ff', color: 'black' }}>
             <h2 className="font-bold text-lg mb-3">Career</h2>
             <div style={{ textAlign: 'left' }}>
               <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -1727,7 +1727,7 @@ export default function SWEotECharacterCreator() {
           </div>
 
           {selectedCareer && (
-            <div className="rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: 'auto', position: 'relative', border: '4px solid #dc2626', backgroundColor: '#fef2f2' }}>
+            <div className="rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: 'auto', position: 'relative', border: '4px solid #dc2626', backgroundColor: '#fef2f2', color: 'black' }}>
               <h2 className="font-bold text-lg mb-3">Specialization</h2>
               <div style={{ textAlign: 'left' }}>
                 <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
