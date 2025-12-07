@@ -1696,7 +1696,7 @@ export default function SWEotECharacterCreator() {
                     )}
                     <div style={{ flex: 1, minWidth: '150px' }}>
                       <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Description</label>
-                      <div className="text-gray-700 mb-4" style={{ height: '140px' }}>
+                      <div className="text-gray-700 mb-4" style={{ minHeight: '40px' }}>
                         {careers.find(c => c.name === selectedCareer)?.description || 'No description available'}
                       </div>
                     </div>
@@ -1770,7 +1770,7 @@ export default function SWEotECharacterCreator() {
                       )}
                       <div style={{ flex: 1, minWidth: '150px' }}>
                         <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Description</label>
-                        <div className="text-gray-700 mb-4" style={{ height: '140px' }}>
+                        <div className="text-gray-700 mb-4" style={{ minHeight: '40px' }}>
                           {specializations.find(s => s.spec_name === selectedSpecialization)?.description || 'No description available'}
                         </div>
                       </div>
