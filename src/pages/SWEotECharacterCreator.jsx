@@ -1701,9 +1701,9 @@ export default function SWEotECharacterCreator() {
                       </div>
                     </div>
                   </div>
-                  <label className="block text-base mt-4 md:mt-4 mb-2" style={{fontWeight: 'bold'}}>Career Skills{isDroidSpecies && ' (6 available)'}</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', marginTop: '20px' }}>
-                    <div style={{ flex: 1, minWidth: '150px' }}>
+                  <label className="block text-base mt-2 mb-2" style={{fontWeight: 'bold'}}>Career Skills{isDroidSpecies && ' (6 available)'}</label>
+                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+                    <div style={{ width: '520px', maxWidth: '100%' }}>
                       {Array.from({ length: isDroidSpecies ? 6 : 4 }).map((_, index) => (
                         <div key={index} className="mb-2">
                           <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill {index + 1}</label>
@@ -1775,8 +1775,9 @@ export default function SWEotECharacterCreator() {
                         </div>
                       </div>
                     </div>
-                    <label className="block text-base mt-4 md:mt-4 mb-2" style={{fontWeight: 'bold'}}>Specialization Skills</label>
-                    <div style={{ marginTop: '20px' }}>
+                    <label className="block text-base mt-2 mb-2" style={{fontWeight: 'bold'}}>Specialization Skills</label>
+                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+                      <div style={{ width: '520px', maxWidth: '100%' }}>
                       <div className="mt-2">
                         <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 1</label>
                         <select
@@ -1814,24 +1815,24 @@ export default function SWEotECharacterCreator() {
                         </select>
                       </div>
                       {isDroidSpecies && (
-                        <div className="mt-2">
-                          <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 3</label>
-                          <select
-                            value={selectedSpecSkill3 || ''}
-                            onChange={handleSpecSkill3Change}
-                            className="border border-black rounded px-2 py-1 w-full text-center"
-                          >
-                            <option value="">Select Skill</option>
-                            {specializations
-                              .find(s => s.spec_name === selectedSpecialization)
-                              ?.spec_skills?.split(',')
-                              .map((skill, i) => (
-                                <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill1 || skill.trim() === selectedSpecSkill2}>
-                                  {skill.trim()}
-                                </option>
-                              )) || []}
-                          </select>
-                        </div>
+                      <div className="mt-2">
+                        <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 3</label>
+                        <select
+                          value={selectedSpecSkill3 || ''}
+                          onChange={handleSpecSkill3Change}
+                          className="border border-black rounded px-2 py-1 w-full text-center"
+                        >
+                          <option value="">Select Skill</option>
+                          {specializations
+                            .find(s => s.spec_name === selectedSpecialization)
+                            ?.spec_skills?.split(',')
+                            .map((skill, i) => (
+                              <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill1 || skill.trim() === selectedSpecSkill2}>
+                                {skill.trim()}
+                              </option>
+                            )) || []}
+                        </select>
+                      </div>
                       )}
                       {isAdmin && (
                         <div className="mt-4">
@@ -1843,6 +1844,7 @@ export default function SWEotECharacterCreator() {
                           </button>
                         </div>
                       )}
+                      </div>
                     </div>
                   </>
                 )}
