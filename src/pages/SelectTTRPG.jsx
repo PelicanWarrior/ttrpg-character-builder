@@ -46,7 +46,7 @@ export default function SelectTTRPG() {
       setIsAdmin(!!userData.admin);
 
       const [swRes, staRes, flRes, diceRes] = await Promise.all([
-        supabase.from('SW_player_characters').select('id, name').eq('user_number', userData.id),
+        supabase.from('SW_player_characters').select('id, name, race, career, spec').eq('user_number', userData.id),
         supabase.from('STA_player_characters').select('id, name').eq('playerID', userData.id),
         supabase.from('FL_player_characters').select('id, name').eq('playerID', userData.id),
         supabase.from('SW_dice').select('colour, name'),
@@ -93,7 +93,7 @@ export default function SelectTTRPG() {
       return;
     }
 
-    const target = characters.find(c => c.name === selectedCharacter);
+    const target = characters.find(c => c.id === selectedCharacter);
     if (!target) {
       alert('Character not found');
       return;
@@ -757,13 +757,18 @@ export default function SelectTTRPG() {
                   <div className="p-10 text-center">
                     <img src="/Star Wars.png" alt="Star Wars" className="w-72 mx-auto mb-8" />
                     <select className="w-full max-w-md mx-auto border-4 border-gray-800 rounded-xl px-6 py-4 text-lg mb-8 bg-white" value={selectedCharacter} onChange={(e) => setSelectedCharacter(e.target.value)}>
-                      <option>Select Character</option>
-                      {characters.map(c => <option key={c.id}>{c.name}</option>)}
+                      <option value="">Select Character</option>
+                      {characters.map(c => {
+                        const displayName = c.race || c.career || c.spec
+                          ? `${c.name} (${c.race} - ${c.career} ${c.spec})`
+                          : c.name;
+                        return <option key={c.id} value={c.id}>{displayName}</option>;
+                      })}
                     </select>
                     <div className="flex justify-center gap-6">
                       <button onClick={handleDeleteCharacter} className="px-10 py-5 bg-red-700 text-white font-bold text-xl rounded-xl hover:bg-red-800 shadow-lg transition">Delete</button>
-                      <button onClick={() => { if (!selectedCharacter) return alert('Select a character'); const char = characters.find(c => c.name === selectedCharacter); localStorage.setItem('loadedCharacterId', char.id); navigate('/sweote-character-creator', { state: { create_character: false } }); }} className="px-10 py-5 bg-blue-600 text-white font-bold text-xl rounded-xl hover:bg-blue-700 shadow-lg transition">Edit</button>
-                      <button onClick={() => { if (!selectedCharacter) return alert('Select a character'); const char = characters.find(c => c.name === selectedCharacter); localStorage.setItem('loadedCharacterId', char.id); navigate('/SW_character_overview'); }} className="px-10 py-5 bg-purple-600 text-white font-bold text-xl rounded-xl hover:bg-purple-700 shadow-lg transition">Overview</button>
+                      <button onClick={() => { if (!selectedCharacter) return alert('Select a character'); localStorage.setItem('loadedCharacterId', selectedCharacter); navigate('/sweote-character-creator', { state: { create_character: false } }); }} className="px-10 py-5 bg-blue-600 text-white font-bold text-xl rounded-xl hover:bg-blue-700 shadow-lg transition">Edit</button>
+                      <button onClick={() => { if (!selectedCharacter) return alert('Select a character'); localStorage.setItem('loadedCharacterId', selectedCharacter); navigate('/SW_character_overview'); }} className="px-10 py-5 bg-purple-600 text-white font-bold text-xl rounded-xl hover:bg-purple-700 shadow-lg transition">Overview</button>
                       <button onClick={() => navigate('/sweote-character-creator', { state: { create_character: true } })} className="px-10 py-5 bg-green-600 text-white font-bold text-xl rounded-xl hover:bg-green-700 shadow-lg transition">Create</button>
                       <button onClick={openDiceRoll} className="px-10 py-5 bg-blue-500 text-white font-bold text-xl rounded-xl hover:bg-blue-600 shadow-lg transition">Dice Roll</button>
                     </div>

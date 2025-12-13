@@ -27,11 +27,15 @@ export default function SWEotECharacterCreator() {
   const [careers, setCareers] = useState([]);
   const [selectedCareer, setSelectedCareer] = useState('');
   const [selectedCareerSkills, setSelectedCareerSkills] = useState(['', '', '', '']);
+  const [tempSelectedCareer, setTempSelectedCareer] = useState(null);
+  const [tempSelectedCareerIndex, setTempSelectedCareerIndex] = useState(null);
   const [specializations, setSpecializations] = useState([]);
   const [selectedSpecialization, setSelectedSpecialization] = useState('');
   const [selectedSpecSkill1, setSelectedSpecSkill1] = useState('');
   const [selectedSpecSkill2, setSelectedSpecSkill2] = useState('');
   const [selectedSpecSkill3, setSelectedSpecSkill3] = useState('');
+  const [tempSelectedSpec, setTempSelectedSpec] = useState(null);
+  const [tempSelectedSpecIndex, setTempSelectedSpecIndex] = useState(null);
   const [talentTree, setTalentTree] = useState([]);
   const [abilities, setAbilities] = useState([]);
   const [clickableTalents, setClickableTalents] = useState([]);
@@ -54,6 +58,29 @@ export default function SWEotECharacterCreator() {
   const [selectedCareerPictureId, setSelectedCareerPictureId] = useState(null);
   const [specPictures, setSpecPictures] = useState([]);
   const [selectedSpecPictureId, setSelectedSpecPictureId] = useState(null);
+  const [talentTreeTab, setTalentTreeTab] = useState('Career Tree');
+  const [forcePowerTrees, setForcePowerTrees] = useState([]);
+  const [selectedForceTreeTab, setSelectedForceTreeTab] = useState(null);
+  const [forceTalents, setForceTalents] = useState([]);
+  const [publishForceTrees, setPublishForceTrees] = useState(false);
+  const [availableCharacterPictures, setAvailableCharacterPictures] = useState([]);
+  const [selectedCharacterPictureId, setSelectedCharacterPictureId] = useState(null);
+  const [showCharacterPictureSelector, setShowCharacterPictureSelector] = useState(false);
+
+  const handlePublishForceTreesChange = async (e) => {
+    const newValue = e.target.checked;
+    setPublishForceTrees(newValue);
+    
+    // Update the Admin Control table
+    const { error } = await supabase
+      .from('Admin_Control')
+      .update({ Force_trees: newValue })
+      .eq('id', 1); // Assuming there's a single row with id=1
+    
+    if (error) {
+      console.error('Error updating admin control:', error);
+    }
+  };
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -113,7 +140,9 @@ export default function SWEotECharacterCreator() {
         specResponse,
         abilityResponse,
         treeResponse,
-        pictureResponse
+        pictureResponse,
+        forceTreeResponse,
+        forceTalentResponse
       ] = await Promise.all([
         supabase.from('races').select('*'),
         supabase.from('skills').select('*'),
@@ -123,6 +152,8 @@ export default function SWEotECharacterCreator() {
         supabase.from('SW_abilities').select('*'),
         supabase.from('SW_spec_tree').select('*'),
         supabase.from('SW_pictures').select('*'),
+        supabase.from('SW_force_power_tree').select('*'),
+        supabase.from('SW_force_talents').select('*'),
       ]);
 
       if (raceResponse.error) console.error('Error fetching races:', raceResponse.error);
@@ -158,7 +189,33 @@ export default function SWEotECharacterCreator() {
       else setTalentTree(treeResponse.data || []);
 
       if (pictureResponse.error) console.error('Error fetching pictures:', pictureResponse.error);
-      else setRacePictures(pictureResponse.data || []);
+      else {
+        console.log('Pictures fetched:', pictureResponse.data);
+        setRacePictures(pictureResponse.data || []);
+      }
+
+      if (forceTreeResponse.error) console.error('Error fetching force power trees:', forceTreeResponse.error);
+      else {
+        const forceTrees = forceTreeResponse.data || [];
+        setForcePowerTrees(forceTrees);
+        if (forceTrees.length > 0 && !selectedForceTreeTab) {
+          setSelectedForceTreeTab(forceTrees[0].PowerTreeName);
+        }
+      }
+
+      if (forceTalentResponse.error) console.error('Error fetching force talents:', forceTalentResponse.error);
+      else setForceTalents(forceTalentResponse.data || []);
+
+      // Fetch Admin Control settings for force trees
+      const { data: adminControl, error: adminControlError } = await supabase
+        .from('Admin_Control')
+        .select('Force_trees')
+        .single();
+      if (adminControlError) {
+        console.error('Error fetching admin control:', adminControlError);
+      } else {
+        setPublishForceTrees(adminControl?.Force_trees || false);
+      }
 
       // Separate race and career pictures
       const allPictures = pictureResponse.data || [];
@@ -212,6 +269,12 @@ export default function SWEotECharacterCreator() {
               setBackstory(playerData.backstory || '');
               setWoundThreshold(playerData.wound_threshold || 0);
               setStrainThreshold(playerData.strain_threshold || 0);
+              // On load: if a saved picture exists, use it; else default to 0
+              if (typeof playerData.picture === 'number') {
+                setSelectedCharacterPictureId(playerData.picture);
+              } else {
+                setSelectedCharacterPictureId(0);
+              }
 
               if (playerData.starting_skill) {
                 const skillsArray = playerData.starting_skill.split(',').map(s => s.trim()).filter(s => s);
@@ -400,33 +463,33 @@ export default function SWEotECharacterCreator() {
 
   useEffect(() => {
     if (selectedRace && racePictures.length > 0) {
-      let matchingPictures = [];
-      
-      // If a specialization is selected, first try to find a picture with both race and spec
-      if (selectedSpecialization) {
-        const specData = specializations.find(s => s.spec_name === selectedSpecialization);
-        if (specData) {
-          matchingPictures = racePictures.filter(pic => 
-            pic.race_ID === selectedRace.id && pic.spec_ID === specData.id
-          );
-        }
+      // Get race-only pictures (no career_ID or spec_ID) for character portrait
+      let raceOnlyPictures = racePictures.filter(pic => 
+        pic.race_ID === selectedRace.id && !pic.career_ID && !pic.spec_ID
+      );
+
+      // If no race-only pictures found, get any pictures with the race (for fallback)
+      if (raceOnlyPictures.length === 0) {
+        raceOnlyPictures = racePictures.filter(pic => pic.race_ID === selectedRace.id);
       }
-      
-      // If no spec-specific picture found, fall back to race-only pictures
-      if (matchingPictures.length === 0) {
-        matchingPictures = racePictures.filter(pic => pic.race_ID === selectedRace.id);
-      }
-      
-      if (matchingPictures.length > 0) {
-        const randomPic = matchingPictures[Math.floor(Math.random() * matchingPictures.length)];
+
+      // Update available options for selector without adding/removing id 0
+      setAvailableCharacterPictures(raceOnlyPictures);
+
+      // For species display: randomly select a face of that race (exclude id 0)
+      const speciesPickerPool = raceOnlyPictures.filter(p => p.id !== 0);
+      const fallbackPool = racePictures.filter(p => p.race_ID === selectedRace.id && p.id !== 0);
+      const pool = speciesPickerPool.length > 0 ? speciesPickerPool : fallbackPool;
+      if (pool.length > 0) {
+        const randomPic = pool[Math.floor(Math.random() * pool.length)];
         setSelectedPictureId(randomPic.id);
       } else {
         setSelectedPictureId(null);
       }
     } else {
-      setSelectedPictureId(null);
+      setAvailableCharacterPictures([]);
     }
-  }, [selectedRace, racePictures, selectedSpecialization, specializations]);
+  }, [selectedRace, racePictures, selectedSpecialization, specializations, selectedCharacterPictureId]);
 
   useEffect(() => {
     if (selectedRace && selectedRace.Starting_Talents) {
@@ -998,6 +1061,7 @@ export default function SWEotECharacterCreator() {
       wound_threshold: woundThreshold,
       strain_threshold: strainThreshold,
       force_rating: getForceRating(),
+      picture: selectedCharacterPictureId,
     };
 
     if (characterId) {
@@ -1212,12 +1276,17 @@ export default function SWEotECharacterCreator() {
   };
 
   const handleTabClick = (tab) => {
-    if (!selectedRace && tab !== 'Species') {
+    if (!selectedRace && (tab === 'Stats' || tab === 'Skills')) {
       alert('Please choose a Species first');
       setActiveTab('Species');
-    } else {
-      setActiveTab(tab);
+      return;
     }
+    if (tab === 'Talent Tree' && !selectedSpecialization) {
+      alert('Please choose a Specialization first');
+      setActiveTab('Career');
+      return;
+    }
+    setActiveTab(tab);
   };
 
   const formatCareerName = (career) => {
@@ -1264,17 +1333,77 @@ export default function SWEotECharacterCreator() {
         </div>
       </div>
 
+      <div className="w-full mb-4">
+        <div className="flex flex-wrap border-2 border-black rounded-lg overflow-hidden">
+          <button onClick={() => handleTabClick('Species')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`} style={{ minWidth: '0' }}>Species</button>
+          <button onClick={() => handleTabClick('Stats')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`} style={{ minWidth: '0' }}>Stats</button>
+          <button onClick={() => handleTabClick('Skills')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`} style={{ minWidth: '0' }}>Skills</button>
+          <button onClick={() => handleTabClick('Career')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`} style={{ minWidth: '0' }}>Career</button>
+          <button onClick={() => handleTabClick('Talent Tree')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`} style={{ minWidth: '0' }}>Talent Tree</button>
+          <button onClick={() => handleTabClick('Backstory')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`} style={{ minWidth: '0' }}>Backstory</button>
+          <button onClick={() => handleTabClick('Finish')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`} style={{ minWidth: '0' }}>Finish</button>
+        </div>
+      </div>
+
       <div className="border-2 border-black rounded-lg p-3 sm:p-6 w-full text-center mb-4">
         <div className="flex flex-col items-center space-y-3 sm:space-y-4">
-          <div className="w-full sm:w-1/2">
-            <label className="block font-bold text-base sm:text-lg mb-2">Character Name</label>
-            <input
-              type="text"
-              value={characterName}
-              onChange={(e) => setCharacterName(e.target.value)}
-              className="border border-black rounded px-3 sm:px-4 py-2 w-full text-center text-lg sm:text-xl"
-              placeholder="Enter character name"
-            />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 w-full">
+            {/* Character Picture Display */}
+            <div className="flex flex-col items-center gap-2">
+              <img
+                src={selectedCharacterPictureId ? `/SW_Pictures/Picture ${selectedCharacterPictureId} Face.png?t=${Date.now()}` : `/SW_Pictures/Picture 0 Face.png?t=${Date.now()}`}
+                alt="Character"
+                className="rounded-lg object-contain"
+                style={{ width: '80px', height: '100px' }}
+                onError={(e) => {
+                  console.log('Image failed to load:', e.target.src);
+                  e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="100"%3E%3Crect fill="%23ddd" width="80" height="100"/%3E%3C/svg%3E';
+                }}
+              />
+              <button
+                onClick={() => setShowCharacterPictureSelector(!showCharacterPictureSelector)}
+                className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base font-semibold"
+              >
+                Change Picture
+              </button>
+              
+              {/* Picture Selector Dropdown */}
+              {showCharacterPictureSelector && selectedRace && availableCharacterPictures.length > 0 && (
+                <div className="flex flex-wrap gap-2 justify-center max-w-xs mt-2 p-2 border border-gray-300 rounded-lg bg-gray-50">
+                  {availableCharacterPictures.map((pic) => (
+                    <img
+                      key={pic.id}
+                      src={`/SW_Pictures/Picture ${pic.id} Face.png?t=${Date.now()}`}
+                      alt={`Character option ${pic.id}`}
+                      className={`rounded-lg cursor-pointer object-contain`}
+                      style={{ width: '80px', height: '100px' }}
+                      onClick={() => {
+                        setSelectedCharacterPictureId(pic.id);
+                        setShowCharacterPictureSelector(false);
+                      }}
+                      onError={(e) => console.log('Picture failed to load:', pic.id)}
+                    />
+                  ))}
+                </div>
+              )}
+              {showCharacterPictureSelector && (!selectedRace || availableCharacterPictures.length === 0) && (
+                <div className="text-gray-500 text-sm mt-2">
+                  {!selectedRace ? 'Select a race first' : 'No pictures available'}
+                </div>
+              )}
+            </div>
+            
+            {/* Character Name */}
+            <div className="w-full sm:flex-1">
+              <label className="block font-bold text-base sm:text-lg mb-2">Character Name</label>
+              <input
+                type="text"
+                value={characterName}
+                onChange={(e) => setCharacterName(e.target.value)}
+                className="border border-black rounded px-3 sm:px-4 py-2 w-full text-center text-lg sm:text-xl"
+                placeholder="Enter character name"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
@@ -1288,19 +1417,9 @@ export default function SWEotECharacterCreator() {
         </div>
       </div>
 
-      <div className="w-full mb-4">
-        <div className="flex flex-wrap border-2 border-black rounded-lg overflow-hidden">
-          <button onClick={() => handleTabClick('Species')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Species' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Species</button>
-          <button onClick={() => handleTabClick('Stats')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Stats' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Stats</button>
-          <button onClick={() => handleTabClick('Skills')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Skills' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Skills</button>
-          <button onClick={() => handleTabClick('Career')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Career' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Career</button>
-          <button onClick={() => handleTabClick('Talent Tree')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Talent Tree' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Talent Tree</button>
-          <button onClick={() => handleTabClick('Backstory')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Backstory' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Backstory</button>
-          <button onClick={() => handleTabClick('Finish')} className={`flex-1 px-2 sm:px-4 md:px-6 py-2 font-semibold text-xs sm:text-sm md:text-base ${activeTab === 'Finish' ? 'bg-blue-600 text-white' : 'bg-white text-black hover:bg-gray-100'}`} style={{ minWidth: '0' }}>Finish</button>
-        </div>
-      </div>
-
-      {activeTab === 'Species' && (
+      <>
+        {/* Tab Content */}
+        {activeTab === 'Species' && (
         <div className="border-2 border-black rounded-lg p-3 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
           {!selectedRace ? (
             <>
@@ -1311,8 +1430,13 @@ export default function SWEotECharacterCreator() {
                 {races.flatMap((race, idx) => {
                   const elems = [];
 
-                  // Get a random picture for this race
-                  const raceSpecificPictures = racePictures.filter(pic => pic.race_ID === race.id);
+                  // Get a random picture for this race (prefer race-only faces, exclude Picture 0)
+                  let raceSpecificPictures = racePictures.filter(pic => 
+                    pic.race_ID === race.id && !pic.career_ID && !pic.spec_ID && pic.id !== 0
+                  );
+                  if (raceSpecificPictures.length === 0) {
+                    raceSpecificPictures = racePictures.filter(pic => pic.race_ID === race.id && pic.id !== 0);
+                  }
                   const randomPicture = raceSpecificPictures.length > 0 
                     ? raceSpecificPictures[Math.floor(Math.random() * raceSpecificPictures.length)] 
                     : null;
@@ -1618,9 +1742,9 @@ export default function SWEotECharacterCreator() {
               <tr className="bg-white"><th className="border border-black py-1">Strain Threshold</th><td className="border border-black py-1" style={{ color: 'black', backgroundColor: 'white' }}>{strainThreshold}</td></tr>
               <tr className="bg-white"><th className="border border-black py-1">Species Attack</th><td className="border border-black py-1" style={{ color: 'black', backgroundColor: 'white' }}>{selectedRace.Race_Attack}</td></tr>
             </tbody>
-          </table>
-        </div>
-      )}
+            </table>
+          </div>
+        )}
 
       {selectedRace && activeTab === 'Skills' && skills.length > 0 && (
         <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '400px' }}>
@@ -1650,208 +1774,363 @@ export default function SWEotECharacterCreator() {
               ))}
             </tbody>
           </table>
-          </div>
+        </div>
         </div>
       )}
 
-      {selectedRace && activeTab === 'Career' && careers.length > 0 && (
-        <>
-          <div className="rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: 'auto', position: 'relative', border: '4px solid #2563eb', backgroundColor: '#f0f9ff', color: 'black' }}>
-            <h2 className="font-bold text-lg mb-3">Career</h2>
-            <div style={{ textAlign: 'left' }}>
-              <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                <label className="block text-base whitespace-nowrap" style={{fontWeight: 'bold'}}>Select Career</label>
-                <select
-                  value={selectedCareer}
-                  onChange={handleCareerChange}
-                  className="border border-black rounded px-2 py-1 w-full sm:flex-1 text-center"
-                >
-                  <option value="">Select Career</option>
-                  {getFilteredCareers()
-                    .slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((career) => (
-                      <option key={career.id} value={career.name}>
-                        {formatCareerName(career)}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              {selectedCareer && (
-                <>
-                  <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-                    {selectedCareerPictureId && (
-                      <img 
-                        src={`/SW_Pictures/Picture ${selectedCareerPictureId}.png`} 
-                        alt={`${selectedCareer} portrait`} 
-                        className="rounded object-contain"
-                        style={{ 
-                          maxWidth: '120px', 
-                          height: 'auto',
-                          marginRight: '16px',
-                          marginBottom: '16px',
-                          flexShrink: 0
-                        }} 
-                      />
-                    )}
-                    <div style={{ flex: 1, minWidth: '150px' }}>
-                      <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Description</label>
-                      <div className="text-gray-700 mb-4" style={{ minHeight: '40px' }}>
-                        {careers.find(c => c.name === selectedCareer)?.description || 'No description available'}
-                      </div>
-                    </div>
-                  </div>
-                  <label className="block text-base mt-2 mb-2" style={{fontWeight: 'bold'}}>Career Skills{isDroidSpecies && ' (6 available)'}</label>
-                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
-                    <div style={{ width: '520px', maxWidth: '100%' }}>
-                      {Array.from({ length: isDroidSpecies ? 6 : 4 }).map((_, index) => (
-                        <div key={index} className="mb-2">
-                          <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill {index + 1}</label>
-                          <select
-                            value={selectedCareerSkills[index] || ''}
-                            onChange={handleCareerSkillChange(index)}
-                            className="border border-black rounded px-2 py-1 w-full text-center"
-                          >
-                            <option value="">Select Skill</option>
-                            {getAvailableSkills(index).map((skill, i) => (
-                              <option key={i} value={skill}>{skill}</option>
-                            ))}
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+      {activeTab === 'Career' && careers.length > 0 && (
+        <div className="border-2 border-black rounded-lg p-3 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
+          {!selectedCareer ? (
+            <>
+              <h2 className="font-bold text-lg mb-6">Select Career</h2>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                {getFilteredCareers()
+                  .slice()
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .flatMap((career, idx) => {
+                    const elems = [];
+                    const careerPictures = racePictures.filter(pic => pic.career_ID === career.id);
+                    const randomPicture = careerPictures.length > 0
+                      ? careerPictures[Math.floor(Math.random() * careerPictures.length)]
+                      : null;
 
-          {selectedCareer && (
-            <div className="rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: 'auto', position: 'relative', border: '4px solid #dc2626', backgroundColor: '#fef2f2', color: 'black' }}>
-              <h2 className="font-bold text-lg mb-3">Specialization</h2>
-              <div style={{ textAlign: 'left' }}>
-                <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                  <label className="block text-base whitespace-nowrap" style={{fontWeight: 'bold'}}>Career Specialization</label>
-                  <select
-                    value={selectedSpecialization}
-                    onChange={handleSpecializationChange}
-                    className="border border-black rounded px-2 py-1 w-full sm:flex-1 text-center"
-                  >
-                    <option value="">Select Specialization</option>
+                    elems.push(
+                      <div
+                        key={career.id}
+                        onClick={() => {
+                          if (tempSelectedCareerIndex === idx && tempSelectedCareer?.id === career.id) {
+                            setTempSelectedCareer(null);
+                            setTempSelectedCareerIndex(null);
+                            return;
+                          }
+                          setTempSelectedCareer(career);
+                          setTempSelectedCareerIndex(idx);
+                        }}
+                        className="border-2 border-black rounded-lg p-3 bg-white hover:bg-gray-100 cursor-pointer transition-colors flex items-center gap-3"
+                        style={{ minHeight: '120px' }}
+                      >
+                        {randomPicture && (
+                          <img
+                            src={`/SW_Pictures/Picture ${randomPicture.id} Face.png`}
+                            alt={career.name}
+                            className="rounded object-cover"
+                            style={{ width: '80px', height: '80px', flexShrink: 0 }}
+                          />
+                        )}
+                        <div className="flex-1 text-left">
+                          <h3 className="font-bold text-lg">{formatCareerName(career)}</h3>
+                        </div>
+                        <div className="text-blue-600 text-3xl" style={{ flexShrink: 0 }}>›</div>
+                      </div>
+                    );
+
+                    if (tempSelectedCareerIndex === idx && tempSelectedCareer?.id === career.id) {
+                      const detailPictures = racePictures.filter(pic => pic.career_ID === career.id);
+                      const detailPicture = detailPictures.length > 0
+                        ? detailPictures[Math.floor(Math.random() * detailPictures.length)]
+                        : null;
+
+                      elems.push(
+                        <div
+                          key={`detail-${career.id}`}
+                          className="col-span-full w-full rounded-lg p-4 text-white"
+                          style={{
+                            gridColumn: '1 / -1',
+                            backgroundColor: '#000000',
+                            color: '#ffffff',
+                            border: '4px solid #dc2626',
+                          }}
+                        >
+                          <div className="flex-1">
+                            <p className="mb-4">{career.description}</p>
+                            <div className="mb-4">
+                              <p className="font-bold mb-2"><strong>Available Skills:</strong></p>
+                              <p className="text-sm">{career.skills}</p>
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCareerChange({ target: { value: career.name } });
+                                  setTempSelectedCareer(null);
+                                  setTempSelectedCareerIndex(null);
+                                }}
+                                className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold"
+                              >
+                                Choose Career
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTempSelectedCareer(null);
+                                  setTempSelectedCareerIndex(null);
+                                }}
+                                className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-semibold"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return elems;
+                  })}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="border-2 border-black rounded-lg p-3 bg-white mb-4 flex items-center gap-3">
+                {selectedCareerPictureId && (
+                  <img
+                    src={`/SW_Pictures/Picture ${selectedCareerPictureId} Face.png`}
+                    alt={selectedCareer}
+                    className="rounded object-cover"
+                    style={{ width: '80px', height: '80px', flexShrink: 0 }}
+                  />
+                )}
+                <div className="flex-1 text-left">
+                  <h3 className="font-bold text-lg">{formatCareerName(careers.find(c => c.name === selectedCareer))}</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedCareer('');
+                    setSelectedCareerSkills([]);
+                    setSelectedSpecialization('');
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold"
+                >
+                  Change Career
+                </button>
+              </div>
+
+              <div className="border-2 border-black rounded-lg p-4 bg-white mb-4 text-left">
+                <label className="block text-base font-bold mb-2">Career Skills{isDroidSpecies && ' (6 available)'}</label>
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+                  <div style={{ width: '520px', maxWidth: '100%' }}>
+                    {Array.from({ length: isDroidSpecies ? 6 : 4 }).map((_, index) => (
+                      <div key={index} className="mb-2">
+                        <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill {index + 1}</label>
+                        <select
+                          value={selectedCareerSkills[index] || ''}
+                          onChange={handleCareerSkillChange(index)}
+                          className="border border-black rounded px-2 py-1 w-full text-center"
+                        >
+                          <option value="">Select Skill</option>
+                          {getAvailableSkills(index).map((skill, i) => (
+                            <option key={i} value={skill}>{skill}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {!selectedSpecialization ? (
+                <>
+                  <h2 className="font-bold text-lg mb-4">Select Specialization</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {specializations
                       .filter(spec => {
                         const career = careers.find(c => c.id === spec.Career);
                         return career && career.name === selectedCareer;
                       })
                       .sort((a, b) => a.spec_name.localeCompare(b.spec_name))
-                      .map((spec, index) => (
-                        <option key={index} value={spec.spec_name}>
-                          {spec.spec_name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                {selectedSpecialization && (
-                  <>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                      {selectedSpecPictureId && (
-                        <img 
-                          src={`/SW_Pictures/Picture ${selectedSpecPictureId}.png`} 
-                          alt={`${selectedSpecialization} portrait`} 
-                          className="rounded object-contain"
-                          style={{ 
-                            maxWidth: '120px', 
-                            height: 'auto',
-                            marginRight: '16px',
-                            marginBottom: '16px',
-                            flexShrink: 0
-                          }} 
-                        />
-                      )}
-                      <div style={{ flex: 1, minWidth: '150px' }}>
-                        <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Description</label>
-                        <div className="text-gray-700 mb-4" style={{ minHeight: '40px' }}>
-                          {specializations.find(s => s.spec_name === selectedSpecialization)?.description || 'No description available'}
-                        </div>
-                      </div>
+                      .flatMap((spec, idx) => {
+                        const elems = [];
+                        // Prioritize pictures with both spec_ID and race_ID, otherwise use spec-only pictures, finally fallback to any picture
+                        const specWithRacePictures = racePictures.filter(pic => pic.spec_ID === spec.id && pic.race_ID === selectedRace?.id);
+                        const specOnlyPictures = racePictures.filter(pic => pic.spec_ID === spec.id && !pic.race_ID);
+                        let specPictures = specWithRacePictures.length > 0 ? specWithRacePictures : specOnlyPictures;
+                        if (specPictures.length === 0 && racePictures.length > 0) {
+                          specPictures = racePictures;
+                        }
+                        const randomPicture = specPictures.length > 0
+                          ? specPictures[Math.floor(Math.random() * specPictures.length)]
+                          : null;
+
+                        elems.push(
+                          <div
+                            key={spec.id}
+                            onClick={() => {
+                              if (tempSelectedSpecIndex === idx && tempSelectedSpec?.id === spec.id) {
+                                setTempSelectedSpec(null);
+                                setTempSelectedSpecIndex(null);
+                                return;
+                              }
+                              setTempSelectedSpec(spec);
+                              setTempSelectedSpecIndex(idx);
+                            }}
+                            className="border-2 border-black rounded-lg p-3 bg-white hover:bg-gray-100 cursor-pointer transition-colors flex items-center gap-3"
+                            style={{ minHeight: '120px' }}
+                          >
+                            {randomPicture && (
+                              <img
+                                src={`/SW_Pictures/Picture ${randomPicture.id} Face.png`}
+                                alt={spec.spec_name}
+                                className="rounded object-cover"
+                                style={{ width: '80px', height: '80px', flexShrink: 0 }}
+                              />
+                            )}
+                            <div className="flex-1 text-left">
+                              <h3 className="font-bold text-lg">{spec.spec_name}</h3>
+                            </div>
+                            <div className="text-blue-600 text-3xl" style={{ flexShrink: 0 }}>›</div>
+                          </div>
+                        );
+
+                        if (tempSelectedSpecIndex === idx && tempSelectedSpec?.id === spec.id) {
+                          // Prioritize pictures with both spec_ID and race_ID, otherwise use spec-only pictures, finally fallback to any picture
+                          const detailSpecWithRacePictures = racePictures.filter(pic => pic.spec_ID === spec.id && pic.race_ID === selectedRace?.id);
+                          const detailSpecOnlyPictures = racePictures.filter(pic => pic.spec_ID === spec.id && !pic.race_ID);
+                          let detailPictures = detailSpecWithRacePictures.length > 0 ? detailSpecWithRacePictures : detailSpecOnlyPictures;
+                          if (detailPictures.length === 0 && racePictures.length > 0) {
+                            detailPictures = racePictures;
+                          }
+                          const detailPicture = detailPictures.length > 0
+                            ? detailPictures[Math.floor(Math.random() * detailPictures.length)]
+                            : null;
+
+                          elems.push(
+                            <div
+                              key={`detail-${spec.id}`}
+                              className="col-span-full w-full rounded-lg p-4 text-white"
+                              style={{
+                                gridColumn: '1 / -1',
+                                backgroundColor: '#000000',
+                                color: '#ffffff',
+                                border: '4px solid #dc2626',
+                              }}
+                            >
+                              <div className="flex-1">
+                                <p className="mb-4">{spec.description}</p>
+                                <div className="mb-4">
+                                  <p className="font-bold mb-2"><strong>Available Skills:</strong></p>
+                                  <p className="text-sm">{spec.spec_skills}</p>
+                                </div>
+                                <div className="flex gap-3">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSpecializationChange({ target: { value: spec.spec_name } });
+                                      setTempSelectedSpec(null);
+                                      setTempSelectedSpecIndex(null);
+                                    }}
+                                    className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold"
+                                  >
+                                    Choose Specialization
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTempSelectedSpec(null);
+                                      setTempSelectedSpecIndex(null);
+                                    }}
+                                    className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-semibold"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return elems;
+                      })}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="border-2 border-black rounded-lg p-3 bg-white mb-4 flex items-center gap-3">
+                    {selectedSpecPictureId && (
+                      <img
+                        src={`/SW_Pictures/Picture ${selectedSpecPictureId} Face.png`}
+                        alt={selectedSpecialization}
+                        className="rounded object-cover"
+                        style={{ width: '80px', height: '80px', flexShrink: 0 }}
+                      />
+                    )}
+                    <div className="flex-1 text-left">
+                      <h3 className="font-bold text-lg">{selectedSpecialization}</h3>
                     </div>
-                    <label className="block text-base mt-2 mb-2" style={{fontWeight: 'bold'}}>Specialization Skills</label>
+                    <button
+                      onClick={() => {
+                        setSelectedSpecialization('');
+                        setSelectedSpecSkill1('');
+                        setSelectedSpecSkill2('');
+                        setSelectedSpecSkill3('');
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold"
+                    >
+                      Change Specialization
+                    </button>
+                  </div>
+
+                  <div className="border-2 border-black rounded-lg p-4 bg-white mb-4 text-left">
+                    <label className="block text-base font-bold mb-2">Specialization Skills</label>
                     <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
                       <div style={{ width: '520px', maxWidth: '100%' }}>
-                      <div className="mt-2">
-                        <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 1</label>
-                        <select
-                          value={selectedSpecSkill1}
-                          onChange={handleSpecSkill1Change}
-                          className="border border-black rounded px-2 py-1 w-full text-center"
-                        >
-                          <option value="">Select Skill</option>
-                          {specializations
-                            .find(s => s.spec_name === selectedSpecialization)
-                            ?.spec_skills?.split(',')
-                            .map((skill, i) => (
-                              <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill2}>
-                                {skill.trim()}
-                              </option>
-                            )) || []}
-                        </select>
-                      </div>
-                      <div className="mt-2">
-                        <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 2</label>
-                        <select
-                          value={selectedSpecSkill2}
-                          onChange={handleSpecSkill2Change}
-                          className="border border-black rounded px-2 py-1 w-full text-center"
-                        >
-                          <option value="">Select Skill</option>
-                          {specializations
-                            .find(s => s.spec_name === selectedSpecialization)
-                            ?.spec_skills?.split(',')
-                            .map((skill, i) => (
-                              <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill1}>
-                                {skill.trim()}
-                              </option>
-                            )) || []}
-                        </select>
-                      </div>
-                      {isDroidSpecies && (
-                      <div className="mt-2">
-                        <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Skill 3</label>
-                        <select
-                          value={selectedSpecSkill3 || ''}
-                          onChange={handleSpecSkill3Change}
-                          className="border border-black rounded px-2 py-1 w-full text-center"
-                        >
-                          <option value="">Select Skill</option>
-                          {specializations
-                            .find(s => s.spec_name === selectedSpecialization)
-                            ?.spec_skills?.split(',')
-                            .map((skill, i) => (
-                              <option key={i} value={skill.trim()} disabled={skill.trim() === selectedSpecSkill1 || skill.trim() === selectedSpecSkill2}>
-                                {skill.trim()}
-                              </option>
-                            )) || []}
-                        </select>
-                      </div>
-                      )}
-                      {isAdmin && (
-                        <div className="mt-4">
-                          <button
-                            onClick={handleCopyPrompt}
-                            className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 font-semibold"
-                          >
-                            Copy Prompt
-                          </button>
-                        </div>
-                      )}
+                        {Array.from({ length: isDroidSpecies ? 3 : 2 }).map((_, index) => {
+                          const specData = specializations.find(s => s.spec_name === selectedSpecialization);
+                          const availableSkills = specData && specData.spec_skills
+                            ? specData.spec_skills.split(',').map(s => s.trim()).filter(s => s)
+                            : [];
+                          
+                          // Filter out the skills selected in the other dropdowns
+                          const otherSelectedSkills = [
+                            index !== 0 ? selectedSpecSkill1 : '',
+                            index !== 1 ? selectedSpecSkill2 : '',
+                            index !== 2 ? selectedSpecSkill3 : ''
+                          ].filter(s => s);
+                          
+                          const filteredSkills = availableSkills.filter(skill => !otherSelectedSkills.includes(skill));
+                          
+                          return (
+                            <div key={index} className="mb-2">
+                              <label className="block text-base mb-1" style={{fontWeight: 'bold'}}>Specialization Skill {index + 1}</label>
+                              <select
+                                value={index === 0 ? selectedSpecSkill1 : index === 1 ? selectedSpecSkill2 : selectedSpecSkill3}
+                                onChange={(e) => {
+                                  const newValue = e.target.value;
+                                  const oldValue = index === 0 ? selectedSpecSkill1 : index === 1 ? selectedSpecSkill2 : selectedSpecSkill3;
+                                  
+                                  // Decrease rank of previously selected skill
+                                  if (oldValue && skillRanks[oldValue] > 0) {
+                                    setSkillRanks(prev => ({ ...prev, [oldValue]: prev[oldValue] - 1 }));
+                                  }
+                                  
+                                  // Increase rank of newly selected skill
+                                  if (newValue) {
+                                    setSkillRanks(prev => ({ ...prev, [newValue]: (prev[newValue] || 0) + 1 }));
+                                  }
+                                  
+                                  // Update the state
+                                  if (index === 0) setSelectedSpecSkill1(newValue);
+                                  else if (index === 1) setSelectedSpecSkill2(newValue);
+                                  else setSelectedSpecSkill3(newValue);
+                                }}
+                                className="border border-black rounded px-2 py-1 w-full text-center"
+                              >
+                                <option value="">Select Skill</option>
+                                {filteredSkills.map((skillName, i) => (
+                                  <option key={i} value={skillName}>{skillName}</option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  </>
-                )}
-              </div>
-            </div>
+                  </div>
+                </>
+              )}
+            </>
           )}
-        </>
+        </div>
       )}
 
       {selectedRace && activeTab === 'Talent Tree' && specializations.length > 0 && (
@@ -1865,7 +2144,44 @@ export default function SWEotECharacterCreator() {
           }}
         >
           <h2 className="font-bold text-base sm:text-lg md:text-xl mb-4">Talent Tree</h2>
-          {selectedSpecialization ? (
+          
+          {isAdmin && (
+            <div className="mb-4 flex items-center">
+              <input
+                type="checkbox"
+                id="publishForceTrees"
+                checked={publishForceTrees}
+                onChange={handlePublishForceTreesChange}
+                className="mr-2 h-4 w-4"
+              />
+              <label htmlFor="publishForceTrees" className="text-sm sm:text-base font-semibold">
+                Publish Force Trees
+              </label>
+            </div>
+          )}
+          
+          {isForceSensitiveCareer && (publishForceTrees || isAdmin) && (
+            <div className="flex border-2 border-black rounded-lg overflow-hidden mb-4">
+              <button 
+                onClick={() => setTalentTreeTab('Career Tree')}
+                className={`flex-1 px-4 py-2 font-semibold text-sm sm:text-base ${talentTreeTab === 'Career Tree' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
+              >
+                Career Tree
+              </button>
+              <button 
+                onClick={() => setTalentTreeTab('Force Trees')}
+                className={`flex-1 px-4 py-2 font-semibold text-sm sm:text-base ${talentTreeTab === 'Force Trees' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
+              >
+                Force Trees
+              </button>
+            </div>
+          )}
+          
+          {talentTreeTab === 'Career Tree' && selectedSpecialization && (
+            <h3 className="font-bold text-base sm:text-lg md:text-xl mb-4">{selectedSpecialization} Ability Tree</h3>
+          )}
+          
+          {talentTreeTab === 'Career Tree' && selectedSpecialization ? (
             <div
               className="flex"
               style={{ width: 'max-content', minWidth: '1650px', minHeight: '950px' }}
@@ -1985,13 +2301,197 @@ export default function SWEotECharacterCreator() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : !selectedSpecialization && talentTreeTab === 'Career Tree' ? (
             <p className="text-gray-700">Select a specialization to view its talent tree.</p>
+          ) : null}
+          
+          {talentTreeTab === 'Force Trees' && isForceSensitiveCareer && (publishForceTrees || isAdmin) && (
+            <>
+              {forcePowerTrees.length > 0 && (
+                <div className="flex border-2 border-black rounded-lg overflow-hidden mb-4 flex-wrap">
+                  {forcePowerTrees.map((forceTree) => (
+                    <button
+                      key={forceTree.PowerTreeName}
+                      onClick={() => setSelectedForceTreeTab(forceTree.PowerTreeName)}
+                      className={`flex-1 px-4 py-2 font-semibold text-sm sm:text-base min-w-max ${selectedForceTreeTab === forceTree.PowerTreeName ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
+                    >
+                      {forceTree.PowerTreeName}
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {selectedForceTreeTab && (
+                <>
+                  {forcePowerTrees.find(ft => ft.PowerTreeName === selectedForceTreeTab) && (
+                    <div className="border-2 border-black rounded-lg p-4 bg-white mb-4">
+                      <div className="mb-4 text-left">
+                        <p className="font-bold text-lg">Force Prerequisite: {forcePowerTrees.find(ft => ft.PowerTreeName === selectedForceTreeTab)?.ForcePrerequisite || 'N/A'}</p>
+                      </div>
+                      
+                      {(() => {
+                        const currentTree = forcePowerTrees.find(ft => ft.PowerTreeName === selectedForceTreeTab);
+                        
+                        // Build grid data: 4 columns, 5 rows
+                        const gridData = [];
+                        for (let row = 1; row <= 5; row++) {
+                          const rowData = [];
+                          for (let col = 1; col <= 4; col++) {
+                            const fieldName = `ability_${row}_${col}`;
+                            const costFieldName = `ability_${row}_${col}_cost`;
+                            const talentId = currentTree[fieldName];
+                            const cost = currentTree[costFieldName] || 0;
+                            const talent = talentId ? forceTalents.find(t => t.id === talentId) : null;
+                            rowData.push({ talentId, talent, cost, fieldName });
+                          }
+                          gridData.push(rowData);
+                        }
+                        
+                        // Track merged cells
+                        const merged = new Set();
+                        
+                        return (
+                          <div className="flex" style={{ width: 'max-content', minWidth: '1650px', margin: '0 auto', overflow: 'auto' }}>
+                            <table
+                              className="border-separate text-center text-xs sm:text-sm"
+                              style={{ borderSpacing: '0', width: '100%', minWidth: '1650px' }}
+                            >
+                              <tbody>
+                                {gridData.map((row, rowIndex) => (
+                                  <>
+                                    {/* Empty row above each line of abilities (except top row) */}
+                                    {rowIndex !== 0 && (
+                                      <tr key={`empty-${rowIndex}`}>
+                                        {row.map((cell, colIndex) => {
+                                          const cellKey = `empty-${rowIndex}-${colIndex}`;
+                                          let colSpan = 1;
+                                          if (cell.talentId) {
+                                            for (let i = colIndex + 1; i < row.length; i++) {
+                                              if (row[i].talentId === cell.talentId) {
+                                                colSpan++;
+                                              } else {
+                                                break;
+                                              }
+                                            }
+                                          }
+                                          // Skip if this cell was already counted in a previous colspan
+                                          if (colIndex > 0 && row[colIndex - 1].talentId === cell.talentId) {
+                                            return null;
+                                          }
+                                          return (
+                                            <>
+                                              <td key={cellKey} style={{ border: 'none', width: `${300 * colSpan}px`, height: '10px' }}></td>
+                                              <td key={`${cellKey}-spacer`} style={{ border: 'none', width: '10px', height: '10px' }}></td>
+                                            </>
+                                          );
+                                        })}
+                                      </tr>
+                                    )}
+                                    <tr key={rowIndex} className="bg-gray-100">
+                                    {rowIndex === 0 ? (
+                                      // Top row: single cell stretches across all columns (abilities + empty boxes)
+                                      <td
+                                        key="top-ability"
+                                        colSpan={row.length * 2}
+                                        className="p-2 align-top"
+                                        style={{
+                                          position: 'relative',
+                                          border: row[0].talent ? '2px solid black' : 'none',
+                                          width: `${300 * row.length + 10 * (row.length - 1)}px`,
+                                          height: '176px',
+                                        }}
+                                      >
+                                        {row[0].talent && (
+                                          <div className="text-xs sm:text-sm h-full overflow-hidden flex flex-col">
+                                            <div className="font-bold text-left">{row[0].talent.talent_name}</div>
+                                            <div className="border-b border-black my-1"></div>
+                                            <div className="text-xs text-gray-700 flex-1">{row[0].talent.description}</div>
+                                            <div className="text-right text-xs font-bold mt-auto">{row[0].cost} EXP</div>
+                                          </div>
+                                        )}
+                                      </td>
+                                    ) : (
+                                      row.map((cell, colIndex) => {
+                                        const cellKey = `${rowIndex}-${colIndex}`;
+                                        if (merged.has(cellKey)) return null;
+                                        // ...existing code...
+                                        let colSpan = 1;
+                                        if (cell.talentId) {
+                                          for (let i = colIndex + 1; i < row.length; i++) {
+                                            if (row[i].talentId === cell.talentId && !merged.has(`${rowIndex}-${i}`)) {
+                                              colSpan++;
+                                              merged.add(`${rowIndex}-${i}`);
+                                            } else {
+                                              break;
+                                            }
+                                          }
+                                        }
+                                        return (
+                                          <>
+                                            <td
+                                              key={cellKey}
+                                              colSpan={colSpan}
+                                              className="p-2 align-top"
+                                              style={{
+                                                position: 'relative',
+                                                border: cell.talent ? '2px solid black' : 'none',
+                                                width: cell.talent ? `${300 * colSpan}px` : '0px',
+                                                height: '176px',
+                                              }}
+                                            >
+                                              {cell.talent && (
+                                                <div className="text-xs sm:text-sm h-full overflow-hidden flex flex-col">
+                                                  <div className="font-bold text-left">{cell.talent.talent_name}</div>
+                                                  <div className="border-b border-black my-1"></div>
+                                                  <div className="text-xs text-gray-700 flex-1">{cell.talent.description}</div>
+                                                  <div className="text-right text-xs font-bold mt-auto">{cell.cost} EXP</div>
+                                                </div>
+                                              )}
+                                              {cell.talent && (() => {
+                                                const linksFieldName = `ability_${rowIndex + 1}_${colIndex + 1}_links`;
+                                                const linksStr = currentTree[linksFieldName] || '';
+                                                const linksList = linksStr.split(',').map(l => l.trim()).filter(l => l);
+                                                return (
+                                                  <>
+                                                    {linksList.includes('Up') && (
+                                                      <div style={{ position: 'absolute', top: rowIndex === 1 ? '-18px' : '-8px', left: '50%', width: '2px', height: rowIndex === 1 ? '18px' : '8px', backgroundColor: 'black', transform: 'translateX(-50%)' }} />
+                                                    )}
+                                                    {linksList.includes('Down') && rowIndex < gridData.length - 1 && (
+                                                      <div style={{ position: 'absolute', bottom: '-8px', left: '50%', width: '2px', height: '8px', backgroundColor: 'black', transform: 'translateX(-50%)' }} />
+                                                    )}
+                                                    {linksList.includes('Left') && colIndex > 0 && (
+                                                      <div style={{ position: 'absolute', top: '50%', left: '-10px', width: '10px', height: '2px', backgroundColor: 'black', transform: 'translateY(-50%)' }} />
+                                                    )}
+                                                    {linksList.includes('Right') && colIndex < 3 && (
+                                                      <div style={{ position: 'absolute', top: '50%', right: '-10px', width: '10px', height: '2px', backgroundColor: 'black', transform: 'translateY(-50%)' }} />
+                                                    )}
+                                                  </>
+                                                );
+                                              })()}
+                                            </td>
+                                            <td style={{ border: 'none', width: '10px', height: '176px' }}></td>
+                                          </>
+                                        );
+                                      })
+                                    )}
+                                  </tr>
+                                  </>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {selectedRace && activeTab === 'Backstory' && (
+      {activeTab === 'Backstory' && (
         <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
           <h2 className="font-bold text-base sm:text-lg mb-3">Backstory</h2>
           <textarea
@@ -2017,6 +2517,7 @@ export default function SWEotECharacterCreator() {
           <p className="text-2xl sm:text-3xl font-bold text-red-600">Please choose a Species first</p>
         </div>
       )}
+      </>
 
     </div>
   );

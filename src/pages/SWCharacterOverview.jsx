@@ -5,6 +5,10 @@ import { supabase } from '../supabaseClient';
 export default function SWCharacterOverview() {
   const [characterName, setCharacterName] = useState('');
   const [race, setRace] = useState('');
+  const [raceId, setRaceId] = useState(null);
+  const [characterPictureId, setCharacterPictureId] = useState(0);
+  const [availableCharacterPictures, setAvailableCharacterPictures] = useState([]);
+  const [showPictureSelector, setShowPictureSelector] = useState(false);
   const [brawn, setBrawn] = useState(0);
   const [agility, setAgility] = useState(0);
   const [intellect, setIntellect] = useState(0);
@@ -42,6 +46,7 @@ export default function SWCharacterOverview() {
   const [rollResults, setRollResults] = useState(null); // { poolResults: [], diffResults: [] }
 
   const [diceMap, setDiceMap] = useState({});
+  const [racePictures, setRacePictures] = useState([]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -402,6 +407,12 @@ export default function SWCharacterOverview() {
       setCharacterId(characterData.id);
       setCharacterName(characterData.name || '');
       setRace(characterData.race || '');
+      // Set picture: use saved value if present, otherwise default to 0
+      if (typeof characterData.picture === 'number') {
+        setCharacterPictureId(characterData.picture);
+      } else {
+        setCharacterPictureId(0);
+      }
       setBrawn(characterData.brawn || 0);
       setAgility(characterData.agility || 0);
       setIntellect(characterData.intellect || 0);
@@ -641,6 +652,30 @@ export default function SWCharacterOverview() {
         setDiceMap(map);
       }
 
+      // Fetch all pictures for the character's race
+      const { data: pictureData, error: pictureError } = await supabase
+        .from('SW_pictures')
+        .select('*');
+      if (pictureError) {
+        console.error('Error fetching pictures:', pictureError);
+      } else {
+        setRacePictures(pictureData || []);
+      }
+
+      // Fetch race ID by looking up the race name
+      if (characterData.race) {
+        const { data: raceData, error: raceError } = await supabase
+          .from('races')
+          .select('id')
+          .eq('name', characterData.race)
+          .single();
+        if (!raceError && raceData) {
+          setRaceId(raceData.id);
+        } else {
+          console.error('Error fetching race ID:', raceError);
+        }
+      }
+
       setTotalSoak(characterData.brawn || 0);
       setPreviousSoak(characterData.brawn || 0);
     };
@@ -653,6 +688,35 @@ export default function SWCharacterOverview() {
       .filter(item => item.equipped && item.soak)
       .reduce((sum, item) => sum + (item.soak || 0), 0);
     return Math.max(0, brawn + armorSoak);
+  };
+
+  // Update available pictures when race or racePictures change
+  useEffect(() => {
+    if (racePictures.length > 0 && raceId) {
+      // Filter pictures by race ID and include Picture 0
+      const racePics = racePictures.filter(pic => pic.race_ID === raceId || pic.id === 0);
+      // Remove duplicates
+      const uniquePics = Array.from(new Map(racePics.map(p => [p.id, p])).values());
+      console.log(`Available pictures for race ID ${raceId}:`, uniquePics);
+      setAvailableCharacterPictures(uniquePics);
+    } else {
+      setAvailableCharacterPictures([]);
+    }
+  }, [raceId, racePictures]);
+
+  // Handle picture change - update database automatically
+  const handleChangePicture = async (pictureId) => {
+    setCharacterPictureId(pictureId);
+    if (characterId) {
+      const { error } = await supabase
+        .from('SW_player_characters')
+        .update({ picture: pictureId })
+        .eq('id', characterId);
+      if (error) {
+        console.error('Error updating picture:', error);
+      }
+    }
+    setShowPictureSelector(false);
   };
 
   useEffect(() => {
@@ -1203,7 +1267,48 @@ export default function SWCharacterOverview() {
           Choose TTRPG
         </button>
       </div>
-      <h1 className="font-bold text-2xl mb-2">{characterName}</h1>
+      <div className="flex items-center gap-4 mb-4">
+        <div className="flex flex-col items-center gap-2">
+          <img 
+            src={`/SW_Pictures/Picture ${characterPictureId} Face.png`}
+            alt="Character portrait"
+            className="rounded-lg object-contain"
+            style={{ width: '80px', height: '100px' }}
+            onError={(e) => {
+              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="100"%3E%3Crect fill="%23ddd" width="80" height="100"/%3E%3C/svg%3E';
+            }}
+          />
+          <button
+            onClick={() => setShowPictureSelector(!showPictureSelector)}
+            className="bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
+            style={{ padding: '4px 8px', fontSize: '11px' }}
+          >
+            Change Picture
+          </button>
+        </div>
+        <h1 className="font-bold text-2xl">{characterName}</h1>
+      </div>
+
+      {/* Picture Selector Box */}
+      {showPictureSelector && availableCharacterPictures.length > 0 && (
+        <div className="mb-4 p-3 border border-gray-300 rounded-lg bg-gray-50 flex gap-2 justify-start overflow-x-auto">
+          {availableCharacterPictures.map((pic) => (
+            <img
+              key={pic.id}
+              src={`/SW_Pictures/Picture ${pic.id} Face.png`}
+              alt={`Picture ${pic.id}`}
+              className="rounded-lg cursor-pointer object-contain flex-shrink-0"
+              style={{
+                width: '80px',
+                height: '100px',
+                border: characterPictureId === pic.id ? '3px solid #2563eb' : '3px solid #d1d5db'
+              }}
+              onClick={() => handleChangePicture(pic.id)}
+              onError={(e) => console.log('Picture failed to load:', pic.id)}
+            />
+          ))}
+        </div>
+      )}
       <div className="flex items-center mb-4">
         <p>{race ? `${race} ${career} - ${specialization}` : `${career} - ${specialization}`}</p>
       </div>

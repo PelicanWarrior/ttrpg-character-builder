@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Settings() {
@@ -39,6 +39,8 @@ export default function Settings() {
   const [availableSpecsPerRace, setAvailableSpecsPerRace] = useState({}); // { raceId: [specs] }
   const [availableRacesPerSpec, setAvailableRacesPerSpec] = useState({}); // { specId: [race objects] }
   const [selectedRacePerSpec, setSelectedRacePerSpec] = useState({}); // { specId: raceId }
+  const raceRefs = useRef({});
+  const careerRefs = useRef({});
 
   // -----------------------------------------------------------------
   // 4. Fetch Admin Status
@@ -71,6 +73,31 @@ export default function Settings() {
 
     fetchAdminStatus();
   }, [playerId]);
+
+  // Handle scrolling to race or career when URL params change
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const scrollToRaceId = searchParams.get('scrollToRace');
+    const scrollToCareer = searchParams.get('scrollToCareer');
+
+    if (scrollToRaceId && raceRefs.current[scrollToRaceId]) {
+      setTimeout(() => {
+        raceRefs.current[scrollToRaceId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Clear the param after scrolling
+        searchParams.delete('scrollToRace');
+        navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+      }, 300);
+    }
+
+    if (scrollToCareer && careerRefs.current[scrollToCareer]) {
+      setTimeout(() => {
+        careerRefs.current[scrollToCareer]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Clear the param after scrolling
+        searchParams.delete('scrollToCareer');
+        navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+      }, 300);
+    }
+  }, [location.search, raceData, careerData, navigate]);
 
   // -----------------------------------------------------------------
   // 5. Fetch Races + Pictures + Career/Spec
@@ -599,8 +626,12 @@ export default function Settings() {
 
       alert(`Successfully added to database!\\n\\nRace: ${raceName}\\nCareer: ${selectedCareer.name}\\nSpecialization: ${selectedSpec.spec_name}`);
       
-      // Reload the race pictures data
-      loadRacesWithPicturesAndSpecs();
+      // Reload the race pictures data and scroll to the race
+      await loadRacesWithPicturesAndSpecs();
+      // Use navigate to add scroll param to URL
+      const searchParams = new URLSearchParams(location.search);
+      searchParams.set('scrollToRace', raceId);
+      navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
     } catch (err) {
       console.error('Error adding to database:', err);
       alert(`Failed to add to database: ${err.message}`);
@@ -667,7 +698,11 @@ export default function Settings() {
         ]);
       if (error) throw error;
       alert(`Successfully added to database!\n\nRace: ${race.name}\nSpecialization: ${item.fullName}`);
-      loadCareersWithSpecsAndPictures();
+      await loadCareersWithSpecsAndPictures();
+      // Use navigate to add scroll param to URL
+      const searchParams = new URLSearchParams(location.search);
+      searchParams.set('scrollToCareer', item.specId);
+      navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
     } catch (err) {
       console.error('Error adding to database for career:', err);
       alert(`Failed to add to database: ${err.message}`);
@@ -712,7 +747,11 @@ export default function Settings() {
               </thead>
               <tbody>
                 {raceData.map((race) => (
-                  <tr key={race.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={race.id} 
+                    ref={(el) => (raceRefs.current[race.id] = el)}
+                    className="hover:bg-gray-50"
+                  >
                     <td
                       className="
                         border border-gray-400 px-6 py-4 
@@ -870,7 +909,11 @@ export default function Settings() {
               </thead>
               <tbody>
                 {careerData.map((item) => (
-                  <tr key={item.specId} className="hover:bg-gray-50">
+                  <tr 
+                    key={item.specId} 
+                    ref={(el) => (careerRefs.current[item.specId] = el)}
+                    className="hover:bg-gray-50"
+                  >
                     <td
                       className="
                         border border-gray-400 px-6 py-4 
