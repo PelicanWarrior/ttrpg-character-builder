@@ -171,12 +171,38 @@ export default function SWCampaign() {
         <div className="border-t border-gray-600 mb-8"></div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {campaigns.map((campaign) => (
-            <div key={campaign.id} className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-              <h3 className="text-xl font-bold mb-3 text-white text-center">{campaign.Name}</h3>
-              <p className="text-gray-300">{campaign.description}</p>
-            </div>
-          ))}
+          {campaigns.map((campaign) => {
+            const shareLink = `${window.location.origin}/campaign-join?code=${campaign.campaign_code}`;
+            return (
+              <div key={campaign.id} className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
+                <h3 className="text-xl font-bold mb-3 text-white text-center">{campaign.Name}</h3>
+                <p className="text-gray-300 mb-4">{campaign.description}</p>
+                
+                <div className="bg-gray-700 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-gray-400 mb-2">Share Link:</p>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={shareLink}
+                      readOnly
+                      className="flex-1 px-3 py-2 bg-gray-600 text-white text-sm rounded border border-gray-500 truncate"
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(shareLink);
+                        alert('Link copied to clipboard!');
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700 transition whitespace-nowrap"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-gray-400">Campaign Code: <span className="font-mono text-gray-300">{campaign.campaign_code}</span></p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

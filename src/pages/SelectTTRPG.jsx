@@ -5,6 +5,8 @@ import { supabase } from '../supabaseClient';
 export default function SelectTTRPG() {
   const [characters, setCharacters] = useState([]);
   const [selectedCharacter, setSelectedCharacter] = useState('');
+  const [showCharacterList, setShowCharacterList] = useState(false);
+  const [characterPictures, setCharacterPictures] = useState({});
   const [staCharacters, setStaCharacters] = useState([]);
   const [selectedStaCharacter, setSelectedStaCharacter] = useState('');
   const [feastlandsCharacters, setFeastlandsCharacters] = useState([]);
@@ -13,6 +15,7 @@ export default function SelectTTRPG() {
   const [selectedAnimalAdventuresCharacter, setSelectedAnimalAdventuresCharacter] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [playerId, setPlayerId] = useState(null);
+  const [showSWCampaigns, setShowSWCampaigns] = useState(false);
 
   // Dice roll state
   const [dicePopup, setDicePopup] = useState(null);
@@ -46,7 +49,7 @@ export default function SelectTTRPG() {
       setIsAdmin(!!userData.admin);
 
       const [swRes, staRes, flRes, diceRes] = await Promise.all([
-        supabase.from('SW_player_characters').select('id, name, race, career, spec').eq('user_number', userData.id),
+        supabase.from('SW_player_characters').select('id, name, race, career, spec, picture').eq('user_number', userData.id),
         supabase.from('STA_player_characters').select('id, name').eq('playerID', userData.id),
         supabase.from('FL_player_characters').select('id, name').eq('playerID', userData.id),
         supabase.from('SW_dice').select('colour, name'),
@@ -76,6 +79,16 @@ export default function SelectTTRPG() {
         'Feastlands': visibilityMap['Feastlands'] ?? false,
         'Animal Adventures': visibilityMap['Animal Adventures'] ?? false,
       });
+
+      // Fetch campaign visibility setting
+      const { data: adminControlData } = await supabase
+        .from('Admin_Control')
+        .select('SW_campaigns')
+        .single();
+      
+      if (adminControlData) {
+        setShowSWCampaigns(adminControlData.SW_campaigns ?? false);
+      }
     };
 
     fetchData();
@@ -85,6 +98,12 @@ export default function SelectTTRPG() {
     const newVal = !current;
     await supabase.from('TTRPGs').update({ show: newVal }).eq('TTRPG_name', name);
     setTtrpgVisibility(prev => ({ ...prev, [name]: newVal }));
+  };
+
+  const toggleSWCampaignsVisibility = async () => {
+    const newVal = !showSWCampaigns;
+    await supabase.from('Admin_Control').update({ SW_campaigns: newVal });
+    setShowSWCampaigns(newVal);
   };
 
   const handleDeleteCharacter = async () => {
@@ -747,32 +766,120 @@ export default function SelectTTRPG() {
 
               {/* STAR WARS */}
               {shouldShow('Star Wars') && (
-                <div className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
-                  {isAdmin && (
-                    <div className="bg-gray-900 text-white p-4 flex items-center gap-4">
-                      <input type="checkbox" checked={ttrpgVisibility['Star Wars']} onChange={() => toggleTTRPGVisibility('Star Wars', ttrpgVisibility['Star Wars'])} className="w-6 h-6 rounded" />
-                      <span className="font-bold text-lg">Show Star Wars</span>
+                <div className={`bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden ${!showCharacterList ? 'transform hover:scale-105 transition duration-300' : ''}`}>
+                    {isAdmin && (
+                      <div className="bg-gray-900 text-white p-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-4">
+                          <input type="checkbox" checked={ttrpgVisibility['Star Wars']} onChange={() => toggleTTRPGVisibility('Star Wars', ttrpgVisibility['Star Wars'])} className="w-6 h-6 rounded" />
+                          <span className="font-bold text-lg">Show Star Wars</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <input type="checkbox" checked={showSWCampaigns} onChange={toggleSWCampaignsVisibility} className="w-6 h-6 rounded" />
+                          <span className="font-bold text-lg">Show SW Campaigns</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-10 text-center">
+                      <img src="/Star Wars.png" alt="Star Wars" className="w-72 mx-auto mb-8" />
+                      
+                      {/* Button Row */}
+                      <div className="flex justify-center gap-4 mb-6">
+                        <button 
+                          onClick={() => setShowCharacterList(!showCharacterList)}
+                          className="px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-xl hover:bg-black shadow-lg transition"
+                        >
+                          Your Characters
+                        </button>
+                        <button onClick={() => navigate('/sweote-character-creator', { state: { create_character: true } })} className="px-10 py-4 bg-green-600 text-white font-bold text-lg rounded-xl hover:bg-green-700 shadow-lg transition">Create Character</button>
+                        {(showSWCampaigns || isAdmin) && (
+                          <button onClick={() => navigate('/SW_campaign')} className="px-10 py-4 bg-purple-600 text-white font-bold text-lg rounded-xl hover:bg-purple-700 shadow-lg transition">Campaign</button>
+                        )}
+                        <button onClick={openDiceRoll} className="px-10 py-4 bg-blue-500 text-white font-bold text-lg rounded-xl hover:bg-blue-600 shadow-lg transition">Dice Roll</button>
+                      </div>
+
+                      {/* Character List */}
+                      {showCharacterList && (
+                        <div style={{ backgroundColor: '#000000', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          {characters.length === 0 ? (
+                            <p style={{ color: 'white', textAlign: 'center', padding: '1rem' }}>No characters found</p>
+                          ) : (
+                            characters.sort((a, b) => a.name.localeCompare(b.name)).map(character => (
+                              <div 
+                                key={character.id} 
+                                style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: '1rem', 
+                                  padding: '1rem', 
+                                  backgroundColor: '#000000', 
+                                  border: '2px solid #dc2626', 
+                                  borderRadius: '0.5rem' 
+                                }}
+                              >
+                                {/* Character Picture */}
+                                <div style={{ flexShrink: 0 }}>
+                                  <img
+                                    src={`/SW_Pictures/Picture ${typeof character.picture === 'number' ? character.picture : 0} Face.png`}
+                                    alt={character.name}
+                                    className="rounded object-contain"
+                                    style={{ width: '80px', height: '100px' }}
+                                    onError={(e) => {
+                                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="100"%3E%3Crect fill="%23333" width="80" height="100"/%3E%3C/svg%3E';
+                                    }}
+                                  />
+                                </div>
+
+                                {/* Character Info */}
+                                <div style={{ flex: 1, textAlign: 'left' }}>
+                                  <h3 style={{ fontWeight: 'bold', fontSize: '1.125rem', color: 'white' }}>{character.name}</h3>
+                                  <p style={{ fontSize: '0.875rem', color: '#999999' }}>{character.race}</p>
+                                  <p style={{ fontSize: '0.875rem', color: '#dddddd' }}>{character.career} - {character.spec}</p>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
+                                  <button 
+                                    onClick={() => {
+                                      localStorage.setItem('loadedCharacterId', character.id);
+                                      navigate('/sweote-character-creator', { state: { create_character: false } });
+                                    }}
+                                    className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-sm"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      localStorage.setItem('loadedCharacterId', character.id);
+                                      navigate('/SW_character_overview');
+                                    }}
+                                    className="px-6 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-sm"
+                                  >
+                                    Overview
+                                  </button>
+                                  <button 
+                                    onClick={async () => {
+                                      if (!confirm(`Delete ${character.name}?`)) return;
+                                      const { error } = await supabase
+                                        .from('SW_player_characters')
+                                        .delete()
+                                        .eq('id', character.id);
+                                      if (error) {
+                                        alert('Error deleting character');
+                                      } else {
+                                        setCharacters(characters.filter(c => c.id !== character.id));
+                                      }
+                                    }}
+                                    className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-sm"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div className="p-10 text-center">
-                    <img src="/Star Wars.png" alt="Star Wars" className="w-72 mx-auto mb-8" />
-                    <select className="w-full max-w-md mx-auto border-4 border-gray-800 rounded-xl px-6 py-4 text-lg mb-8 bg-white" value={selectedCharacter} onChange={(e) => setSelectedCharacter(e.target.value)}>
-                      <option value="">Select Character</option>
-                      {characters.map(c => {
-                        const displayName = c.race || c.career || c.spec
-                          ? `${c.name} (${c.race} - ${c.career} ${c.spec})`
-                          : c.name;
-                        return <option key={c.id} value={c.id}>{displayName}</option>;
-                      })}
-                    </select>
-                    <div className="flex justify-center gap-6">
-                      <button onClick={handleDeleteCharacter} className="px-10 py-5 bg-red-700 text-white font-bold text-xl rounded-xl hover:bg-red-800 shadow-lg transition">Delete</button>
-                      <button onClick={() => { if (!selectedCharacter) return alert('Select a character'); localStorage.setItem('loadedCharacterId', selectedCharacter); navigate('/sweote-character-creator', { state: { create_character: false } }); }} className="px-10 py-5 bg-blue-600 text-white font-bold text-xl rounded-xl hover:bg-blue-700 shadow-lg transition">Edit</button>
-                      <button onClick={() => { if (!selectedCharacter) return alert('Select a character'); localStorage.setItem('loadedCharacterId', selectedCharacter); navigate('/SW_character_overview'); }} className="px-10 py-5 bg-purple-600 text-white font-bold text-xl rounded-xl hover:bg-purple-700 shadow-lg transition">Overview</button>
-                      <button onClick={() => navigate('/sweote-character-creator', { state: { create_character: true } })} className="px-10 py-5 bg-green-600 text-white font-bold text-xl rounded-xl hover:bg-green-700 shadow-lg transition">Create</button>
-                      <button onClick={openDiceRoll} className="px-10 py-5 bg-blue-500 text-white font-bold text-xl rounded-xl hover:bg-blue-600 shadow-lg transition">Dice Roll</button>
-                    </div>
-                  </div>
                 </div>
               )}
 
