@@ -12,10 +12,13 @@ export default function CampaignJoin() {
   const [joiningCampaign, setJoiningCampaign] = useState(false);
   const [error, setError] = useState('');
   const [playerId, setPlayerId] = useState(null);
+  const [alreadyInCampaign, setAlreadyInCampaign] = useState(false);
 
   useEffect(() => {
     const fetchCampaignAndCharacters = async () => {
       const username = localStorage.getItem('username');
+      
+      console.log('CampaignJoin - Username:', username);
       
       if (!username) {
         setError('You must be logged in to join a campaign');
@@ -24,6 +27,8 @@ export default function CampaignJoin() {
       }
 
       const campaignCode = searchParams.get('code');
+      
+      console.log('CampaignJoin - Campaign Code:', campaignCode);
       
       if (!campaignCode) {
         setError('Invalid campaign link (missing campaign code)');
@@ -39,8 +44,10 @@ export default function CampaignJoin() {
           .eq('username', username)
           .single();
 
+        console.log('CampaignJoin - User Data:', userData, 'Error:', userError);
+
         if (userError || !userData) {
-          setError('Could not find user information');
+          setError(`Could not find user information: ${userError?.message || 'No user data'}`);
           setLoading(false);
           return;
         }
@@ -54,37 +61,61 @@ export default function CampaignJoin() {
           .eq('campaign_code', campaignCode)
           .single();
 
+        console.log('CampaignJoin - Campaign Data:', campaignData, 'Error:', campaignError);
+
         if (campaignError || !campaignData) {
-          setError('Campaign not found. Please check the campaign code.');
+          setError(`Campaign not found: ${campaignError?.message || 'No campaign data'}`);
           setLoading(false);
           return;
         }
 
         setCampaign(campaignData);
 
-        // Get user's characters
+        // Get user's characters that are not already in a campaign
         const { data: characterData, error: characterError } = await supabase
           .from('SW_player_characters')
-          .select('id, name, race, career')
-          .eq('playerID', userData.id)
+          .select('id, name, race, career, spec, picture, campaign_joined')
+          .eq('user_number', userData.id)
           .order('name', { ascending: true });
+
+        console.log('CampaignJoin - Character Data:', characterData, 'Error:', characterError);
 
         if (characterError) {
           console.error('Error fetching characters:', characterError);
-          setError('Could not load your characters');
+          setError(`Could not load your characters: ${characterError.message}`);
+          setLoading(false);
         } else {
-          setCharacters(characterData || []);
+          // Check if user already has a character in this campaign
+          const characterInCampaign = (characterData || []).find(char => char.campaign_joined === campaignData.id);
+          
+          if (characterInCampaign) {
+            setAlreadyInCampaign(true);
+            setLoading(false);
+            return;
+          }
+          
+          // Filter out characters that already have a campaign
+          const availableCharacters = (characterData || []).filter(char => !char.campaign_joined);
+          setCharacters(availableCharacters);
+          setLoading(false);
         }
       } catch (err) {
         console.error('Error:', err);
-        setError('An error occurred while loading the campaign');
-      } finally {
+        setError(`An error occurred while loading the campaign: ${err.message}`);
         setLoading(false);
       }
     };
 
     fetchCampaignAndCharacters();
   }, [searchParams]);
+
+  useEffect(() => {
+    if (alreadyInCampaign && campaign) {
+      const characterInCampaign = characters.find(char => char.campaign_joined === campaign.id);
+      alert(`You already have a character in this campaign${characterInCampaign ? ` (${characterInCampaign.name})` : ''}.`);
+      navigate('/select-ttrpg');
+    }
+  }, [alreadyInCampaign, campaign, navigate]);
 
   const handleJoinCampaign = async () => {
     if (!selectedCharacterId) {
@@ -94,32 +125,22 @@ export default function CampaignJoin() {
 
     setJoiningCampaign(true);
     try {
-      // Insert character into campaign participants
+      // Update character's campaign_joined field
       const { error } = await supabase
-        .from('SW_campaign_participants')
-        .insert([
-          {
-            campaign_id: campaign.id,
-            character_id: selectedCharacterId,
-            playerID: playerId,
-          },
-        ]);
+        .from('SW_player_characters')
+        .update({ campaign_joined: campaign.id })
+        .eq('id', selectedCharacterId);
 
       if (error) {
         console.error('Error joining campaign:', error);
-        // If table doesn't exist yet, show helpful message
-        if (error.message.includes('relation "public.SW_campaign_participants" does not exist')) {
-          alert('Campaign participation system is being set up. Please try again in a moment.');
-        } else {
-          alert('Failed to join campaign. Please try again.');
-        }
+        alert(`Failed to join campaign: ${error.message}`);
       } else {
         alert(`Successfully joined campaign "${campaign.Name}" with ${characters.find(c => c.id === selectedCharacterId).name}!`);
         navigate('/select-ttrpg');
       }
     } catch (err) {
       console.error('Error:', err);
-      alert('An error occurred while joining the campaign');
+      alert(`An error occurred while joining the campaign: ${err.message}`);
     } finally {
       setJoiningCampaign(false);
     }
@@ -189,40 +210,58 @@ export default function CampaignJoin() {
               {characters.map((character) => (
                 <div
                   key={character.id}
-                  onClick={() => setSelectedCharacterId(character.id)}
-                  className={`p-4 rounded-lg border-2 cursor-pointer transition ${
-                    selectedCharacterId === character.id
-                      ? 'border-green-500 bg-gray-700'
-                      : 'border-gray-600 bg-gray-750 hover:border-gray-500'
-                  }`}
+                  className="p-4 rounded-lg border-2 bg-gray-700 border-gray-600 flex items-center gap-4"
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-bold">{character.name}</h3>
-                      <p className="text-gray-400">{character.race} - {character.career || 'No Career'}</p>
-                    </div>
-                    <div className={`w-6 h-6 rounded border-2 ${
-                      selectedCharacterId === character.id
-                        ? 'border-green-500 bg-green-500'
-                        : 'border-gray-500'
-                    }`}></div>
+                  <img
+                    src={`/SW_Pictures/Picture ${character.picture || 0} Face.png?t=${Date.now()}`}
+                    alt={character.name}
+                    style={{ width: '80px', height: '100px', objectFit: 'contain' }}
+                  />
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold">{character.name}</h3>
+                    <p className="text-gray-400">{character.race} - {character.career || 'No Career'}{character.spec ? ` / ${character.spec}` : ''}</p>
                   </div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Join campaign "${campaign.Name}" with ${character.name}?`)) {
+                        return;
+                      }
+                      
+                      setJoiningCampaign(true);
+                      try {
+                        const { error } = await supabase
+                          .from('SW_player_characters')
+                          .update({ campaign_joined: campaign.id })
+                          .eq('id', character.id);
+
+                        if (error) {
+                          console.error('Error joining campaign:', error);
+                          alert(`Failed to join campaign: ${error.message}`);
+                        } else {
+                          alert(`Successfully joined campaign "${campaign.Name}" with ${character.name}!`);
+                          navigate('/select-ttrpg');
+                        }
+                      } catch (err) {
+                        console.error('Error:', err);
+                        alert(`An error occurred while joining the campaign: ${err.message}`);
+                      } finally {
+                        setJoiningCampaign(false);
+                      }
+                    }}
+                    disabled={joiningCampaign}
+                    className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:bg-gray-500 transition"
+                  >
+                    {joiningCampaign ? 'Joining...' : 'Join Campaign'}
+                  </button>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex gap-4">
-            <button
-              onClick={handleJoinCampaign}
-              disabled={!selectedCharacterId || joiningCampaign || characters.length === 0}
-              className="flex-1 px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:bg-gray-500 transition"
-            >
-              {joiningCampaign ? 'Joining Campaign...' : 'Join Campaign'}
-            </button>
+          <div className="flex justify-center">
             <button
               onClick={() => navigate('/select-ttrpg')}
-              className="flex-1 px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition"
+              className="px-6 py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition"
             >
               Cancel
             </button>

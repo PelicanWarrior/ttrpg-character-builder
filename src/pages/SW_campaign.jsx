@@ -10,6 +10,7 @@ export default function SWCampaign() {
   const [playerId, setPlayerId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
+  const [campaignCharacters, setCampaignCharacters] = useState({});
 
   useEffect(() => {
     const username = localStorage.getItem('username');
@@ -27,6 +28,19 @@ export default function SWCampaign() {
             .select('*')
             .eq('playerID', userData.id);
           setCampaigns(campaignData || []);
+          
+          // Fetch characters for each campaign
+          if (campaignData && campaignData.length > 0) {
+            const charactersByCampaign = {};
+            for (const campaign of campaignData) {
+              const { data: chars } = await supabase
+                .from('SW_player_characters')
+                .select('id, name, race, career, spec, picture, user_number, user:user_number(username)')
+                .eq('campaign_joined', campaign.id);
+              charactersByCampaign[campaign.id] = chars || [];
+            }
+            setCampaignCharacters(charactersByCampaign);
+          }
         }
       };
       fetchPlayerIdAndCampaigns();
@@ -93,6 +107,19 @@ export default function SWCampaign() {
           .select('*')
           .eq('playerID', playerId);
         setCampaigns(campaignData || []);
+        
+        // Fetch characters for the new campaign
+        if (campaignData && campaignData.length > 0) {
+          const charactersByCampaign = {};
+          for (const campaign of campaignData) {
+            const { data: chars } = await supabase
+              .from('SW_player_characters')
+              .select('id, name, race, career, spec, picture, user_number, user:user_number(username)')
+              .eq('campaign_joined', campaign.id);
+            charactersByCampaign[campaign.id] = chars || [];
+          }
+          setCampaignCharacters(charactersByCampaign);
+        }
       }
     } catch (err) {
       console.error('Error:', err);
@@ -179,8 +206,8 @@ export default function SWCampaign() {
                 <p className="text-gray-300 mb-4">{campaign.description}</p>
                 
                 <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-gray-400 mb-2">Share Link:</p>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center mb-2">
+                    <p className="text-sm text-gray-400 whitespace-nowrap">Share Link:</p>
                     <input
                       type="text"
                       value={shareLink}
@@ -199,7 +226,67 @@ export default function SWCampaign() {
                   </div>
                 </div>
                 
-                <p className="text-xs text-gray-400">Campaign Code: <span className="font-mono text-gray-300">{campaign.campaign_code}</span></p>
+                {/* Campaign Characters */}
+                <div className="mt-4">
+                  <h4 className="text-sm font-bold text-gray-300 mb-2">Characters in Campaign:</h4>
+                  {campaignCharacters[campaign.id] && campaignCharacters[campaign.id].length > 0 ? (
+                    <div className="space-y-2">
+                      {campaignCharacters[campaign.id].map((character) => (
+                        <div key={character.id} className="flex items-center gap-3 bg-gray-600 rounded-lg p-2 border-2 border-gray-500">
+                          <img
+                            src={`/SW_Pictures/Picture ${character.picture || 0} Face.png`}
+                            alt={character.name}
+                            className="rounded object-contain"
+                            style={{ width: '80px', height: '100px' }}
+                            onError={(e) => {
+                              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="100"%3E%3Crect fill="%23333" width="80" height="100"/%3E%3C/svg%3E';
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-white truncate">{character.name}</p>
+                            <p className="text-xs text-gray-300 truncate">{character.race} | {character.career}{character.spec ? ` - ${character.spec}` : ''}</p>
+                            <p className="text-xs text-gray-400 truncate">Player: {character.user?.username || 'Unknown'}</p>
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => {
+                                  localStorage.setItem('loadedCharacterId', character.id);
+                                  navigate('/SW_character_overview');
+                                }}
+                                className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition"
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Remove ${character.name} from this campaign?`)) return;
+                                  const { error } = await supabase
+                                    .from('SW_player_characters')
+                                    .update({ campaign_joined: null })
+                                    .eq('id', character.id);
+                                  if (error) {
+                                    alert('Error removing character from campaign');
+                                    console.error('Error removing character:', error);
+                                  } else {
+                                    // Update the local state to remove the character from the list
+                                    setCampaignCharacters(prev => ({
+                                      ...prev,
+                                      [campaign.id]: (prev[campaign.id] || []).filter(c => c.id !== character.id)
+                                    }));
+                                  }
+                                }}
+                                className="px-3 py-1 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 transition"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">No characters in this campaign yet</p>
+                  )}
+                </div>
               </div>
             );
           })}
