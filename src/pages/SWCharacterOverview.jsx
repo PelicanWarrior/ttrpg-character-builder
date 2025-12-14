@@ -1370,7 +1370,7 @@ export default function SWCharacterOverview() {
 
         {/* ==================== SKILLS TAB ==================== */}
         {activeTab === 'skills' && (
-          <div className="border-2 border-black rounded-lg p-4 text-left w-1/2 mr-4" style={{ minHeight: '400px' }}>
+          <div className="text-left w-1/2 mr-4" style={{ minHeight: '400px' }}>
             <h2 className="font-bold text-lg mb-3">Skills</h2>
             <table className="border border-black text-left w-full" style={{ tableLayout: 'fixed', margin: '0' }}>
               <colgroup>
@@ -1492,12 +1492,8 @@ export default function SWCharacterOverview() {
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-black py-1">Equipped</th>
-                    <th className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>Name</th>
-                    <th className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>Skill (Dice Pool)</th>
-                    <th className="border border-black py-1" style={{ minWidth: '150px' }}>Range</th>
-                    <th className="border border-black py-1" style={{ minWidth: '50px' }}>Damage</th>
-                    <th className="border border-black py-1" style={{ minWidth: '50px' }}>Critical</th>
-                    <th className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>Special</th>
+                    <th className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>Weapon</th>
+                    <th className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>Effect</th>
                     <th className="border border-black py-1">Delete</th>
                   </tr>
                 </thead>
@@ -1509,21 +1505,22 @@ export default function SWCharacterOverview() {
                         <td className="border border-black py-1">
                           <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
                         </td>
-                        <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
                         <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
-                          {item.skill} (
+                          <div>{item.equipment_name}</div>
+                          <div>{item.skill} (
                           <span 
                             className="cursor-pointer hover:underline text-blue-700"
                             onClick={(e) => handleDicePoolClick(e, pool, item.skill)}
                           >
                             {pool}
                           </span>
-                          )
+                          )</div>
+                          <div>{item.range} Range</div>
                         </td>
-                        <td className="border border-black py-1" style={{ minWidth: '150px' }}>{item.range}</td>
-                        <td className="border border-black py-1" style={{ minWidth: '50px' }}>{item.damage || ''}</td>
-                        <td className="border border-black py-1" style={{ minWidth: '50px' }}>{item.critical || ''}</td>
-                        <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special || ''}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>
+                          <div>Damage: {item.damage || ''}, Critical: {item.critical || ''}</div>
+                          <div>{item.special || ''}</div>
+                        </td>
                         <td className="border border-black py-1">
                           <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                         </td>
@@ -1539,11 +1536,8 @@ export default function SWCharacterOverview() {
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-black py-1">Equipped</th>
-                    <th className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>Name</th>
-                    <th className="border border-black py-1" style={{ minWidth: '75px' }}>Soak</th>
-                    <th className="border border-black py-1" style={{ minWidth: '75px' }}>Defence Melee</th>
-                    <th className="border border-black py-1" style={{ minWidth: '75px' }}>Defence Range</th>
-                    <th className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>Special</th>
+                    <th className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>Armour</th>
+                    <th className="border border-black py-1" style={{ minWidth: '150px', wordWrap: 'break-word' }}>Soak / Defence</th>
                     <th className="border border-black py-1">Delete</th>
                   </tr>
                 </thead>
@@ -1553,11 +1547,18 @@ export default function SWCharacterOverview() {
                       <td className="border border-black py-1">
                         <input type="checkbox" checked={item.equipped} onChange={() => handleArmourEquipToggle(index)} />
                       </td>
-                      <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '75px' }}>{item.soak}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '75px' }}>{item.defence_melee}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '75px' }}>{item.defence_range}</td>
-                      <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special}</td>
+                      <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
+                        <div>{item.equipment_name}</div>
+                        <div>{item.special}</div>
+                      </td>
+                      <td className="border border-black py-1" style={{ minWidth: '150px', wordWrap: 'break-word' }}>
+                        <div>Soak: {item.soak}</div>
+                        <div>
+                          {item.defence_melee && item.defence_range 
+                            ? `${item.defence_melee} / ${item.defence_range}`
+                            : item.defence_melee || item.defence_range || ''}
+                        </div>
+                      </td>
                       <td className="border border-black py-1">
                         <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                       </td>
@@ -1615,12 +1616,8 @@ export default function SWCharacterOverview() {
             <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed' }}>
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-black py-1" style={{ minWidth: '200px', wordWrap: 'break-word' }}>Name</th>
-                  <th className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>Skill (Dice Pool)</th>
-                  <th className="border border-black py-1" style={{ minWidth: '150px' }}>Range</th>
-                  <th className="border border-black py-1" style={{ minWidth: '100px' }}>Damage</th>
-                  <th className="border border-black py-1" style={{ minWidth: '100px' }}>Critical</th>
-                  <th className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>Special</th>
+                  <th className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>Weapon</th>
+                  <th className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>Effect</th>
                 </tr>
               </thead>
               <tbody>
@@ -1630,21 +1627,22 @@ export default function SWCharacterOverview() {
                     const pool = getFinalDicePool(item.skill, skills.find(s => s.skill === item.skill)?.stat || 'agility');
                     return (
                       <tr key={index} className="bg-gray-100">
-                        <td className="border border-black py-1" style={{ minWidth: '200px', wordWrap: 'break-word' }}>{item.equipment_name}</td>
                         <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
-                          {item.skill} (
+                          <div>{item.equipment_name}</div>
+                          <div>{item.skill} (
                           <span 
                             className="cursor-pointer hover:underline text-blue-700"
                             onClick={(e) => handleDicePoolClick(e, pool, item.skill)}
                           >
                             {pool}
                           </span>
-                          )
+                          )</div>
+                          <div>{item.range} Range</div>
                         </td>
-                        <td className="border border-black py-1" style={{ minWidth: '150px' }}>{item.range}</td>
-                        <td className="border border-black py-1" style={{ minWidth: '100px' }}>{item.damage || ''}</td>
-                        <td className="border border-black py-1" style={{ minWidth: '100px' }}>{item.critical || ''}</td>
-                        <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{item.special || ''}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>
+                          <div>Damage: {item.damage || ''}, Critical: {item.critical || ''}</div>
+                          <div>{item.special || ''}</div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -1657,15 +1655,13 @@ export default function SWCharacterOverview() {
                 <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed', width: '100%' }}>
                   <colgroup>
                     <col style={{ width: '12%' }} />
-                    <col style={{ width: '58%' }} />
-                    <col style={{ width: '25%' }} />
+                    <col style={{ width: '83%' }} />
                     <col style={{ width: '5%' }} />
                   </colgroup>
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="border border-black py-1">Name</th>
                       <th className="border border-black py-1">Description</th>
-                      <th className="border border-black py-1">Special</th>
                       <th className="border border-black py-1">Use</th>
                     </tr>
                   </thead>
@@ -1676,10 +1672,8 @@ export default function SWCharacterOverview() {
                           {item.name} x{item.count}
                         </td>
                         <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
-                          {item.description || ''}
-                        </td>
-                        <td className="border border-black py-1" style={{ wordWrap: 'break-word' }}>
-                          {item.special || ''}
+                          <div>{item.description || ''}</div>
+                          {item.special && <div>Special: {item.special}</div>}
                         </td>
                         <td className="border border-black py-1 text-center">
                           <button
