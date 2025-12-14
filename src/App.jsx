@@ -6,6 +6,7 @@ import SWEotECharacterCreator from './pages/SWEotECharacterCreator';
 import SWCharacterOverview from './pages/SWCharacterOverview';
 import FeastlandsCharacterCreator from './pages/FeastlandsCharacterCreator';
 import SWCampaign from './pages/SW_campaign';
+import SWCampaignEdit from './pages/SW_campaign_edit';
 import CampaignJoin from './pages/CampaignJoin';
 import Settings from './pages/Settings';   // <-- NEW
 
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/SW_character_overview" element={<SWCharacterOverview />} />
       <Route path="/feastlands-character-creator" element={<FeastlandsCharacterCreator />} />
       <Route path="/SW_campaign" element={<SWCampaign />} />
+      <Route path="/SW_campaign_edit" element={<SWCampaignEdit />} />
       <Route path="/campaign-join" element={<CampaignJoin />} />
       <Route path="/settings" element={<Settings />} />   {/* NEW ROUTE */}
     </Routes>
