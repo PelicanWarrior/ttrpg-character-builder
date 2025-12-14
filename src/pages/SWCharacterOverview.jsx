@@ -32,7 +32,7 @@ export default function SWCharacterOverview() {
   const [strainCurrent, setStrainCurrent] = useState(0);
   const [credits, setCredits] = useState(0);
   const [totalSoak, setTotalSoak] = useState(0);
-  const [activeTab, setActiveTab] = useState('skills');
+  const [activeTab, setActiveTab] = useState('stats');
   const [abilities, setAbilities] = useState([]);
   const [skillBonuses, setSkillBonuses] = useState({});
   const [previousSoak, setPreviousSoak] = useState(null);
@@ -970,8 +970,11 @@ export default function SWCharacterOverview() {
 
   const consumableList = Object.values(consolidatedConsumables);
 
-  const StatBox = ({ statName, value }) => {
+  const StatBox = ({ statName, value, size = 'md' }) => {
     const canvasRef = useRef(null);
+    const dimension = size === 'sm' ? 90 : 112;
+    const fontSize = size === 'sm' ? 28 : 34;
+    const strokeWidth = size === 'sm' ? 3 : 4;
 
     useEffect(() => {
       const canvas = canvasRef.current;
@@ -982,27 +985,28 @@ export default function SWCharacterOverview() {
       img.crossOrigin = "anonymous";
       
       img.onload = () => {
-        ctx.clearRect(0, 0, 112, 112);
-        ctx.drawImage(img, 0, 0, 112, 112);
+        ctx.clearRect(0, 0, dimension, dimension);
+        ctx.drawImage(img, 0, 0, dimension, dimension);
 
-        ctx.font = 'bold 34px "Arial Black", Arial, sans-serif';
+        ctx.font = `bold ${fontSize}px "Arial Black", Arial, sans-serif`;
         ctx.fillStyle = 'white';
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = strokeWidth;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        const x = 56;
-        const y = 56;
+        const x = dimension / 2;
+        const y = dimension / 2;
         
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i <= strokeWidth; i++) {
           ctx.strokeText(value, x + i, y);
           ctx.strokeText(value, x - i, y);
           ctx.strokeText(value, x, y + i);
           ctx.strokeText(value, x, y - i);
         }
-        for (let dx = -2; dx <= 2; dx += 4) {
-          for (let dy = -2; dy <= 2; dy += 4) {
+        const diagOffset = Math.max(2, strokeWidth);
+        for (let dx = -diagOffset; dx <= diagOffset; dx += diagOffset) {
+          for (let dy = -diagOffset; dy <= diagOffset; dy += diagOffset) {
             if (dx !== 0 || dy !== 0) {
               ctx.strokeText(value, x + dx, y + dy);
             }
@@ -1014,33 +1018,36 @@ export default function SWCharacterOverview() {
       
       img.onerror = () => {
         ctx.fillStyle = '#8B4513';
-        ctx.fillRect(0, 0, 112, 112);
-        ctx.font = 'bold 24px Arial';
+        ctx.fillRect(0, 0, dimension, dimension);
+        ctx.font = `bold ${Math.max(18, fontSize - 6)}px Arial`;
         ctx.fillStyle = 'white';
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(2, strokeWidth - 1);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.strokeText(statName[0], 56, 56);
-        ctx.fillText(statName[0], 56, 56);
+        ctx.strokeText(statName[0], dimension / 2, dimension / 2);
+        ctx.fillText(statName[0], dimension / 2, dimension / 2);
       };
       
       img.src = `/SW_${statName}.png?t=${Date.now()}`;
-    }, [statName, value]);
+    }, [statName, value, dimension, fontSize, strokeWidth]);
 
     return (
       <canvas
         ref={canvasRef}
-        width={112}
-        height={112}
-        className="w-28 h-28 inline-block align-top"
-        style={{ imageRendering: 'pixelated' }}
+        width={dimension}
+        height={dimension}
+        className="inline-block align-top"
+        style={{ imageRendering: 'pixelated', width: dimension, height: dimension }}
       />
     );
   };
 
-  const ForceRatingBox = ({ value }) => {
+  const ForceRatingBox = ({ value, size = 'md' }) => {
     const canvasRef = useRef(null);
+    const dimension = size === 'sm' ? 90 : 112;
+    const fontSize = size === 'sm' ? 28 : 34;
+    const strokeWidth = size === 'sm' ? 3 : 4;
 
     useEffect(() => {
       const canvas = canvasRef.current;
@@ -1051,27 +1058,28 @@ export default function SWCharacterOverview() {
       img.crossOrigin = "anonymous";
 
       img.onload = () => {
-        ctx.clearRect(0, 0, 112, 112);
-        ctx.drawImage(img, 0, 0, 112, 112);
+        ctx.clearRect(0, 0, dimension, dimension);
+        ctx.drawImage(img, 0, 0, dimension, dimension);
 
-        ctx.font = 'bold 34px "Arial Black", Arial, sans-serif';
+        ctx.font = `bold ${fontSize}px "Arial Black", Arial, sans-serif`;
         ctx.fillStyle = 'white';
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = strokeWidth;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        const x = 56;
-        const y = 56;
+        const x = dimension / 2;
+        const y = dimension / 2;
 
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i <= strokeWidth; i++) {
           ctx.strokeText(value, x + i, y);
           ctx.strokeText(value, x - i, y);
           ctx.strokeText(value, x, y + i);
           ctx.strokeText(value, x, y - i);
         }
-        for (let dx = -2; dx <= 2; dx += 4) {
-          for (let dy = -2; dy <= 2; dy += 4) {
+        const diagOffset = Math.max(2, strokeWidth);
+        for (let dx = -diagOffset; dx <= diagOffset; dx += diagOffset) {
+          for (let dy = -diagOffset; dy <= diagOffset; dy += diagOffset) {
             if (dx !== 0 || dy !== 0) {
               ctx.strokeText(value, x + dx, y + dy);
             }
@@ -1083,24 +1091,24 @@ export default function SWCharacterOverview() {
 
       img.onerror = () => {
         ctx.fillStyle = '#4B0082';
-        ctx.fillRect(0, 0, 112, 112);
-        ctx.font = 'bold 34px Arial';
+        ctx.fillRect(0, 0, dimension, dimension);
+        ctx.font = `bold ${fontSize}px Arial`;
         ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(value, 56, 56);
+        ctx.fillText(value, dimension / 2, dimension / 2);
       };
 
       img.src = '/SW_Force_Rating.png?t=' + Date.now();
-    }, [value]);
+    }, [value, dimension, fontSize, strokeWidth]);
 
     return value > 0 ? (
       <canvas
         ref={canvasRef}
-        width={112}
-        height={112}
-        className="w-28 h-28 inline-block align-top mr-6"
-        style={{ imageRendering: 'pixelated' }}
+        width={dimension}
+        height={dimension}
+        className="inline-block align-top mr-6"
+        style={{ imageRendering: 'pixelated', width: dimension, height: dimension }}
       />
     ) : null;
   };
@@ -1258,7 +1266,7 @@ export default function SWCharacterOverview() {
   };
 
   return (
-    <div className="flex flex-col items-start min-h-screen bg-white py-10" style={{ maxWidth: '1600px', minWidth: '1600px', margin: '0 auto' }}>
+    <div className="flex flex-col items-start min-h-screen bg-white py-10 px-4" style={{ maxWidth: '100%', margin: '0 auto' }}>
       <div className="border-2 border-black rounded-lg p-4 w-full text-center mb-4">
         <button
           onClick={handleChooseTTRPG}
@@ -1313,43 +1321,52 @@ export default function SWCharacterOverview() {
         <p>{race ? `${race} ${career} - ${specialization}` : `${career} - ${specialization}`}</p>
       </div>
 
-      <div className="flex mb-8 items-center">
-        <div className="mr-6"><StatBox statName="Brawn" value={brawn} /></div>
-        <div className="mr-6"><StatBox statName="Agility" value={agility} /></div>
-        <div className="mr-6"><StatBox statName="Intellect" value={intellect} /></div>
-        <div className="mr-6"><StatBox statName="Cunning" value={cunning} /></div>
-        <div className="mr-6"><StatBox statName="Willpower" value={willpower} /></div>
-        <div className="mr-6"><StatBox statName="Presence" value={presence} /></div>
-
-        <ForceRatingBox value={forceRating} />
-
-        <div className="mr-6"><SoakBox value={totalSoak} /></div>
-
-        <div className="flex items-center">
-          <WoundStrainSingleBox 
-            type="wound"
-            threshold={woundThreshold}
-            current={woundCurrent}
-            onChange={handleWoundChange}
-          />
-        </div>
-
-        <div className="flex items-center">
-          <WoundStrainSingleBox 
-            type="strain"
-            threshold={strainThreshold}
-            current={strainCurrent}
-            onChange={handleStrainChange}
-          />
+      <div className="flex flex-wrap gap-4 mb-8 items-start">
+        <div className="flex gap-4 min-w-[360px]">
+          <div className="flex items-start justify-center" style={{ width: '150px' }}>
+            <SoakBox value={totalSoak} />
+          </div>
+          <div className="flex gap-3">
+            <WoundStrainSingleBox 
+              type="wound"
+              threshold={woundThreshold}
+              current={woundCurrent}
+              onChange={handleWoundChange}
+            />
+            <WoundStrainSingleBox 
+              type="strain"
+              threshold={strainThreshold}
+              current={strainCurrent}
+              onChange={handleStrainChange}
+            />
+          </div>
         </div>
       </div>
 
       <div className="w-full">
-        <div className="flex border-b-2 border-black mb-4">
+        <div className="flex flex-wrap border-b-2 border-black mb-4">
+          <button className={`px-4 py-2 font-bold ${activeTab === 'stats' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('stats')}>Stats</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
         </div>
+
+        {/* ==================== STATS TAB ==================== */}
+        {activeTab === 'stats' && (
+          <div className="flex flex-col gap-3 text-left" style={{ minHeight: '200px' }}>
+            <div className="flex flex-wrap gap-3">
+              <StatBox statName="Brawn" value={brawn} size="sm" />
+              <StatBox statName="Agility" value={agility} size="sm" />
+              <StatBox statName="Intellect" value={intellect} size="sm" />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <StatBox statName="Cunning" value={cunning} size="sm" />
+              <StatBox statName="Willpower" value={willpower} size="sm" />
+              <StatBox statName="Presence" value={presence} size="sm" />
+              <ForceRatingBox value={forceRating} size="sm" />
+            </div>
+          </div>
+        )}
 
         {/* ==================== SKILLS TAB ==================== */}
         {activeTab === 'skills' && (
@@ -1753,6 +1770,7 @@ export default function SWCharacterOverview() {
               style={{
                 position: 'absolute',
                 left: `${dicePopup.x}px`,
+
                 top: `${dicePopup.y}px`,
                 backgroundColor: 'white',
                 border: '3px solid black',

@@ -28,7 +28,7 @@ export default function SWCampaign() {
             .from('SW_campaign')
             .select('*')
             .eq('playerID', userData.id);
-          const sortedCampaigns = (campaignData || []).sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
+          const sortedCampaigns = (campaignData || []).slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
           setCampaigns(sortedCampaigns);
           
           // Fetch characters for each campaign
@@ -108,7 +108,7 @@ export default function SWCampaign() {
           .from('SW_campaign')
           .select('*')
           .eq('playerID', playerId);
-        const sortedCampaigns = (campaignData || []).sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
+        const sortedCampaigns = (campaignData || []).slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
         setCampaigns(sortedCampaigns);
         
         // Fetch characters for the new campaign
@@ -201,7 +201,7 @@ export default function SWCampaign() {
         <div className="border-t border-gray-600 mb-8"></div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-          {campaigns.map((campaign) => {
+          {[...campaigns].sort((a, b) => (a?.Name || '').localeCompare(b?.Name || '')).map((campaign) => {
             const shareLink = `${window.location.origin}/campaign-join?code=${campaign.campaign_code}`;
             return (
               <div key={campaign.id} className="rounded-2xl p-6 border-2 border-gray-600" style={{ backgroundColor: '#d1d5db', marginBottom: '2rem' }}>
