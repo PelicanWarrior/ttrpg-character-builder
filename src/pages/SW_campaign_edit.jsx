@@ -10,6 +10,11 @@ export default function SWCampaignEdit() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [characters, setCharacters] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [newLogText, setNewLogText] = useState('');
+  const [editingLogId, setEditingLogId] = useState(null);
+  const [editingLogText, setEditingLogText] = useState('');
 
   useEffect(() => {
     const fetchCampaign = async () => {
@@ -31,6 +36,30 @@ export default function SWCampaignEdit() {
       } else {
         setCampaignName(campaign.Name);
         setDescription(campaign.description || '');
+
+        const { data: chars, error: charsErr } = await supabase
+          .from('SW_player_characters')
+          .select('id, name, picture, race, career, spec')
+          .eq('campaign_joined', campaignId);
+        if (charsErr) {
+          console.error('Error fetching campaign characters:', charsErr);
+          setCharacters([]);
+        } else {
+          setCharacters(chars || []);
+        }
+
+        // Fetch campaign logs
+        const { data: logsData, error: logsErr } = await supabase
+          .from('SW_campaign_log')
+          .select('*')
+          .eq('campaignID', campaignId)
+          .order('Log_number', { ascending: false });
+        if (logsErr) {
+          console.error('Error fetching campaign logs:', logsErr);
+          setLogs([]);
+        } else {
+          setLogs(logsData || []);
+        }
       }
       setLoading(false);
     };
@@ -53,6 +82,56 @@ export default function SWCampaignEdit() {
       return;
     }
     setEditMode(false);
+  };
+
+  const handleNewLogBlur = async () => {
+    if (!newLogText.trim()) return;
+
+    const campaignId = searchParams.get('id');
+    if (!campaignId) return;
+
+    // Calculate next log number
+    const maxLogNumber = logs.length > 0 ? Math.max(...logs.map(l => l.Log_number || 0)) : 0;
+    const nextLogNumber = maxLogNumber + 1;
+
+    const { data: newLog, error } = await supabase
+      .from('SW_campaign_log')
+      .insert([{ Log: newLogText, Log_number: nextLogNumber, campaignID: parseInt(campaignId) }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating log:', error);
+    } else if (newLog) {
+      setLogs([newLog, ...logs]);
+      setNewLogText('');
+    }
+  };
+
+  const handleLogEdit = (log) => {
+    setEditingLogId(log.Log_number);
+    setEditingLogText(log.Log);
+  };
+
+  const handleLogUpdate = async (logNumber) => {
+    const campaignId = searchParams.get('id');
+    if (!campaignId) return;
+
+    const { error } = await supabase
+      .from('SW_campaign_log')
+      .update({ Log: editingLogText })
+      .eq('campaignID', parseInt(campaignId))
+      .eq('Log_number', logNumber);
+
+    if (error) {
+      console.error('Error updating log:', error);
+    } else {
+      setLogs(logs.map(log => 
+        log.Log_number === logNumber ? { ...log, Log: editingLogText } : log
+      ));
+      setEditingLogId(null);
+      setEditingLogText('');
+    }
   };
 
   if (loading) {
@@ -119,6 +198,75 @@ export default function SWCampaignEdit() {
         ) : (
           <p className="text-lg text-gray-200 leading-relaxed">{description || 'No description provided.'}</p>
         )}
+
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Characters in Campaign</h2>
+          {characters.length === 0 ? (
+            <p className="text-gray-300">No characters are currently in this campaign.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {characters.map((char) => (
+                <div key={char.id} className="bg-gray-800 rounded-lg p-2 text-center border border-gray-700" style={{ minWidth: '120px' }}>
+                  <img
+                    src={`/SW_Pictures/Picture ${char.picture || 0} Face.png`}
+                    alt={char.name}
+                    className="rounded object-contain mx-auto"
+                    style={{ width: '70px', height: '88px' }}
+                    onError={(e) => {
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="100"%3E%3Crect fill="%23333" width="80" height="100"/%3E%3C/svg%3E';
+                    }}
+                  />
+                  <p className="text-sm text-white font-semibold mt-1 leading-tight truncate" style={{ marginBottom: '2px' }}>{char.name}</p>
+                  <p className="text-xs text-gray-300 leading-tight truncate" style={{ marginTop: 0 }}>
+                    {char.race || 'Unknown'} - {char.career || 'Unknown'}{char.spec ? ` - ${char.spec}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Campaign Log</h2>
+          <div className="space-y-3">
+            {/* New log entry box at the top */}
+            <textarea
+              value={newLogText}
+              onChange={(e) => setNewLogText(e.target.value)}
+              onBlur={handleNewLogBlur}
+              placeholder="Type a new log entry..."
+              className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600 focus:outline-none focus:border-blue-500 resize-none"
+              rows={3}
+            />
+
+            {/* Existing logs */}
+            {logs.length === 0 ? (
+              <p className="text-gray-300">No log entries yet.</p>
+            ) : (
+              logs.map((log) => (
+                <div key={log.Log_number} className="bg-gray-800 rounded-lg border border-gray-700">
+                  {editingLogId === log.Log_number ? (
+                    <textarea
+                      value={editingLogText}
+                      onChange={(e) => setEditingLogText(e.target.value)}
+                      onBlur={() => handleLogUpdate(log.Log_number)}
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600 focus:outline-none focus:border-blue-500 resize-none"
+                      rows={Math.max(3, editingLogText.split('\n').length)}
+                      autoFocus
+                    />
+                  ) : (
+                    <p
+                      onClick={() => handleLogEdit(log)}
+                      className="text-gray-200 whitespace-pre-wrap px-4 py-3 cursor-pointer hover:bg-gray-700 rounded-lg"
+                    >
+                      {log.Log}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -25,6 +25,71 @@ export default function Settings() {
   const [showStarWarsSection, setShowStarWarsSection] = useState(false);
   const [showRacePictures, setShowRacePictures] = useState(false);
   const [showCareerPictures, setShowCareerPictures] = useState(false);
+  const [showAddSpeciesForm, setShowAddSpeciesForm] = useState(false);
+  const [showAddSpecializationForm, setShowAddSpecializationForm] = useState(false);
+  const [showAddCareerForm, setShowAddCareerForm] = useState(false);
+
+  // -----------------------------------------------------------------
+  // 2b. Add Species Form State
+  // -----------------------------------------------------------------
+  const [speciesName, setSpeciesName] = useState('');
+  const [speciesSourceBook, setSpeciesSourceBook] = useState('');
+  const [speciesDescription, setSpeciesDescription] = useState('');
+  const [speciesBrawn, setSpeciesBrawn] = useState('');
+  const [speciesAgility, setSpeciesAgility] = useState('');
+  const [speciesIntellect, setSpeciesIntellect] = useState('');
+  const [speciesCunning, setSpeciesCunning] = useState('');
+  const [speciesWillpower, setSpeciesWillpower] = useState('');
+  const [speciesPresence, setSpeciesPresence] = useState('');
+  const [speciesWound, setSpeciesWound] = useState('');
+  const [speciesStrain, setSpeciesStrain] = useState('');
+  const [speciesRaceAttack, setSpeciesRaceAttack] = useState('');
+  const [speciesEXP, setSpeciesEXP] = useState('');
+  const [speciesTalents, setSpeciesTalents] = useState([]);
+  const [speciesSkills, setSpeciesSkills] = useState([]);
+  const [speciesAbility, setSpeciesAbility] = useState('');
+  const [availableSkills, setAvailableSkills] = useState([]);
+  const [availableTalents, setAvailableTalents] = useState([]);
+  const [availableBooks, setAvailableBooks] = useState([]); // [{ id, Book_name }]
+  const [existingSpecies, setExistingSpecies] = useState([]); // full rows for editing
+  const [editingSpeciesId, setEditingSpeciesId] = useState(null);
+
+  // -----------------------------------------------------------------
+  // 2c. Add Specialization Form State
+  // -----------------------------------------------------------------
+  const [specName, setSpecName] = useState('');
+  const [specCareer, setSpecCareer] = useState('');
+  const [specDescription, setSpecDescription] = useState('');
+  const [specSkills, setSpecSkills] = useState([]);
+  const [specTalentTree, setSpecTalentTree] = useState({}); // { boxIndex: talentName }
+  const [specTalentDescriptions, setSpecTalentDescriptions] = useState({}); // { boxIndex: description }
+  const [specTalentActivations, setSpecTalentActivations] = useState({}); // { boxIndex: 'Passive'|'Active' }
+  const [specTalentLinks, setSpecTalentLinks] = useState({}); // { 'row_col_direction': true/false }
+  const [customTalentInputMode, setCustomTalentInputMode] = useState({}); // { boxIndex: true/false }
+  const [isCustomTalent, setIsCustomTalent] = useState({}); // { boxIndex: true/false }
+  const [availableCareers, setAvailableCareers] = useState([]);
+  const [careersWithIds, setCareersWithIds] = useState([]);
+  const [availableTalentsForTree, setAvailableTalentsForTree] = useState([]);
+  const [existingSpecs, setExistingSpecs] = useState([]); // full rows for editing
+  const [editingSpecId, setEditingSpecId] = useState(null);
+  const [abilityMapById, setAbilityMapById] = useState({}); // { id: { name, description, activation } }
+  const [savingSpec, setSavingSpec] = useState(false);
+  const [specConflict, setSpecConflict] = useState(null); // { id, name }
+  const [abilityConflicts, setAbilityConflicts] = useState([]); // [{ name, id }]
+  const [abilityConflictAction, setAbilityConflictAction] = useState(null); // 'addNew' | 'update'
+
+  // -----------------------------------------------------------------
+  // 2d. Add Career Form State
+  // -----------------------------------------------------------------
+  const [careerName, setCareerName] = useState('');
+  const [careerDescription, setCareerDescription] = useState('');
+  const [careerSkills, setCareerSkills] = useState([]);
+  const [careerSourceBook, setCareerSourceBook] = useState('');
+  const [careerForceSensitive, setCareerForceSensitive] = useState(false);
+  const [existingCareers, setExistingCareers] = useState([]); // full rows for editing
+  const [editingCareerId, setEditingCareerId] = useState(null);
+  const [careerBooks, setCareerBooks] = useState([]); // [{ id, Book_name }]
+  const [savingCareer, setSavingCareer] = useState(false);
 
   // -----------------------------------------------------------------
   // 3. Data
@@ -73,6 +138,215 @@ export default function Settings() {
 
     fetchAdminStatus();
   }, [playerId]);
+
+  // Fetch skills when Add Species or Add Specialization form is shown
+  useEffect(() => {
+    const fetchSkills = async () => {
+      if (!showAddSpeciesForm && !showAddSpecializationForm && !showAddCareerForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('skills')
+          .select('skill')
+          .order('skill');
+
+        if (error) throw error;
+
+        setAvailableSkills(data?.map(s => s.skill) || []);
+      } catch (err) {
+        console.error('Failed to fetch skills:', err);
+      }
+    };
+
+    fetchSkills();
+  }, [showAddSpeciesForm, showAddSpecializationForm, showAddCareerForm]);
+
+  // Fetch existing careers when Add Career form is shown
+  useEffect(() => {
+    const fetchCareers = async () => {
+      if (!showAddCareerForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('SW_career')
+          .select('id, name, description, skills, source_book, Force_Sensitive')
+          .order('name');
+
+        if (error) throw error;
+
+        setExistingCareers(data || []);
+      } catch (err) {
+        console.error('Failed to fetch careers:', err);
+      }
+    };
+
+    fetchCareers();
+  }, [showAddCareerForm]);
+
+  // Fetch books when Add Career form is shown
+  useEffect(() => {
+    const fetchBooks = async () => {
+      if (!showAddCareerForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('SW_books')
+          .select('id, Book_name')
+          .order('Book_name');
+
+        if (error) throw error;
+
+        setCareerBooks(data || []);
+      } catch (err) {
+        console.error('Failed to fetch books:', err);
+      }
+    };
+
+    fetchBooks();
+  }, [showAddCareerForm]);
+
+  // Fetch talents when Add Species form is shown
+  useEffect(() => {
+    const fetchTalents = async () => {
+      if (!showAddSpeciesForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('SW_abilities')
+          .select('ability')
+          .order('ability');
+
+        if (error) throw error;
+
+        setAvailableTalents(data?.map(t => t.ability) || []);
+      } catch (err) {
+        console.error('Failed to fetch talents:', err);
+      }
+    };
+
+    fetchTalents();
+  }, [showAddSpeciesForm]);
+
+  // Fetch books when Add Species form is shown
+  useEffect(() => {
+    const fetchBooks = async () => {
+      if (!showAddSpeciesForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('SW_books')
+          .select('id, Book_name')
+          .order('Book_name');
+
+        if (error) throw error;
+
+        setAvailableBooks(data || []);
+      } catch (err) {
+        console.error('Failed to fetch books:', err);
+      }
+    };
+
+    fetchBooks();
+  }, [showAddSpeciesForm]);
+
+  // Fetch existing species for editing when form is shown
+  useEffect(() => {
+    const fetchSpecies = async () => {
+      if (!showAddSpeciesForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('races')
+          .select('id, name, description, brawn, agility, intellect, cunning, willpower, presence, wound, Strain, Race_Attack, EXP, Starting_Talents, Starting_Skill, ability, source_book');
+
+        if (error) throw error;
+
+        setExistingSpecies(data || []);
+      } catch (err) {
+        console.error('Failed to fetch species list:', err);
+      }
+    };
+
+    fetchSpecies();
+  }, [showAddSpeciesForm]);
+
+  // Fetch careers when Add Specialization form is shown
+  useEffect(() => {
+    const fetchCareers = async () => {
+      if (!showAddSpecializationForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('SW_career')
+          .select('id, name')
+          .order('name');
+
+        if (error) throw error;
+
+        setAvailableCareers(data?.map(c => c.name) || []);
+        setCareersWithIds(data || []);
+      } catch (err) {
+        console.error('Failed to fetch careers:', err);
+      }
+    };
+
+    fetchCareers();
+  }, [showAddSpecializationForm]);
+
+  // Fetch talents for tree when Add Specialization form is shown
+  useEffect(() => {
+    const fetchTalentsForTree = async () => {
+      if (!showAddSpecializationForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('SW_abilities')
+          .select('ability')
+          .order('ability');
+
+        if (error) throw error;
+
+        setAvailableTalentsForTree(data?.map(t => t.ability) || []);
+      } catch (err) {
+        console.error('Failed to fetch talents:', err);
+      }
+    };
+
+    fetchTalentsForTree();
+  }, [showAddSpecializationForm]);
+
+  // Fetch existing specs and ability map for editing when form is shown
+  useEffect(() => {
+    const fetchSpecsAndAbilities = async () => {
+      if (!showAddSpecializationForm) return;
+
+      try {
+        const [specsRes, abilitiesRes] = await Promise.all([
+          supabase.from('SW_spec').select('id, Career, spec_name, description, spec_skills'),
+          supabase.from('SW_abilities').select('id, ability, description, activation')
+        ]);
+
+        if (specsRes.error) throw specsRes.error;
+        if (abilitiesRes.error) throw abilitiesRes.error;
+
+        setExistingSpecs(specsRes.data || []);
+
+        const abilityMap = {};
+        (abilitiesRes.data || []).forEach(a => {
+          abilityMap[a.id] = {
+            name: a.ability,
+            description: a.description || '',
+            activation: a.activation || ''
+          };
+        });
+        setAbilityMapById(abilityMap);
+      } catch (err) {
+        console.error('Failed to fetch specs/abilities:', err);
+      }
+    };
+
+    fetchSpecsAndAbilities();
+  }, [showAddSpecializationForm]);
 
   // Handle scrolling to race or career when URL params change
   useEffect(() => {
@@ -212,100 +486,6 @@ export default function Settings() {
   }, [showRacePictures, isAdmin]);
 
   // -----------------------------------------------------------------
-  // 6. Fetch Careers + Specs + Pictures + Race Names
-  // -----------------------------------------------------------------
-  const loadCareersWithSpecsAndPictures = async () => {
-    setCareersLoading(true);
-    setCareersError('');
-    setCareerData([]);
-    setAvailableRacesPerSpec({});
-    setSelectedRacePerSpec({});
-
-    try {
-      const { data: specs, error: specsError } = await supabase
-        .from('SW_spec')
-        .select('id, Career, spec_name');
-      if (specsError) throw specsError;
-
-      const { data: careers, error: careersError } = await supabase
-        .from('SW_career')
-        .select('id, name, Force_Sensitive');
-      if (careersError) throw careersError;
-
-      const careerMap = {};
-      const forceSensitiveMap = {};
-      careers.forEach((c) => {
-        careerMap[c.id] = c.name;
-        forceSensitiveMap[c.id] = c.Force_Sensitive;
-      });
-
-      const { data: races, error: racesError } = await supabase
-        .from('races')
-        .select('id, name');
-      if (racesError) throw racesError;
-
-      const raceMap = {};
-      races.forEach((r) => {
-        raceMap[r.id] = r.name;
-      });
-
-      const { data: pictures, error: picsError } = await supabase
-        .from('SW_pictures')
-        .select('id, spec_ID, race_ID');
-      if (picsError) throw picsError;
-
-      // For each spec, find races that do NOT have a face for that spec
-      const availableRaces = {};
-      specs.forEach((spec) => {
-        const takenRaceIds = new Set(pictures.filter(p => p.spec_ID === spec.id).map(p => p.race_ID));
-        let possibleRaces = races.filter(r => !takenRaceIds.has(r.id));
-        // If force sensitive, remove Droid
-        if (forceSensitiveMap[spec.Career]) {
-          possibleRaces = possibleRaces.filter(r => r.name !== 'Droid');
-        }
-        availableRaces[spec.id] = possibleRaces;
-      });
-      setAvailableRacesPerSpec(availableRaces);
-
-      const pictureMap = {};
-      pictures.forEach((pic) => {
-        const specId = pic.spec_ID;
-        const raceName = raceMap[pic.race_ID] || 'Unknown';
-        if (!pictureMap[specId]) pictureMap[specId] = [];
-        pictureMap[specId].push({ id: pic.id, raceName });
-      });
-
-      const enriched = specs
-        .map((spec) => {
-          const careerName = careerMap[spec.Career];
-          if (!careerName) return null;
-          return {
-            specId: spec.id,
-            fullName: `${careerName} - ${spec.spec_name}`,
-            careerName,
-            forceSensitive: !!forceSensitiveMap[spec.Career],
-            pictures: pictureMap[spec.id] || [],
-          };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.fullName.localeCompare(b.fullName));
-
-      setCareerData(enriched);
-    } catch (err) {
-      console.error('Failed to load careers and pictures:', err);
-      setCareersError('Failed to load careers and specializations.');
-    } finally {
-      setCareersLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (showCareerPictures && isAdmin) {
-      loadCareersWithSpecsAndPictures();
-    }
-  }, [showCareerPictures, isAdmin]);
-
-  // -----------------------------------------------------------------
   // 7. Handlers
   // -----------------------------------------------------------------
   const handleChangePasswordClick = () => {
@@ -363,14 +543,761 @@ export default function Settings() {
     setShowCareerPictures(false);
   };
 
+
   const handleRacePictures = () => {
     setShowRacePictures(true);
     setShowCareerPictures(false);
+    setShowAddSpeciesForm(false);
+    setShowAddSpecializationForm(false);
+    setShowAddCareerForm(false);
   };
 
   const handleCareerPictures = () => {
     setShowCareerPictures(true);
     setShowRacePictures(false);
+    setShowAddSpeciesForm(false);
+    setShowAddSpecializationForm(false);
+    setShowAddCareerForm(false);
+  };
+
+  const handleAddSpecies = () => {
+    setShowAddSpeciesForm(true);
+    setShowAddSpecializationForm(false);
+    setShowAddCareerForm(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+  };
+
+  const handleAddSpecialization = () => {
+    setShowAddSpecializationForm(true);
+    setShowAddSpeciesForm(false);
+    setShowAddCareerForm(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+  };
+
+  const handleAddCareer = () => {
+    setShowAddCareerForm(true);
+    setShowAddSpeciesForm(false);
+    setShowAddSpecializationForm(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+  };
+
+  const handleAddSkill = (skill) => {
+    if (skill && !speciesSkills.includes(skill)) {
+      setSpeciesSkills([...speciesSkills, skill]);
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove) => {
+    setSpeciesSkills(speciesSkills.filter(s => s !== skillToRemove));
+  };
+
+  const handleAddTalent = (talent) => {
+    if (talent && !speciesTalents.includes(talent)) {
+      setSpeciesTalents([...speciesTalents, talent]);
+    }
+  };
+
+  const handleRemoveTalent = (talentToRemove) => {
+    setSpeciesTalents(speciesTalents.filter(t => t !== talentToRemove));
+  };
+
+  const handleAddSpecSkill = (skill) => {
+    if (skill && !specSkills.includes(skill)) {
+      setSpecSkills([...specSkills, skill]);
+    }
+  };
+
+  const handleRemoveSpecSkill = (skillToRemove) => {
+    setSpecSkills(specSkills.filter(s => s !== skillToRemove));
+  };
+
+  const handleTalentTreeChange = async (boxIndex, talentName) => {
+    if (talentName === '__ADD_NEW__') {
+      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: true }));
+      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
+      setSpecTalentTree(prev => ({ ...prev, [boxIndex]: '' }));
+      setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
+      setSpecTalentActivations(prev => ({ ...prev, [boxIndex]: 'Passive' }));
+    } else if (talentName) {
+      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: false }));
+      setSpecTalentTree(prev => ({
+        ...prev,
+        [boxIndex]: talentName
+      }));
+
+      // Fetch description from SW_abilities
+      try {
+        const { data, error } = await supabase
+          .from('SW_abilities')
+          .select('description')
+          .eq('ability', talentName)
+          .single();
+
+        if (error) {
+          console.error('Error fetching talent description:', error);
+          setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: 'Description not found' }));
+          setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
+        } else {
+          setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: data?.description || '' }));
+          setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch description:', err);
+        setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
+        setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
+      }
+    } else {
+      setSpecTalentTree(prev => ({ ...prev, [boxIndex]: '' }));
+      setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
+      setSpecTalentActivations(prev => ({ ...prev, [boxIndex]: '' }));
+      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
+    }
+  };
+
+  const handleCustomTalentInput = (boxIndex, value) => {
+    setSpecTalentTree(prev => ({
+      ...prev,
+      [boxIndex]: value
+    }));
+  };
+
+  const handleCustomTalentBlur = (boxIndex) => {
+    const customTalent = specTalentTree[boxIndex];
+    if (customTalent && customTalent.trim() && !availableTalentsForTree.includes(customTalent)) {
+      setAvailableTalentsForTree(prev => [...prev, customTalent].sort());
+    }
+    if (customTalent && customTalent.trim()) {
+      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
+    }
+    setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: false }));
+  };
+
+  const handleDescriptionChange = (boxIndex, description) => {
+    setSpecTalentDescriptions(prev => ({
+      ...prev,
+      [boxIndex]: description
+    }));
+  };
+
+  const handleActivationChange = (boxIndex, activation) => {
+    setSpecTalentActivations(prev => ({
+      ...prev,
+      [boxIndex]: activation
+    }));
+  };
+
+  // Save a custom ability immediately to SW_abilities and update the UI
+  const handleSaveCustomAbility = async (boxIndex) => {
+    const name = (specTalentTree[boxIndex] || '').trim();
+    const description = (specTalentDescriptions[boxIndex] || '').trim();
+    const activation = specTalentActivations[boxIndex] || 'Passive';
+
+    if (!name) {
+      alert('Ability name is required');
+      return;
+    }
+
+    try {
+      // Check if ability exists
+      const { data: existing, error: selectErr } = await supabase
+        .from('SW_abilities')
+        .select('id')
+        .eq('ability', name);
+
+      if (selectErr) {
+        console.error('Error checking ability:', selectErr);
+        alert('Failed to check existing abilities');
+        return;
+      }
+
+      if (existing && existing.length > 0) {
+        const { error: updateErr } = await supabase
+          .from('SW_abilities')
+          .update({ description, activation })
+          .eq('ability', name);
+        if (updateErr) {
+          console.error('Error updating ability:', updateErr);
+          alert('Failed to update ability');
+          return;
+        }
+      } else {
+        const { error: insertErr } = await supabase
+          .from('SW_abilities')
+          .insert([{ ability: name, description, activation }]);
+        if (insertErr) {
+          console.error('Error saving ability:', insertErr);
+          alert('Failed to save ability');
+          return;
+        }
+      }
+
+      // Ensure it's available in the talent dropdown list
+      setAvailableTalentsForTree(prev => (
+        prev.includes(name) ? prev : [...prev, name].sort()
+      ));
+
+      // Switch the box to use the saved ability as a normal (non-custom) entry
+      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: false }));
+      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
+
+      alert('Ability saved');
+    } catch (err) {
+      console.error('Failed to save custom ability:', err);
+      alert('Failed to save custom ability');
+    }
+  };
+
+  const handleLinkChange = (linkKey, checked) => {
+    setSpecTalentLinks(prev => ({
+      ...prev,
+      [linkKey]: checked
+    }));
+  };
+
+  const handleSaveSpecialization = async ({ forceCreateSpec = false, updateSpec = false, abilityMode: abilityModeOverride = null, specIdOverride = null } = {}) => {
+    try {
+      setSpecConflict(null);
+      setAbilityConflicts([]);
+
+      if (!specName.trim()) {
+        alert('Specialization name is required');
+        return;
+      }
+      if (!specCareer) {
+        alert('Please select a career');
+        return;
+      }
+
+      setSavingSpec(true);
+
+      const abilityConflictsFound = new Set();
+      const abilityMode = abilityModeOverride || abilityConflictAction || null;
+
+      const skipSpecConflictCheck = updateSpec || !!specIdOverride;
+
+      // 0) Check for existing spec by name
+      const { data: existingSpec, error: existingSpecErr } = await supabase
+        .from('SW_spec')
+        .select('id')
+        .eq('spec_name', specName)
+        .maybeSingle();
+      if (existingSpecErr) {
+        console.error('Error checking existing spec:', existingSpecErr);
+      }
+
+      if (existingSpec?.id && !forceCreateSpec && !updateSpec && !skipSpecConflictCheck) {
+        setSpecConflict({ id: existingSpec.id, name: specName });
+        setSavingSpec(false);
+        return;
+      }
+
+      // 1) Resolve Career ID
+      const { data: careerRow, error: careerErr } = await supabase
+        .from('SW_career')
+        .select('id')
+        .eq('name', specCareer)
+        .single();
+      if (careerErr || !careerRow) {
+        console.error('Error resolving career:', careerErr);
+        alert('Failed to find career id');
+        setSavingSpec(false);
+        return;
+      }
+      const careerId = careerRow.id;
+
+      // 2) Insert or update SW_spec
+      let specId = specIdOverride || existingSpec?.id || null;
+      if (updateSpec) {
+        if (!specId) {
+          alert('No specialization selected to update');
+          setSavingSpec(false);
+          return;
+        }
+        const { error: updErr } = await supabase
+          .from('SW_spec')
+          .update({
+            spec_name: specName,
+            Career: careerId,
+            description: specDescription,
+            spec_skills: (specSkills || []).join(', ')
+          })
+          .eq('id', existingSpec.id);
+        if (updErr) {
+          console.error('Error updating specialization:', updErr);
+          alert('Failed to update specialization');
+          setSavingSpec(false);
+          return;
+        }
+        specId = specIdOverride || existingSpec?.id;
+      } else if (!existingSpec?.id || forceCreateSpec) {
+        const { data: specInsert, error: specErr } = await supabase
+          .from('SW_spec')
+          .insert([{
+            spec_name: specName,
+            Career: careerId,
+            description: specDescription,
+            spec_skills: (specSkills || []).join(', ')
+          }])
+          .select('id')
+          .single();
+        if (specErr || !specInsert) {
+          console.error('Error inserting specialization:', specErr);
+          alert('Failed to save specialization');
+          setSavingSpec(false);
+          return;
+        }
+        specId = specInsert.id;
+      }
+
+      // Helpers to resolve/insert abilities and get IDs
+      const getAbilityId = async (abilityName, description, activation, isCustom) => {
+        if (!abilityName) return null;
+        // Try fetch id from SW_abilities
+        let { data: abRow, error: abErr } = await supabase
+          .from('SW_abilities')
+          .select('id')
+          .eq('ability', abilityName)
+          .maybeSingle();
+        if (abErr) {
+          console.warn('Lookup SW_abilities failed:', abErr?.message);
+        }
+
+        // If found and custom
+        if (abRow?.id && isCustom) {
+          if (!abilityMode) {
+            abilityConflictsFound.add(abilityName);
+            throw new Error('ABILITY_CONFLICT');
+          }
+          if (abilityMode === 'update') {
+            // Update description/activation
+            let updRes = await supabase
+              .from('SW_abilities')
+              .update({ description: description || '', activation: activation || 'Passive' })
+              .eq('id', abRow.id);
+            return abRow.id;
+          }
+          // abilityMode === 'addNew' -> fall through to insert
+        }
+
+        if (abRow?.id) return abRow.id;
+
+        // If custom, insert into abilities table
+        if (isCustom) {
+          // Prefer plural table; fallback to singular
+          let insertRes = await supabase
+            .from('SW_abilities')
+            .insert([{ ability: abilityName, description: description || '', activation: activation || 'Passive' }])
+            .select('id')
+            .single();
+          if (insertRes.error) return null;
+          return insertRes.data?.id || null;
+        }
+        return null;
+      };
+
+      // 3) Build spec tree payload
+      const rows = [5, 10, 15, 20, 25];
+      const treePayload = {}; // spec_ID added on insert
+      for (let r = 0; r < 5; r++) {
+        for (let c = 1; c <= 4; c++) {
+          const boxIndex = r * 4 + (c - 1);
+          const abilityName = specTalentTree[boxIndex] || '';
+          const isCustom = !!isCustomTalent[boxIndex];
+          const desc = specTalentDescriptions[boxIndex] || '';
+          const activation = specTalentActivations[boxIndex] || '';
+
+          const abilityId = await getAbilityId(abilityName, desc, activation, isCustom);
+          const fieldBase = `ability_${rows[r]}_${c}`;
+          treePayload[fieldBase] = abilityId;
+
+          const links = [];
+          if (specTalentLinks[`${r}_${c - 1}_right`]) links.push('Right');
+          if (specTalentLinks[`${r}_${c - 1}_down`]) links.push('Down');
+          treePayload[`${fieldBase}_links`] = links.join(', ');
+        }
+      }
+
+      // 4) Insert or replace SW_spec_tree (spec_ID column)
+      if (specId && (updateSpec || specIdOverride)) {
+        const { error: deleteErr } = await supabase
+          .from('SW_spec_tree')
+          .delete()
+          .eq('spec_ID', specId);
+        if (deleteErr) {
+          console.error('Error clearing existing spec tree:', deleteErr);
+          alert('Failed to replace existing talent tree');
+          setSavingSpec(false);
+          return;
+        }
+      }
+
+      const { error: treeErr } = await supabase
+        .from('SW_spec_tree')
+        .insert([{ ...treePayload, spec_ID: specId }]);
+      if (treeErr) {
+        console.error('Error saving spec tree:', treeErr);
+        alert('Saved specialization, but failed saving talent tree');
+        setSavingSpec(false);
+        return;
+      }
+
+      alert('Specialization and Talent Tree saved!');
+
+      // Reset form
+      setSpecName('');
+      setSpecCareer('');
+      setSpecDescription('');
+      setSpecSkills([]);
+      setSpecTalentTree({});
+      setSpecTalentDescriptions({});
+      setSpecTalentActivations({});
+      setSpecTalentLinks({});
+      setCustomTalentInputMode({});
+      setIsCustomTalent({});
+      setAbilityConflictAction(null);
+      setEditingSpecId(null);
+      setShowAddSpecializationForm(false);
+    } catch (err) {
+      console.error('Save specialization failed:', err);
+      if (err.message === 'ABILITY_CONFLICT') {
+        setAbilityConflicts(Array.from(new Set(Array.from(abilityConflictsFound))).map(name => ({ name })));
+        alert('Custom abilities already exist. Choose Add New or Update Existing.');
+      } else {
+        alert('Failed to save specialization');
+      }
+    } finally {
+      setSavingSpec(false);
+    }
+  };
+
+  const resetSpeciesForm = () => {
+    setEditingSpeciesId(null);
+    setSpeciesName('');
+    setSpeciesSourceBook('');
+    setSpeciesDescription('');
+    setSpeciesBrawn('');
+    setSpeciesAgility('');
+    setSpeciesIntellect('');
+    setSpeciesCunning('');
+    setSpeciesWillpower('');
+    setSpeciesPresence('');
+    setSpeciesWound('');
+    setSpeciesStrain('');
+    setSpeciesRaceAttack('');
+    setSpeciesEXP('');
+    setSpeciesTalents([]);
+    setSpeciesSkills([]);
+    setSpeciesAbility('');
+  };
+
+  const resetCareerForm = () => {
+    setEditingCareerId(null);
+    setCareerName('');
+    setCareerDescription('');
+    setCareerSkills([]);
+    setCareerSourceBook('');
+    setCareerForceSensitive(false);
+  };
+
+  const handleSelectCareer = (careerId) => {
+    if (!careerId) {
+      resetCareerForm();
+      return;
+    }
+
+    const selected = existingCareers.find(c => String(c.id) === String(careerId));
+    if (!selected) return;
+
+    setEditingCareerId(selected.id);
+    setCareerName(selected.name || '');
+    setCareerDescription(selected.description || '');
+    setCareerSkills((selected.skills || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean));
+    setCareerSourceBook(selected.source_book ? String(selected.source_book) : '');
+    setCareerForceSensitive(selected.Force_Sensitive === true);
+  };
+
+  const handleAddCareerSkill = (skill) => {
+    if (skill && !careerSkills.includes(skill)) {
+      setCareerSkills([...careerSkills, skill]);
+    }
+  };
+
+  const handleRemoveCareerSkill = (skillToRemove) => {
+    setCareerSkills(careerSkills.filter(s => s !== skillToRemove));
+  };
+
+  const handleSaveCareer = async () => {
+    try {
+      if (!careerName.trim()) {
+        alert('Career name is required');
+        return;
+      }
+
+      setSavingCareer(true);
+
+      const bookId = careerSourceBook ? parseInt(careerSourceBook, 10) : null;
+
+      const payload = {
+        name: careerName,
+        description: careerDescription,
+        skills: careerSkills.join(', '),
+        source_book: bookId,
+        Force_Sensitive: careerForceSensitive
+      };
+
+      if (editingCareerId) {
+        const { error } = await supabase
+          .from('SW_career')
+          .update(payload)
+          .eq('id', editingCareerId);
+        if (error) {
+          console.error('Error updating career:', error);
+          alert('Failed to update career: ' + error.message);
+          return;
+        }
+        alert('Career updated successfully!');
+      } else {
+        const { data: maxIdData, error: maxIdError } = await supabase
+          .from('SW_career')
+          .select('id')
+          .order('id', { ascending: false })
+          .limit(1)
+          .single();
+        let nextId = 1;
+        if (!maxIdError && maxIdData?.id) nextId = maxIdData.id + 1;
+
+        const { error } = await supabase
+          .from('SW_career')
+          .insert([{ id: nextId, ...payload }]);
+        if (error) {
+          console.error('Error saving career:', error);
+          alert('Failed to save career: ' + error.message);
+          return;
+        }
+        alert('Career saved successfully!');
+      }
+
+      resetCareerForm();
+      setShowAddCareerForm(false);
+    } catch (err) {
+      console.error('Error saving career:', err);
+      alert('Failed to save career');
+    } finally {
+      setSavingCareer(false);
+    }
+  };
+
+  const handleSelectSpecies = (speciesId) => {
+    if (!speciesId) {
+      resetSpeciesForm();
+      return;
+    }
+
+    const selected = existingSpecies.find(s => String(s.id) === String(speciesId));
+    if (!selected) return;
+
+    setEditingSpeciesId(selected.id);
+    setSpeciesName(selected.name || '');
+    setSpeciesSourceBook(selected.source_book ? String(selected.source_book) : '');
+    setSpeciesDescription(selected.description || '');
+    setSpeciesBrawn(selected.brawn ?? '');
+    setSpeciesAgility(selected.agility ?? '');
+    setSpeciesIntellect(selected.intellect ?? '');
+    setSpeciesCunning(selected.cunning ?? '');
+    setSpeciesWillpower(selected.willpower ?? '');
+    setSpeciesPresence(selected.presence ?? '');
+    setSpeciesWound(selected.wound ?? '');
+    setSpeciesStrain(selected.Strain ?? '');
+    setSpeciesRaceAttack(selected.Race_Attack || '');
+    setSpeciesEXP(selected.EXP ?? '');
+    setSpeciesTalents((selected.Starting_Talents || '')
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean));
+    setSpeciesSkills((selected.Starting_Skill || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean));
+    setSpeciesAbility(selected.ability || '');
+  };
+
+  const resetSpecializationForm = () => {
+    setEditingSpecId(null);
+    setSpecName('');
+    setSpecCareer('');
+    setSpecDescription('');
+    setSpecSkills([]);
+    setSpecTalentTree({});
+    setSpecTalentDescriptions({});
+    setSpecTalentActivations({});
+    setSpecTalentLinks({});
+    setCustomTalentInputMode({});
+    setIsCustomTalent({});
+    setSpecConflict(null);
+    setAbilityConflicts([]);
+    setAbilityConflictAction(null);
+  };
+
+  const handleSelectSpecialization = async (specId) => {
+    if (!specId) {
+      resetSpecializationForm();
+      return;
+    }
+
+    const selected = existingSpecs.find(s => String(s.id) === String(specId));
+    if (!selected) return;
+
+    setEditingSpecId(selected.id);
+    setSpecName(selected.spec_name || '');
+    const careerName = careersWithIds.find(c => c.id === selected.Career)?.name || '';
+    setSpecCareer(careerName);
+    setSpecDescription(selected.description || '');
+    setSpecSkills((selected.spec_skills || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean));
+
+    try {
+      const { data: treeRow, error: treeErr } = await supabase
+        .from('SW_spec_tree')
+        .select('*')
+        .eq('spec_ID', specId)
+        .maybeSingle();
+
+      if (treeErr) {
+        console.error('Failed to load specialization tree:', treeErr);
+      }
+
+      if (!treeRow) {
+        resetSpecializationForm();
+        setSpecName(selected.spec_name || '');
+        setSpecCareer(careerName);
+        setSpecDescription(selected.description || '');
+        setSpecSkills((selected.spec_skills || '')
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean));
+        setEditingSpecId(selected.id);
+        return;
+      }
+
+      const rows = [5, 10, 15, 20, 25];
+      const newTree = {};
+      const newDescriptions = {};
+      const newActivations = {};
+      const newLinks = {};
+      const newCustomFlags = {};
+      const newCustomModes = {};
+
+      for (let r = 0; r < 5; r++) {
+        for (let c = 1; c <= 4; c++) {
+          const boxIndex = r * 4 + (c - 1);
+          const fieldBase = `ability_${rows[r]}_${c}`;
+          const abilityId = treeRow[fieldBase];
+          if (abilityId) {
+            const abilityInfo = abilityMapById[abilityId];
+            const abilityName = abilityInfo?.name || '';
+            newTree[boxIndex] = abilityName;
+            newDescriptions[boxIndex] = abilityInfo?.description || '';
+            newActivations[boxIndex] = abilityInfo?.activation || '';
+            newCustomFlags[boxIndex] = false;
+            newCustomModes[boxIndex] = false;
+          }
+
+          const linkStr = treeRow[`${fieldBase}_links`] || '';
+          const links = linkStr
+            .split(',')
+            .map(l => l.trim())
+            .filter(Boolean);
+          const linkKeyBase = `${r}_${c - 1}`;
+          if (links.includes('Right')) newLinks[`${linkKeyBase}_right`] = true;
+          if (links.includes('Down')) newLinks[`${linkKeyBase}_down`] = true;
+        }
+      }
+
+      setSpecTalentTree(newTree);
+      setSpecTalentDescriptions(newDescriptions);
+      setSpecTalentActivations(newActivations);
+      setSpecTalentLinks(newLinks);
+      setIsCustomTalent(newCustomFlags);
+      setCustomTalentInputMode(newCustomModes);
+    } catch (err) {
+      console.error('Failed to load specialization details:', err);
+    }
+  };
+
+  const handleSaveSpecies = async () => {
+    try {
+      if (!speciesName.trim()) {
+        alert('Species name is required');
+        return;
+      }
+
+      const bookId = speciesSourceBook ? parseInt(speciesSourceBook, 10) : null;
+
+      const payload = {
+        name: speciesName,
+        description: speciesDescription,
+        brawn: parseInt(speciesBrawn) || 0,
+        agility: parseInt(speciesAgility) || 0,
+        intellect: parseInt(speciesIntellect) || 0,
+        cunning: parseInt(speciesCunning) || 0,
+        willpower: parseInt(speciesWillpower) || 0,
+        presence: parseInt(speciesPresence) || 0,
+        wound: parseInt(speciesWound) || 0,
+        Strain: parseInt(speciesStrain) || 0,
+        Race_Attack: speciesRaceAttack,
+        EXP: parseInt(speciesEXP) || 0,
+        Starting_Talents: speciesTalents.join(', '),
+        Starting_Skill: speciesSkills.join(', '),
+        ability: speciesAbility,
+        source_book: bookId
+      };
+
+      if (editingSpeciesId) {
+        const { error } = await supabase
+          .from('races')
+          .update(payload)
+          .eq('id', editingSpeciesId);
+        if (error) {
+          console.error('Error updating species:', error);
+          alert('Failed to update species: ' + error.message);
+          return;
+        }
+        alert('Species updated successfully!');
+      } else {
+        const { data: maxIdData, error: maxIdError } = await supabase
+          .from('races')
+          .select('id')
+          .order('id', { ascending: false })
+          .limit(1)
+          .single();
+        let nextId = 1;
+        if (!maxIdError && maxIdData?.id) nextId = maxIdData.id + 1;
+
+        const { error } = await supabase
+          .from('races')
+          .insert([{ id: nextId, ...payload }]);
+        if (error) {
+          console.error('Error saving species:', error);
+          alert('Failed to save species: ' + error.message);
+          return;
+        }
+        alert('Species saved successfully!');
+      }
+
+      resetSpeciesForm();
+      setShowAddSpeciesForm(false);
+    } catch (err) {
+      console.error('Error saving species:', err);
+      alert('Failed to save species');
+    }
   };
 
   const handleCreatePrompt = async () => {
@@ -713,6 +1640,100 @@ export default function Settings() {
     setShowRacePictures(false);
     setShowCareerPictures(false);
   };
+
+  // -----------------------------------------------------------------
+  // 6b. Fetch Careers + Specs + Pictures + Race Names
+  // -----------------------------------------------------------------
+  const loadCareersWithSpecsAndPictures = async () => {
+    setCareersLoading(true);
+    setCareersError('');
+    setCareerData([]);
+    setAvailableRacesPerSpec({});
+    setSelectedRacePerSpec({});
+
+    try {
+      const { data: specs, error: specsError } = await supabase
+        .from('SW_spec')
+        .select('id, Career, spec_name');
+      if (specsError) throw specsError;
+
+      const { data: careers, error: careersError } = await supabase
+        .from('SW_career')
+        .select('id, name, Force_Sensitive');
+      if (careersError) throw careersError;
+
+      const careerMap = {};
+      const forceSensitiveMap = {};
+      careers.forEach((c) => {
+        careerMap[c.id] = c.name;
+        forceSensitiveMap[c.id] = c.Force_Sensitive;
+      });
+
+      const { data: races, error: racesError } = await supabase
+        .from('races')
+        .select('id, name');
+      if (racesError) throw racesError;
+
+      const raceMap = {};
+      races.forEach((r) => {
+        raceMap[r.id] = r.name;
+      });
+
+      const { data: pictures, error: picsError } = await supabase
+        .from('SW_pictures')
+        .select('id, spec_ID, race_ID');
+      if (picsError) throw picsError;
+
+      // For each spec, find races that do NOT have a face for that spec
+      const availableRaces = {};
+      specs.forEach((spec) => {
+        const takenRaceIds = new Set(pictures.filter(p => p.spec_ID === spec.id).map(p => p.race_ID));
+        let possibleRaces = races.filter(r => !takenRaceIds.has(r.id));
+        // If force sensitive, remove Droid
+        if (forceSensitiveMap[spec.Career]) {
+          possibleRaces = possibleRaces.filter(r => r.name !== 'Droid');
+        }
+        availableRaces[spec.id] = possibleRaces;
+      });
+      setAvailableRacesPerSpec(availableRaces);
+
+      const pictureMap = {};
+      pictures.forEach((pic) => {
+        const specId = pic.spec_ID;
+        const raceName = raceMap[pic.race_ID] || 'Unknown';
+        if (!pictureMap[specId]) pictureMap[specId] = [];
+        pictureMap[specId].push({ id: pic.id, raceName });
+      });
+
+      const enriched = specs
+        .map((spec) => {
+          const careerName = careerMap[spec.Career];
+          if (!careerName) return null;
+          return {
+            specId: spec.id,
+            fullName: `${careerName} - ${spec.spec_name}`,
+            careerName,
+            forceSensitive: !!forceSensitiveMap[spec.Career],
+            pictures: pictureMap[spec.id] || [],
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+      setCareerData(enriched);
+    } catch (err) {
+      console.error('Failed to load careers and pictures:', err);
+      setCareersError('Failed to load careers and specializations.');
+    } finally {
+      setCareersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showCareerPictures && isAdmin) {
+      loadCareersWithSpecsAndPictures();
+    }
+  }, [showCareerPictures, isAdmin]);
 
   // -----------------------------------------------------------------
   // 8. Render: Race Pictures View (Fixed 100px cells)
@@ -1097,6 +2118,13 @@ export default function Settings() {
         </div>
       )}
 
+      <button
+        onClick={handleBack}
+        className="mt-8 px-6 py-3 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+      >
+        Back
+      </button>
+
       <div className="w-3/4 max-w-md text-center mb-8">
         <p className="text-gray-600">No other settings available yet.</p>
       </div>
@@ -1136,17 +2164,716 @@ export default function Settings() {
                   Career Pictures
                 </button>
               </div>
+
+              <div className="flex space-x-3 mt-4">
+                <button
+                  onClick={handleAddSpecies}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm font-medium"
+                >
+                  Add Species
+                </button>
+
+
+                <button
+                  onClick={handleAddCareer}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm font-medium"
+                >
+                  Add Career
+                </button>
+                <button
+                  onClick={handleAddSpecialization}
+                  className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition text-sm font-medium"
+                >
+                  Add Specialization
+                </button>
+              </div>
+
+              {showAddSpeciesForm && (
+                <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add or Edit Species</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Existing Species</label>
+                      <select
+                        value={editingSpeciesId || ''}
+                        onChange={(e) => handleSelectSpecies(e.target.value || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Create New Species --</option>
+                        {existingSpecies
+                          .slice()
+                          .sort((a,b) => (a.name||'').localeCompare(b.name||''))
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={speciesName}
+                        onChange={(e) => setSpeciesName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Source Book</label>
+                      <select
+                        value={speciesSourceBook}
+                        onChange={(e) => setSpeciesSourceBook(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select a source book --</option>
+                        {availableBooks.map((book) => (
+                          <option key={book.id} value={book.id}>
+                            {book.Book_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={speciesDescription}
+                        onChange={(e) => setSpeciesDescription(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Brawn</label>
+                        <input
+                          type="number"
+                          value={speciesBrawn}
+                          onChange={(e) => setSpeciesBrawn(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Agility</label>
+                        <input
+                          type="number"
+                          value={speciesAgility}
+                          onChange={(e) => setSpeciesAgility(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Intellect</label>
+                        <input
+                          type="number"
+                          value={speciesIntellect}
+                          onChange={(e) => setSpeciesIntellect(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Cunning</label>
+                        <input
+                          type="number"
+                          value={speciesCunning}
+                          onChange={(e) => setSpeciesCunning(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Willpower</label>
+                        <input
+                          type="number"
+                          value={speciesWillpower}
+                          onChange={(e) => setSpeciesWillpower(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Presence</label>
+                        <input
+                          type="number"
+                          value={speciesPresence}
+                          onChange={(e) => setSpeciesPresence(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Wound</label>
+                        <input
+                          type="number"
+                          value={speciesWound}
+                          onChange={(e) => setSpeciesWound(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Strain</label>
+                        <input
+                          type="number"
+                          value={speciesStrain}
+                          onChange={(e) => setSpeciesStrain(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Race Attack</label>
+                        <input
+                          type="text"
+                          value={speciesRaceAttack}
+                          onChange={(e) => setSpeciesRaceAttack(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">EXP</label>
+                        <input
+                          type="number"
+                          value={speciesEXP}
+                          onChange={(e) => setSpeciesEXP(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Talents</label>
+                      <div className="space-y-2">
+                        {/* Selected talents as tags */}
+                        {speciesTalents.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {speciesTalents.map((talent, index) => (
+                              <div
+                                key={index}
+                                className="inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"
+                              >
+                                <span>{talent}</span>
+                                <button
+                                  onClick={() => handleRemoveTalent(talent)}
+                                  className="ml-2 text-green-600 hover:text-green-800 font-bold"
+                                  type="button"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Dropdown to add more talents */}
+                        <select
+                          onChange={(e) => {
+                            handleAddTalent(e.target.value);
+                            e.target.value = '';
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          value=""
+                        >
+                          <option value="">-- Select a talent to add --</option>
+                          {availableTalents
+                            .filter(talent => !speciesTalents.includes(talent))
+                            .map((talent, index) => (
+                              <option key={index} value={talent}>
+                                {talent}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
+                      <div className="space-y-2">
+                        {/* Selected skills as tags */}
+                        {speciesSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {speciesSkills.map((skill, index) => (
+                              <div
+                                key={index}
+                                className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                              >
+                                <span>{skill}</span>
+                                <button
+                                  onClick={() => handleRemoveSkill(skill)}
+                                  className="ml-2 text-blue-600 hover:text-blue-800 font-bold"
+                                  type="button"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Dropdown to add more skills */}
+                        <select
+                          onChange={(e) => {
+                            handleAddSkill(e.target.value);
+                            e.target.value = '';
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          value=""
+                        >
+                          <option value="">-- Select a skill to add --</option>
+                          {availableSkills
+                            .filter(skill => !speciesSkills.includes(skill))
+                            .map((skill, index) => (
+                              <option key={index} value={skill}>
+                                {skill}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ability</label>
+                      <textarea
+                        value={speciesAbility}
+                        onChange={(e) => setSpeciesAbility(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={3}
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleSaveSpecies}
+                      className="w-full px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition shadow-lg"
+                    >
+                      {editingSpeciesId ? 'Update Species' : 'Save Species'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddCareerForm && (
+                <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add or Edit Career</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Existing Career</label>
+                      <select
+                        value={editingCareerId || ''}
+                        onChange={(e) => handleSelectCareer(e.target.value || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Create New Career --</option>
+                        {existingCareers
+                          .slice()
+                          .sort((a,b) => (a.name||'').localeCompare(b.name||''))
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={careerName}
+                        onChange={(e) => setCareerName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={careerDescription}
+                        onChange={(e) => setCareerDescription(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={4}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Source Book</label>
+                      <select
+                        value={careerSourceBook}
+                        onChange={(e) => setCareerSourceBook(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select a source book --</option>
+                        {careerBooks.map((book) => (
+                          <option key={book.id} value={book.id}>
+                            {book.Book_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="flex items-center text-sm font-medium text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={careerForceSensitive}
+                          onChange={(e) => setCareerForceSensitive(e.target.checked)}
+                          className="mr-2 w-4 h-4 border border-gray-300 rounded focus:outline-none"
+                        />
+                        Force Sensitive
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
+                      <div className="space-y-2">
+                        {careerSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {careerSkills.map((skill, index) => (
+                              <div
+                                key={index}
+                                className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                              >
+                                <span>{skill}</span>
+                                <button
+                                  onClick={() => handleRemoveCareerSkill(skill)}
+                                  className="ml-2 text-blue-600 hover:text-blue-800 font-bold"
+                                  type="button"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <select
+                          onChange={(e) => {
+                            handleAddCareerSkill(e.target.value);
+                            e.target.value = '';
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          value=""
+                        >
+                          <option value="">-- Select a skill to add --</option>
+                          {availableSkills
+                            .filter(skill => !careerSkills.includes(skill))
+                            .map((skill, index) => (
+                              <option key={index} value={skill}>
+                                {skill}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleSaveCareer}
+                      disabled={savingCareer}
+                      className="w-full px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:opacity-60 transition shadow-lg"
+                    >
+                      {savingCareer ? 'Saving...' : (editingCareerId ? 'Update Career' : 'Save Career')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddSpecializationForm && (
+                <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add or Edit Specialization</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Existing Specialization</label>
+                      <select
+                        value={editingSpecId || ''}
+                        onChange={(e) => handleSelectSpecialization(e.target.value || null)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Create New Specialization --</option>
+                        {existingSpecs
+                          .slice()
+                          .sort((a,b)=> (a.spec_name||'').localeCompare(b.spec_name||''))
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>{s.spec_name}</option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={specName}
+                        onChange={(e) => setSpecName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Career</label>
+                      <select
+                        value={specCareer}
+                        onChange={(e) => setSpecCareer(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select a career --</option>
+                        {availableCareers.map((career, index) => (
+                          <option key={index} value={career}>
+                            {career}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={specDescription}
+                        onChange={(e) => setSpecDescription(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={4}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
+                      <div className="space-y-2">
+                        {/* Selected skills as tags */}
+                        {specSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {specSkills.map((skill, index) => (
+                              <div
+                                key={index}
+                                className="inline-flex items-center bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
+                              >
+                                <span>{skill}</span>
+                                <button
+                                  onClick={() => handleRemoveSpecSkill(skill)}
+                                  className="ml-2 text-blue-600 hover:text-blue-800 font-bold"
+                                  type="button"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Dropdown to add more skills */}
+                        <select
+                          onChange={(e) => {
+                            handleAddSpecSkill(e.target.value);
+                            e.target.value = '';
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          value=""
+                        >
+                          <option value="">-- Select a skill to add --</option>
+                          {availableSkills
+                            .filter(skill => !specSkills.includes(skill))
+                            .map((skill, index) => (
+                              <option key={index} value={skill}>
+                                {skill}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Talent Tree</label>
+                      <div className="overflow-y-auto border border-gray-300 rounded-lg p-4 bg-white" style={{ minHeight: '500px', maxHeight: '700px', width: 'fit-content' }}>
+                        <table className="border-separate text-center text-xs" style={{ borderSpacing: '0' }}>
+                          <tbody>
+                            {Array.from({ length: 10 }, (_, rowIndex) => {
+                              const expValues = [5, 10, 15, 20, 25];
+                              const isTalentRow = rowIndex % 2 === 0 && rowIndex < 10;
+                              const adjustedRowIndex = Math.floor(rowIndex / 2);
+                              const expToShow = isTalentRow ? expValues[adjustedRowIndex] : null;
+                              
+                              return (
+                                <tr key={rowIndex} className="bg-gray-50" style={{ height: isTalentRow ? 'auto' : '16px' }}>
+                                  {Array.from({ length: 8 }, (_, colIndex) => {
+                                    const talentIndex = Math.floor(colIndex / 2);
+                                    const isTalentBox = colIndex % 2 === 0 && colIndex < 8 && isTalentRow;
+                                    const isHorizontalSpace = colIndex % 2 === 1 && colIndex < 7 && isTalentRow;
+                                    const isVerticalSpace = colIndex % 2 === 0 && !isTalentRow && rowIndex > 0 && rowIndex < 9;
+                                    const boxIndex = adjustedRowIndex * 4 + talentIndex;
+                                    
+                                    return (
+                                      <td key={colIndex} className={isTalentBox ? 'p-2 align-top' : 'p-2'} style={{
+                                        position: 'relative',
+                                        border: isTalentBox ? '2px solid black' : 'none',
+                                        width: isTalentBox ? '260px' : '24px',
+                                        height: isTalentBox ? '190px' : '24px',
+                                        textAlign: 'center',
+                                        verticalAlign: 'middle'
+                                      }}>
+                                        {isTalentBox && (
+                                          <div
+                                            className="talent-box"
+                                            style={{
+                                              width: '260px',
+                                              height: '190px',
+                                              textAlign: 'left',
+                                              padding: '8px',
+                                              position: 'relative',
+                                              boxSizing: 'border-box',
+                                              backgroundColor: '#e0f7fa',
+                                              border: '1px solid #999'
+                                            }}
+                                          >
+                                            <div className="border-b border-gray-400 pb-1">
+                                              {customTalentInputMode[boxIndex] ? (
+                                                <input
+                                                  type="text"
+                                                  value={specTalentTree[boxIndex] || ''}
+                                                  onChange={(e) => handleCustomTalentInput(boxIndex, e.target.value)}
+                                                  onBlur={() => handleCustomTalentBlur(boxIndex)}
+                                                  placeholder="Enter talent name..."
+                                                  className="w-full text-xs font-semibold border border-gray-300 rounded px-1 py-1 focus:outline-none focus:border-blue-500"
+                                                  autoFocus
+                                                />
+                                              ) : (
+                                                <select
+                                                  value={specTalentTree[boxIndex] || ''}
+                                                  onChange={(e) => handleTalentTreeChange(boxIndex, e.target.value)}
+                                                  className="w-full text-xs font-semibold border border-gray-300 rounded px-1 py-1 focus:outline-none focus:border-blue-500"
+                                                >
+                                                  <option value="">-- Select Talent --</option>
+                                                  <option value="__ADD_NEW__">+ Add New Ability</option>
+                                                  {availableTalentsForTree.map((talent, idx) => (
+                                                    <option key={idx} value={talent}>
+                                                      {talent}
+                                                    </option>
+                                                  ))}
+                                                </select>
+                                              )}
+                                            </div>
+                                            <div className="text-xs text-gray-700 mt-1" style={{ minHeight: '80px', maxHeight: '110px', overflowY: 'auto' }}>
+                                              {isCustomTalent[boxIndex] ? (
+                                                <>
+                                                  <textarea
+                                                    value={specTalentDescriptions[boxIndex] || ''}
+                                                    onChange={(e) => handleDescriptionChange(boxIndex, e.target.value)}
+                                                    placeholder="Enter description..."
+                                                    className="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 resize-none"
+                                                    rows={2}
+                                                  />
+                                                  <select
+                                                    value={specTalentActivations[boxIndex] || 'Passive'}
+                                                    onChange={(e) => handleActivationChange(boxIndex, e.target.value)}
+                                                    className="w-full text-xs border border-gray-300 rounded px-2 py-1 mt-1 focus:outline-none focus:border-blue-500"
+                                                  >
+                                                    <option value="Passive">Passive</option>
+                                                    <option value="Active">Active</option>
+                                                  </select>
+                                                  <div className="mt-2 flex justify-end">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleSaveCustomAbility(boxIndex)}
+                                                      className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                                                    >
+                                                      Save Ability
+                                                    </button>
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <div className="text-xs">{specTalentDescriptions[boxIndex] || 'Select a talent to see description'}</div>
+                                              )}
+                                            </div>
+                                            <div className="absolute bottom-2 right-2 text-right text-xs font-semibold">
+                                              <div>{expToShow} EXP</div>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {isHorizontalSpace && (
+                                          <input
+                                            type="checkbox"
+                                            checked={specTalentLinks[`${adjustedRowIndex}_${talentIndex}_right`] || false}
+                                            onChange={(e) => handleLinkChange(`${adjustedRowIndex}_${talentIndex}_right`, e.target.checked)}
+                                            className="cursor-pointer"
+                                            style={{ width: '16px', height: '16px' }}
+                                          />
+                                        )}
+                                        {isVerticalSpace && (
+                                          <input
+                                            type="checkbox"
+                                            checked={specTalentLinks[`${adjustedRowIndex}_${talentIndex}_down`] || false}
+                                            onChange={(e) => handleLinkChange(`${adjustedRowIndex}_${talentIndex}_down`, e.target.checked)}
+                                            className="cursor-pointer"
+                                            style={{ width: '16px', height: '16px' }}
+                                          />
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <button
+                        onClick={() => editingSpecId ? handleSaveSpecialization({ updateSpec: true, specIdOverride: editingSpecId }) : handleSaveSpecialization()}
+                        disabled={savingSpec}
+                        className="mt-4 w-full px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-60 transition shadow-lg"
+                      >
+                        {savingSpec ? 'Saving...' : (editingSpecId ? 'Update Specialization' : 'Save Specialization')}
+                      </button>
+                      {specConflict && (
+                        <div className="mt-3 p-3 border border-yellow-400 rounded bg-yellow-50">
+                          <div className="text-sm font-semibold text-yellow-800 mb-2">
+                            A specialization named "{specConflict.name}" already exists.
+                          </div>
+                          <div className="flex gap-2 text-sm">
+                            <button
+                              onClick={() => handleSaveSpecialization({ updateSpec: true })}
+                              className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                              disabled={savingSpec}
+                            >
+                              Update Existing
+                            </button>
+                            <button
+                              onClick={() => handleSaveSpecialization({ forceCreateSpec: true })}
+                              className="px-3 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300"
+                              disabled={savingSpec}
+                            >
+                              Add As New
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {abilityConflicts.length > 0 && (
+                        <div className="mt-3 p-3 border border-orange-400 rounded bg-orange-50">
+                          <div className="text-sm font-semibold text-orange-800">Custom abilities already exist:</div>
+                          <ul className="text-sm text-orange-900 list-disc ml-5 mt-1">
+                            {abilityConflicts.map((a, idx) => (
+                              <li key={`${a.name}-${idx}`}>{a.name}</li>
+                            ))}
+                          </ul>
+                          <div className="flex gap-2 mt-2 text-sm">
+                            <button
+                              onClick={() => { setAbilityConflictAction('update'); handleSaveSpecialization({ abilityMode: 'update' }); }}
+                              className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                              disabled={savingSpec}
+                            >
+                              Update Existing Abilities
+                            </button>
+                            <button
+                              onClick={() => { setAbilityConflictAction('addNew'); handleSaveSpecialization({ abilityMode: 'addNew' }); }}
+                              className="px-3 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300"
+                              disabled={savingSpec}
+                            >
+                              Add As New Abilities
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
       )}
-
-      <button
-        onClick={handleBack}
-        className="mt-8 px-6 py-3 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-      >
-        Back
-      </button>
     </div>
   );
 }

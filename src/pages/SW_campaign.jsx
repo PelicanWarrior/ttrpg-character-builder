@@ -24,17 +24,45 @@ export default function SWCampaign() {
           .single();
         if (userData) {
           setPlayerId(userData.id);
-          const { data: campaignData } = await supabase
+          
+          // Fetch campaigns where user is DM
+          const { data: dmCampaigns } = await supabase
             .from('SW_campaign')
-            .select('*')
+            .select('id, Name, description, playerID, campaign_code, user:playerID(username)')
             .eq('playerID', userData.id);
-          const sortedCampaigns = (campaignData || []).slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
+          
+          // Fetch campaigns where user's characters are members
+          const { data: userCharacters } = await supabase
+            .from('SW_player_characters')
+            .select('campaign_joined')
+            .eq('user_number', userData.id)
+            .not('campaign_joined', 'is', null);
+          
+          const memberCampaignIds = [...new Set((userCharacters || []).map(c => c.campaign_joined))];
+          
+          let memberCampaigns = [];
+          if (memberCampaignIds.length > 0) {
+            const { data: campaigns } = await supabase
+              .from('SW_campaign')
+              .select('id, Name, description, playerID, campaign_code, user:playerID(username)')
+              .in('id', memberCampaignIds);
+            memberCampaigns = campaigns || [];
+          }
+          
+          // Combine and deduplicate campaigns
+          const allCampaignsMap = new Map();
+          [...(dmCampaigns || []), ...memberCampaigns].forEach(c => {
+            if (c) allCampaignsMap.set(c.id, c);
+          });
+          const allCampaigns = Array.from(allCampaignsMap.values());
+          
+          const sortedCampaigns = allCampaigns.slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
           setCampaigns(sortedCampaigns);
           
           // Fetch characters for each campaign
-          if (campaignData && campaignData.length > 0) {
+          if (allCampaigns.length > 0) {
             const charactersByCampaign = {};
-            for (const campaign of campaignData) {
+            for (const campaign of allCampaigns) {
               const { data: chars } = await supabase
                 .from('SW_player_characters')
                 .select('id, name, race, career, spec, picture, user_number, user:user_number(username)')
@@ -104,17 +132,41 @@ export default function SWCampaign() {
         setShowModal(false);
         alert('Campaign created successfully!');
         // Refresh campaigns list
-        const { data: campaignData } = await supabase
+        const { data: dmCampaigns } = await supabase
           .from('SW_campaign')
-          .select('*')
+          .select('id, Name, description, playerID, campaign_code, user:playerID(username)')
           .eq('playerID', playerId);
-        const sortedCampaigns = (campaignData || []).slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
+        
+        const { data: userCharacters } = await supabase
+          .from('SW_player_characters')
+          .select('campaign_joined')
+          .eq('user_number', playerId)
+          .not('campaign_joined', 'is', null);
+        
+        const memberCampaignIds = [...new Set((userCharacters || []).map(c => c.campaign_joined))];
+        
+        let memberCampaigns = [];
+        if (memberCampaignIds.length > 0) {
+          const { data: campaigns } = await supabase
+            .from('SW_campaign')
+            .select('id, Name, description, playerID, campaign_code, user:playerID(username)')
+            .in('id', memberCampaignIds);
+          memberCampaigns = campaigns || [];
+        }
+        
+        const allCampaignsMap = new Map();
+        [...(dmCampaigns || []), ...memberCampaigns].forEach(c => {
+          if (c) allCampaignsMap.set(c.id, c);
+        });
+        const allCampaigns = Array.from(allCampaignsMap.values());
+        
+        const sortedCampaigns = allCampaigns.slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
         setCampaigns(sortedCampaigns);
         
         // Fetch characters for the new campaign
-        if (campaignData && campaignData.length > 0) {
+        if (allCampaigns.length > 0) {
           const charactersByCampaign = {};
-          for (const campaign of campaignData) {
+          for (const campaign of allCampaigns) {
             const { data: chars } = await supabase
               .from('SW_player_characters')
               .select('id, name, race, career, spec, picture, user_number, user:user_number(username)')
@@ -205,7 +257,8 @@ export default function SWCampaign() {
             const shareLink = `${window.location.origin}/campaign-join?code=${campaign.campaign_code}`;
             return (
               <div key={campaign.id} className="rounded-2xl p-6 border-2 border-gray-600" style={{ backgroundColor: '#d1d5db', marginBottom: '2rem' }}>
-                <h3 className="text-xl font-bold mb-3 text-white text-center">{campaign.Name}</h3>
+                <h3 className="text-xl font-bold mb-1 text-white text-center">{campaign.Name}</h3>
+                <p className="text-sm text-gray-800 font-semibold mb-2 text-left">DM: {campaign.user?.username || 'Unknown'}</p>
                 <p className="text-gray-300 mb-4">{campaign.description}</p>
                 
                 <div className="bg-gray-700 rounded-lg p-4 mb-4">
@@ -239,12 +292,14 @@ export default function SWCampaign() {
                     >
                       Characters
                     </button>
-                    <button
-                      onClick={() => navigate(`/SW_campaign_edit?id=${campaign.id}`)}
-                      className="px-3 py-2 bg-yellow-600 text-white text-sm font-bold rounded hover:bg-yellow-700 transition whitespace-nowrap"
-                    >
-                      Edit
-                    </button>
+                    {campaign.playerID === playerId && (
+                      <button
+                        onClick={() => navigate(`/SW_campaign_edit?id=${campaign.id}`)}
+                        className="px-3 py-2 bg-yellow-600 text-white text-sm font-bold rounded hover:bg-yellow-700 transition whitespace-nowrap"
+                      >
+                        Edit
+                      </button>
+                    )}
                   </div>
                 </div>
                 
@@ -285,7 +340,7 @@ export default function SWCampaign() {
                                 <button
                                   onClick={() => {
                                     localStorage.setItem('loadedCharacterId', character.id);
-                                    navigate('/SW_character_overview');
+                                    navigate('/SW_character_overview', { state: { fromCampaign: true, campaignId: campaign.id } });
                                   }}
                                   className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition"
                                 >

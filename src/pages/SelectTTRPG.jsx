@@ -85,8 +85,14 @@ export default function SelectTTRPG() {
       });
 
       // Fetch campaign visibility setting
-      const { data: adminControlData } = await supabase.from('Admin_Control').select('SW_campaigns').single();
-      if (adminControlData) {
+      const { data: adminControlData, error: adminCtrlErr } = await supabase
+        .from('Admin_Control')
+        .select('SW_campaigns')
+        .eq('id', 1)
+        .single();
+      if (adminCtrlErr) {
+        console.error('Error fetching Admin_Control:', adminCtrlErr);
+      } else if (adminControlData) {
         setShowSWCampaigns(adminControlData.SW_campaigns ?? false);
       }
     };
@@ -102,7 +108,14 @@ export default function SelectTTRPG() {
 
   const toggleSWCampaignsVisibility = async () => {
     const newVal = !showSWCampaigns;
-    await supabase.from('Admin_Control').update({ SW_campaigns: newVal });
+    const { error } = await supabase
+      .from('Admin_Control')
+      .update({ SW_campaigns: newVal })
+      .eq('id', 1);
+    if (error) {
+      console.error('Error updating Admin_Control:', error);
+      return;
+    }
     setShowSWCampaigns(newVal);
   };
 

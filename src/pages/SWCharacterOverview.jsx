@@ -39,6 +39,8 @@ export default function SWCharacterOverview() {
   const [raceAbilities, setRaceAbilities] = useState({ Race_Attack: '', ability: '' });
   const [isForceSensitive, setIsForceSensitive] = useState(false);
   const [forceRating, setForceRating] = useState(0);
+  const [canEdit, setCanEdit] = useState(true);
+  const [campaignOwnerId, setCampaignOwnerId] = useState(null);
 
   // NEW: Dynamic popup state
   const [dicePopup, setDicePopup] = useState(null); // { pool, details, x, y }
@@ -395,7 +397,6 @@ export default function SWCharacterOverview() {
       const { data: characterData, error: charError } = await supabase
         .from('SW_player_characters')
         .select('*, wound_threshold, strain_threshold, wound_current, strain_current, credits, talents, force_rating')
-        .eq('user_number', playerId)
         .eq('id', loadedCharacterId)
         .single();
 
@@ -403,6 +404,25 @@ export default function SWCharacterOverview() {
         console.error('Error fetching character data:', charError);
         return;
       }
+
+      // If navigating from a campaign, fetch the campaign owner (DM)
+      let ownerId = null;
+      const campaignId = location?.state?.campaignId;
+      if (campaignId) {
+        const { data: campData, error: campErr } = await supabase
+          .from('SW_campaign')
+          .select('playerID')
+          .eq('id', campaignId)
+          .single();
+        if (!campErr && campData) {
+          ownerId = campData.playerID;
+          setCampaignOwnerId(ownerId);
+        }
+      }
+
+      const isOwner = playerId === characterData.user_number;
+      const isDM = ownerId && playerId === ownerId;
+      setCanEdit(isOwner || isDM);
 
       setCharacterId(characterData.id);
       setCharacterName(characterData.name || '');
@@ -996,7 +1016,7 @@ export default function SWCharacterOverview() {
         ctx.textBaseline = 'middle';
         
         const x = dimension / 2;
-        const y = dimension / 2;
+        const y = dimension / 2 - 4; // raise slightly for visual centering
         
         for (let i = 0; i <= strokeWidth; i++) {
           ctx.strokeText(value, x + i, y);
@@ -1025,8 +1045,8 @@ export default function SWCharacterOverview() {
         ctx.lineWidth = Math.max(2, strokeWidth - 1);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.strokeText(statName[0], dimension / 2, dimension / 2);
-        ctx.fillText(statName[0], dimension / 2, dimension / 2);
+        ctx.strokeText(statName[0], dimension / 2, dimension / 2 - 4);
+        ctx.fillText(statName[0], dimension / 2, dimension / 2 - 4);
       };
       
       img.src = `/SW_${statName}.png?t=${Date.now()}`;
@@ -1136,7 +1156,7 @@ export default function SWCharacterOverview() {
         ctx.textBaseline = 'middle';
         
         const x = 56;
-        const y = 56;
+        const y = 52; // raise slightly for visual centering
         
         for (let i = 0; i < 4; i++) {
           ctx.strokeText(value, x + i, y);
@@ -1164,8 +1184,8 @@ export default function SWCharacterOverview() {
         ctx.lineWidth = 2;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.strokeText('S', 56, 56);
-        ctx.fillText('S', 56, 56);
+        ctx.strokeText('S', 56, 52);
+        ctx.fillText('S', 56, 52);
       };
       
       img.src = `/SW_Soak.png?t=${Date.now()}`;
@@ -1182,7 +1202,7 @@ export default function SWCharacterOverview() {
     );
   };
 
-  const WoundStrainSingleBox = ({ type, threshold, current, onChange }) => {
+  const WoundStrainSingleBox = ({ type, threshold, current, onChange, canEdit = true }) => {
     const canvasRef = useRef(null);
 
     useEffect(() => {
@@ -1205,21 +1225,22 @@ export default function SWCharacterOverview() {
         ctx.textBaseline = 'middle';
         
         const y = 56;
-        const leftX = 38;
-        const rightX = 74;
+        const leftX = 34; // shift left value slightly left
+        const rightX = 80; // shift right value further right to create a visible gap
 
         for (let i = 0; i < 3; i++) {
-          ctx.strokeText(threshold, leftX + i, y);
-          ctx.strokeText(threshold, leftX - i, y);
-          ctx.strokeText(threshold, leftX, y + i);
-          ctx.strokeText(threshold, leftX, y - i);
-          ctx.strokeText(current, rightX + i, y);
-          ctx.strokeText(current, rightX - i, y);
-          ctx.strokeText(current, rightX, y + i);
-          ctx.strokeText(current, rightX, y - i);
+          ctx.strokeText(current, leftX + i, y);
+          ctx.strokeText(current, leftX - i, y);
+          ctx.strokeText(current, leftX, y + i);
+          ctx.strokeText(current, leftX, y - i);
+          ctx.strokeText(threshold, rightX + i, y);
+          ctx.strokeText(threshold, rightX - i, y);
+          ctx.strokeText(threshold, rightX, y + i);
+          ctx.strokeText(threshold, rightX, y - i);
         }
-        ctx.fillText(threshold, leftX, y);
-        ctx.fillText(current, rightX, y);
+        ctx.fillText(current, leftX, y);
+        ctx.fillText(threshold, rightX, y);
+
       };
       
       img.onerror = () => {
@@ -1247,20 +1268,22 @@ export default function SWCharacterOverview() {
           className="w-28 h-28 inline-block align-top"
           style={{ imageRendering: 'pixelated' }}
         />
-        <div className="flex flex-col">
-          <button 
-            onClick={() => onChange(1)}
-            className="w-8 h-8 bg-green-600 text-white text-lg font-bold rounded-full hover:bg-green-700 shadow-md flex items-center justify-center -ml-2"
-          >
-            +
-          </button>
-          <button 
-            onClick={() => onChange(-1)}
-            className="w-8 h-8 bg-red-600 text-white text-lg font-bold rounded-full hover:bg-red-700 shadow-md flex items-center justify-center -ml-2 mt-1"
-          >
-            −
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex flex-col">
+            <button 
+              onClick={() => onChange(1)}
+              className="w-8 h-8 bg-green-600 text-white text-lg font-bold rounded-full hover:bg-green-700 shadow-md flex items-center justify-center -ml-2"
+            >
+              +
+            </button>
+            <button 
+              onClick={() => onChange(-1)}
+              className="w-8 h-8 bg-red-600 text-white text-lg font-bold rounded-full hover:bg-red-700 shadow-md flex items-center justify-center -ml-2 mt-1"
+            >
+              −
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -1274,6 +1297,15 @@ export default function SWCharacterOverview() {
         >
           Choose TTRPG
         </button>
+        {location?.state?.fromCampaign && (
+          <button
+            onClick={() => navigate('/SW_campaign')}
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 ml-2"
+            style={{ marginLeft: '0.5rem' }}
+          >
+            Back to Campaign
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-4 mb-4">
         <div className="flex flex-col items-center gap-2">
@@ -1322,7 +1354,7 @@ export default function SWCharacterOverview() {
       </div>
 
       <div className="flex flex-wrap gap-4 mb-8 items-start">
-        <div className="flex gap-4 min-w-[360px]">
+          <div className="flex gap-4 min-w-[360px]">
           <div className="flex items-start justify-center" style={{ width: '150px' }}>
             <SoakBox value={totalSoak} />
           </div>
@@ -1332,12 +1364,14 @@ export default function SWCharacterOverview() {
               threshold={woundThreshold}
               current={woundCurrent}
               onChange={handleWoundChange}
+              canEdit={canEdit}
             />
             <WoundStrainSingleBox 
               type="strain"
               threshold={strainThreshold}
               current={strainCurrent}
               onChange={handleStrainChange}
+              canEdit={canEdit}
             />
           </div>
         </div>
@@ -1480,11 +1514,13 @@ export default function SWCharacterOverview() {
                   </tbody>
                 </table>
               )}
-              <div className="mt-4">
-                <button onClick={handleAddToInventory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                  Add to Inventory
-                </button>
-              </div>
+              {canEdit && (
+                <div className="mt-4">
+                  <button onClick={handleAddToInventory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                    Add to Inventory
+                  </button>
+                </div>
+              )}
 
               {/* Weapons Table */}
               <h3 className="font-bold text-lg mt-4">Weapons</h3>
@@ -1521,9 +1557,11 @@ export default function SWCharacterOverview() {
                           <div>Damage: {item.damage || ''}, Critical: {item.critical || ''}</div>
                           <div>{item.special || ''}</div>
                         </td>
-                        <td className="border border-black py-1">
-                          <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-                        </td>
+                        {canEdit && (
+                          <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
+                            <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -1559,9 +1597,11 @@ export default function SWCharacterOverview() {
                             : item.defence_melee || item.defence_range || ''}
                         </div>
                       </td>
-                      <td className="border border-black py-1">
-                        <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-                      </td>
+                      {canEdit && (
+                        <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
+                          <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1675,15 +1715,17 @@ export default function SWCharacterOverview() {
                           <div>{item.description || ''}</div>
                           {item.special && <div>Special: {item.special}</div>}
                         </td>
-                        <td className="border border-black py-1 text-center">
-                          <button
-                            onClick={() => handleUseConsumable(item.name)}
-                            disabled={item.count === 0}
-                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-                          >
-                            Use
-                          </button>
-                        </td>
+                        {canEdit && (
+                          <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
+                            <button
+                              onClick={() => handleUseConsumable(item.name)}
+                              disabled={item.count === 0}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+                            >
+                              Use
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
