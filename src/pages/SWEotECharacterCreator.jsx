@@ -1324,7 +1324,7 @@ export default function SWEotECharacterCreator() {
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-white py-4 sm:py-6 md:py-10 px-2 sm:px-4" style={{ maxWidth: '100vw' }}>
-      <img src="/Star Wars.png" alt="Star Wars: Edge of the Empire" className="w-40 sm:w-48 md:w-64 mb-4 sm:mb-6" />
+      <img src={`/SW_Pictures/Logo.png?t=${Date.now()}`} alt="Star Wars: Edge of the Empire" className="w-40 sm:w-48 md:w-64 mb-4 sm:mb-6" />
 
       <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '80px' }}>
         <div className="flex flex-row gap-2">

@@ -27,7 +27,26 @@ export default function Settings() {
   const [showCareerPictures, setShowCareerPictures] = useState(false);
   const [showAddSpeciesForm, setShowAddSpeciesForm] = useState(false);
   const [showAddSpecializationForm, setShowAddSpecializationForm] = useState(false);
+  const [showAddEquipmentForm, setShowAddEquipmentForm] = useState(false);
   const [showAddCareerForm, setShowAddCareerForm] = useState(false);
+
+  // -----------------------------------------------------------------
+  // 2a. Pathfinder Section State
+  // -----------------------------------------------------------------
+  const [showPathfinderSection, setShowPathfinderSection] = useState(false);
+  const [showAddPathfinderRaceForm, setShowAddPathfinderRaceForm] = useState(false);
+  const [pathfinderRaces, setPathfinderRaces] = useState([]); // [{ id, Name, ... }]
+  const [selectedPRaceId, setSelectedPRaceId] = useState('__new__');
+  const [pRaceName, setPRaceName] = useState('');
+  const [pRaceDescription, setPRaceDescription] = useState('');
+  const [pRaceStats, setPRaceStats] = useState('');
+  const [pRaceSize, setPRaceSize] = useState('');
+  const [pRaceSpeed, setPRaceSpeed] = useState('');
+  const [pRaceModifySpeed, setPRaceModifySpeed] = useState(false);
+  const [pRaceAbilities, setPRaceAbilities] = useState('');
+  const [pRaceLanguages, setPRaceLanguages] = useState('');
+  const [pRaceHighIntLanguages, setPRaceHighIntLanguages] = useState('');
+  const [savingPRace, setSavingPRace] = useState(false);
 
   // -----------------------------------------------------------------
   // 2b. Add Species Form State
@@ -77,6 +96,26 @@ export default function Settings() {
   const [specConflict, setSpecConflict] = useState(null); // { id, name }
   const [abilityConflicts, setAbilityConflicts] = useState([]); // [{ name, id }]
   const [abilityConflictAction, setAbilityConflictAction] = useState(null); // 'addNew' | 'update'
+
+  // -----------------------------------------------------------------
+  // 2e. Add Equipment Form State
+  // -----------------------------------------------------------------
+  const [equipmentName, setEquipmentName] = useState('');
+  const [equipmentDescription, setEquipmentDescription] = useState('');
+  const [equipmentSkillId, setEquipmentSkillId] = useState('');
+  const [equipmentRange, setEquipmentRange] = useState('');
+  const [equipmentEncumbrance, setEquipmentEncumbrance] = useState('');
+  const [equipmentPrice, setEquipmentPrice] = useState('');
+  const [equipmentRarity, setEquipmentRarity] = useState('');
+  const [equipmentDamage, setEquipmentDamage] = useState('');
+  const [equipmentCritical, setEquipmentCritical] = useState('');
+  const [equipmentHP, setEquipmentHP] = useState('');
+  const [equipmentSpecial, setEquipmentSpecial] = useState('');
+  const [equipmentSoak, setEquipmentSoak] = useState('');
+  const [equipmentDamageRange, setEquipmentDamageRange] = useState('');
+  const [equipmentDamageMelee, setEquipmentDamageMelee] = useState('');
+  const [equipmentConsumable, setEquipmentConsumable] = useState(false);
+  const [availableSkillsDetailed, setAvailableSkillsDetailed] = useState([]); // [{ id, skill }]
 
   // -----------------------------------------------------------------
   // 2d. Add Career Form State
@@ -139,27 +178,29 @@ export default function Settings() {
     fetchAdminStatus();
   }, [playerId]);
 
-  // Fetch skills when Add Species or Add Specialization form is shown
+  // Fetch skills when Add Species, Add Specialization, Add Career, or Add Equipment form is shown
   useEffect(() => {
     const fetchSkills = async () => {
-      if (!showAddSpeciesForm && !showAddSpecializationForm && !showAddCareerForm) return;
+      if (!showAddSpeciesForm && !showAddSpecializationForm && !showAddCareerForm && !showAddEquipmentForm) return;
 
       try {
         const { data, error } = await supabase
           .from('skills')
-          .select('skill')
+          .select('id, skill, type')
           .order('skill');
 
         if (error) throw error;
 
-        setAvailableSkills(data?.map(s => s.skill) || []);
+        const skillNames = data?.map(s => s.skill) || [];
+        setAvailableSkills(skillNames);
+        setAvailableSkillsDetailed(data || []);
       } catch (err) {
         console.error('Failed to fetch skills:', err);
       }
     };
 
     fetchSkills();
-  }, [showAddSpeciesForm, showAddSpecializationForm, showAddCareerForm]);
+  }, [showAddSpeciesForm, showAddSpecializationForm, showAddCareerForm, showAddEquipmentForm]);
 
   // Fetch existing careers when Add Career form is shown
   useEffect(() => {
@@ -485,6 +526,12 @@ export default function Settings() {
     }
   }, [showRacePictures, isAdmin]);
 
+  useEffect(() => {
+    if (showAddPathfinderRaceForm && isAdmin) {
+      loadPathfinderRaces();
+    }
+  }, [showAddPathfinderRaceForm, isAdmin]);
+
   // -----------------------------------------------------------------
   // 7. Handlers
   // -----------------------------------------------------------------
@@ -541,6 +588,37 @@ export default function Settings() {
     setShowStarWarsSection(!showStarWarsSection);
     setShowRacePictures(false);
     setShowCareerPictures(false);
+    setShowAddSpeciesForm(false);
+    setShowAddSpecializationForm(false);
+    setShowAddEquipmentForm(false);
+    setShowAddCareerForm(false);
+    // Collapse Pathfinder section and its forms
+    setShowPathfinderSection(false);
+    setShowAddPathfinderRaceForm(false);
+  };
+
+  const handlePathfinderStats = () => {
+    setShowPathfinderSection(!showPathfinderSection);
+    // Collapse SW-specific subviews when toggling Pathfinder section
+    setShowStarWarsSection(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+    setShowAddSpeciesForm(false);
+    setShowAddSpecializationForm(false);
+    setShowAddEquipmentForm(false);
+    setShowAddCareerForm(false);
+    setShowAddPathfinderRaceForm(false);
+  };
+
+  const handleAddPathfinderRace = () => {
+    setShowAddPathfinderRaceForm(true);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+    setShowAddSpeciesForm(false);
+    setShowAddSpecializationForm(false);
+    setShowAddEquipmentForm(false);
+    setShowAddCareerForm(false);
+    loadPathfinderRaces();
   };
 
 
@@ -563,6 +641,7 @@ export default function Settings() {
   const handleAddSpecies = () => {
     setShowAddSpeciesForm(true);
     setShowAddSpecializationForm(false);
+    setShowAddEquipmentForm(false);
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -571,6 +650,7 @@ export default function Settings() {
   const handleAddSpecialization = () => {
     setShowAddSpecializationForm(true);
     setShowAddSpeciesForm(false);
+    setShowAddEquipmentForm(false);
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -580,6 +660,16 @@ export default function Settings() {
     setShowAddCareerForm(true);
     setShowAddSpeciesForm(false);
     setShowAddSpecializationForm(false);
+    setShowAddEquipmentForm(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+  };
+
+  const handleAddEquipment = () => {
+    setShowAddEquipmentForm(true);
+    setShowAddSpeciesForm(false);
+    setShowAddSpecializationForm(false);
+    setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
   };
@@ -755,6 +845,68 @@ export default function Settings() {
       ...prev,
       [linkKey]: checked
     }));
+  };
+
+  const resetEquipmentForm = () => {
+    setEquipmentName('');
+    setEquipmentDescription('');
+    setEquipmentSkillId('');
+    setEquipmentRange('');
+    setEquipmentEncumbrance('');
+    setEquipmentPrice('');
+    setEquipmentRarity('');
+    setEquipmentDamage('');
+    setEquipmentCritical('');
+    setEquipmentHP('');
+    setEquipmentSpecial('');
+    setEquipmentSoak('');
+    setEquipmentDamageRange('');
+    setEquipmentDamageMelee('');
+    setEquipmentConsumable(false);
+  };
+
+  const handleSaveEquipment = async () => {
+    if (!equipmentName.trim()) {
+      alert('Name is required');
+      return;
+    }
+
+    try {
+      const payload = {
+        name: equipmentName.trim(),
+        description: equipmentDescription.trim(),
+        skill: equipmentSkillId ? parseInt(equipmentSkillId, 10) : null,
+        range: equipmentRange.trim(),
+        encumbrance: equipmentEncumbrance ? parseInt(equipmentEncumbrance, 10) : null,
+        price: equipmentPrice ? parseInt(equipmentPrice, 10) : null,
+        rarity: equipmentRarity ? parseInt(equipmentRarity, 10) : null,
+        damage: equipmentDamage ? parseInt(equipmentDamage, 10) : null,
+        critical: equipmentCritical ? parseInt(equipmentCritical, 10) : null,
+        HP: equipmentHP ? parseInt(equipmentHP, 10) : null,
+        special: equipmentSpecial.trim(),
+        soak: equipmentSoak ? parseInt(equipmentSoak, 10) : null,
+        defence_range: equipmentDamageRange !== '' ? parseInt(equipmentDamageRange, 10) : null,
+        defence_melee: equipmentDamageMelee !== '' ? parseInt(equipmentDamageMelee, 10) : null,
+        consumable: equipmentConsumable,
+      };
+
+      const { error } = await supabase
+        .from('SW_equipment')
+        .insert(payload);
+
+      if (error) {
+        console.error('Error saving equipment:', error);
+        alert('Failed to save equipment');
+        return;
+      }
+
+      alert('Equipment saved');
+      resetEquipmentForm();
+      setShowAddEquipmentForm(false);
+    } catch (err) {
+      console.error('Unexpected error saving equipment:', err);
+      alert('Failed to save equipment');
+    }
   };
 
   const handleSaveSpecialization = async ({ forceCreateSpec = false, updateSpec = false, abilityMode: abilityModeOverride = null, specIdOverride = null } = {}) => {
@@ -1002,6 +1154,19 @@ export default function Settings() {
     setCareerForceSensitive(false);
   };
 
+  const resetPRaceForm = () => {
+    setSelectedPRaceId('__new__');
+    setPRaceName('');
+    setPRaceDescription('');
+    setPRaceStats('');
+    setPRaceSize('');
+    setPRaceSpeed('');
+    setPRaceModifySpeed(false);
+    setPRaceAbilities('');
+    setPRaceLanguages('');
+    setPRaceHighIntLanguages('');
+  };
+
   const handleSelectCareer = (careerId) => {
     if (!careerId) {
       resetCareerForm();
@@ -1090,6 +1255,69 @@ export default function Settings() {
       alert('Failed to save career');
     } finally {
       setSavingCareer(false);
+    }
+  };
+
+  const handleSavePRace = async () => {
+    try {
+      if (!pRaceName.trim()) {
+        alert('Race name is required');
+        return;
+      }
+
+      setSavingPRace(true);
+
+      const payload = {
+        Name: pRaceName.trim(),
+        Description: pRaceDescription.trim(),
+        Race_Stats: pRaceStats.trim(),
+        Size: pRaceSize.trim(),
+        Speed: pRaceSpeed ? parseInt(pRaceSpeed, 10) : null,
+        Modify_Speed: !!pRaceModifySpeed,
+        Abilities: pRaceAbilities.trim(),
+        Languages: pRaceLanguages.trim(),
+        Lang_High_Int: pRaceHighIntLanguages.trim(),
+      };
+      let error;
+      if (selectedPRaceId && selectedPRaceId !== '__new__') {
+        ({ error } = await supabase
+          .from('P_races')
+          .update(payload)
+          .eq('id', selectedPRaceId));
+      } else {
+        ({ error } = await supabase
+          .from('P_races')
+          .insert([payload]));
+      }
+
+      if (error) {
+        console.error('Error saving Pathfinder race:', error);
+        alert('Failed to save race: ' + error.message);
+        return;
+      }
+
+      alert('Pathfinder race saved successfully!');
+      resetPRaceForm();
+      setShowAddPathfinderRaceForm(false);
+      await loadPathfinderRaces();
+    } catch (err) {
+      console.error('Error saving Pathfinder race:', err);
+      alert('Failed to save race');
+    } finally {
+      setSavingPRace(false);
+    }
+  };
+
+  const loadPathfinderRaces = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('P_races')
+        .select('id, Name, Description, Race_Stats, Size, Speed, Modify_Speed, Abilities, Languages, Lang_High_Int')
+        .order('Name');
+      if (error) throw error;
+      setPathfinderRaces(data || []);
+    } catch (err) {
+      console.error('Failed to load Pathfinder races:', err);
     }
   };
 
@@ -2132,12 +2360,188 @@ export default function Settings() {
 
       {isAdmin && (
         <div className="w-3/4 max-w-md space-y-4">
-          <button
-            onClick={handleStarWarsStats}
-            className="w-full px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition font-medium"
-          >
-            Star Wars Stats
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handlePathfinderStats}
+              className="flex-1 px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-medium"
+            >
+              Pathfinder Stats
+            </button>
+            <button
+              onClick={handleStarWarsStats}
+              className="flex-1 px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition font-medium"
+            >
+              Star Wars Stats
+            </button>
+          </div>
+
+          {showPathfinderSection && (
+            <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+              <button
+                onClick={handleAddPathfinderRace}
+                className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition font-medium"
+              >
+                Add Race
+              </button>
+
+              {showAddPathfinderRaceForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add Race (Pathfinder)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <select
+                        value={selectedPRaceId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '__new__') {
+                            resetPRaceForm();
+                            setSelectedPRaceId('__new__');
+                          } else {
+                            setSelectedPRaceId(val);
+                            const found = pathfinderRaces.find((r) => String(r.id) === String(val));
+                            if (found) {
+                              setPRaceName(found.Name || '');
+                              setPRaceDescription(found.Description || '');
+                              setPRaceStats(found.Race_Stats || '');
+                              setPRaceSize(found.Size || '');
+                              setPRaceSpeed(found.Speed ?? '');
+                              setPRaceModifySpeed(!!found.Modify_Speed);
+                              setPRaceAbilities(found.Abilities || '');
+                              setPRaceLanguages(found.Languages || '');
+                              setPRaceHighIntLanguages(found.Lang_High_Int || '');
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="__new__">-- New Race --</option>
+                        {pathfinderRaces.map((race) => (
+                          <option key={race.id} value={race.id}>{race.Name}</option>
+                        ))}
+                      </select>
+                      {selectedPRaceId === '__new__' ? (
+                        <input
+                          type="text"
+                          value={pRaceName}
+                          onChange={(e) => setPRaceName(e.target.value)}
+                          placeholder="Enter race name"
+                          className="mt-2 w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={pRaceName}
+                          onChange={(e) => setPRaceName(e.target.value)}
+                          className="mt-2 w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                      <select
+                        value={pRaceSize}
+                        onChange={(e) => setPRaceSize(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select Size --</option>
+                        <option value="Small">Small</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Large">Large</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={pRaceDescription}
+                        onChange={(e) => setPRaceDescription(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Race Stats</label>
+                      <textarea
+                        value={pRaceStats}
+                        onChange={(e) => setPRaceStats(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Speed</label>
+                      <input
+                        type="number"
+                        value={pRaceSpeed}
+                        onChange={(e) => setPRaceSpeed(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={pRaceModifySpeed}
+                        onChange={(e) => setPRaceModifySpeed(e.target.checked)}
+                        className="w-4 h-4 border border-gray-300 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Modify Speed</span>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Abilities</label>
+                      <textarea
+                        value={pRaceAbilities}
+                        onChange={(e) => setPRaceAbilities(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Languages</label>
+                      <textarea
+                        value={pRaceLanguages}
+                        onChange={(e) => setPRaceLanguages(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">High Intelligence Languages</label>
+                      <textarea
+                        value={pRaceHighIntLanguages}
+                        onChange={(e) => setPRaceHighIntLanguages(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3 flex-wrap">
+                    <button
+                      onClick={handleSavePRace}
+                      disabled={savingPRace}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                    >
+                      {savingPRace ? 'Saving...' : (selectedPRaceId && selectedPRaceId !== '__new__' ? 'Update Race' : 'Save Race')}
+                    </button>
+                    <button
+                      onClick={() => { resetPRaceForm(); setShowAddPathfinderRaceForm(false); }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <hr className="border-gray-300" />
 
@@ -2186,6 +2590,12 @@ export default function Settings() {
                   className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition text-sm font-medium"
                 >
                   Add Specialization
+                </button>
+                <button
+                  onClick={handleAddEquipment}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition text-sm font-medium"
+                >
+                  Add Equipment
                 </button>
               </div>
 
@@ -2868,6 +3278,179 @@ export default function Settings() {
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {showAddEquipmentForm && (
+                <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add Equipment</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={equipmentName}
+                        onChange={(e) => setEquipmentName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skill</label>
+                      <select
+                        value={equipmentSkillId}
+                        onChange={(e) => setEquipmentSkillId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select a skill --</option>
+                        {availableSkillsDetailed
+                          .filter((s) => (s.type || '').toLowerCase() === 'combat')
+                          .map((s) => (
+                          <option key={s.id} value={s.id}>{s.skill}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={equipmentDescription}
+                        onChange={(e) => setEquipmentDescription(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Range</label>
+                      <select
+                        value={equipmentRange}
+                        onChange={(e) => setEquipmentRange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select range --</option>
+                        <option value="Engaged">Engaged</option>
+                        <option value="Short">Short</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Long">Long</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Encumbrance</label>
+                      <input
+                        type="number"
+                        value={equipmentEncumbrance}
+                        onChange={(e) => setEquipmentEncumbrance(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                      <input
+                        type="number"
+                        value={equipmentPrice}
+                        onChange={(e) => setEquipmentPrice(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Rarity</label>
+                      <input
+                        type="number"
+                        value={equipmentRarity}
+                        onChange={(e) => setEquipmentRarity(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Damage</label>
+                      <input
+                        type="number"
+                        value={equipmentDamage}
+                        onChange={(e) => setEquipmentDamage(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Critical</label>
+                      <input
+                        type="number"
+                        value={equipmentCritical}
+                        onChange={(e) => setEquipmentCritical(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">HP</label>
+                      <input
+                        type="number"
+                        value={equipmentHP}
+                        onChange={(e) => setEquipmentHP(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Special Abilities</label>
+                      <textarea
+                        value={equipmentSpecial}
+                        onChange={(e) => setEquipmentSpecial(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Soak</label>
+                      <input
+                        type="number"
+                        value={equipmentSoak}
+                        onChange={(e) => setEquipmentSoak(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Defence Range</label>
+                      <input
+                        type="text"
+                        value={equipmentDamageRange}
+                        onChange={(e) => setEquipmentDamageRange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Defence Melee</label>
+                      <input
+                        type="text"
+                        value={equipmentDamageMelee}
+                        onChange={(e) => setEquipmentDamageMelee(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={equipmentConsumable}
+                        onChange={(e) => setEquipmentConsumable(e.target.checked)}
+                        className="w-4 h-4 border border-gray-300 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Consumable</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex gap-3 flex-wrap">
+                    <button
+                      onClick={handleSaveEquipment}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold"
+                    >
+                      Save Equipment
+                    </button>
+                    <button
+                      onClick={() => { resetEquipmentForm(); setShowAddEquipmentForm(false); }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               )}
