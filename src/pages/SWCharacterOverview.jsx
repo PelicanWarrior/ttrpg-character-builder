@@ -35,6 +35,7 @@ export default function SWCharacterOverview() {
   const [activeTab, setActiveTab] = useState('stats');
   const [abilities, setAbilities] = useState([]);
   const [skillBonuses, setSkillBonuses] = useState({});
+  const [statSubstitutions, setStatSubstitutions] = useState({}); // { skillName: 'newStat' }
   const [previousSoak, setPreviousSoak] = useState(null);
   const [raceAbilities, setRaceAbilities] = useState({ Race_Attack: '', ability: '' });
   const [isForceSensitive, setIsForceSensitive] = useState(false);
@@ -79,8 +80,15 @@ export default function SWCharacterOverview() {
   const getEquipmentDefenceMelee = () => getEquipment()?.defence_melee || '';
   const getEquipmentDefenceRange = () => getEquipment()?.defence_range || '';
 
+  // Get the effective stat for a skill, checking for substitutions
+  const getEffectiveStat = (skillName, originalStat) => {
+    return statSubstitutions[skillName] || originalStat;
+  };
+
   const getFinalDicePool = (skillName, statName) => {
-    const baseStat = { brawn, agility, intellect, cunning, willpower, presence }[statName.toLowerCase()] || 0;
+    // Use substituted stat if available
+    const effectiveStat = getEffectiveStat(skillName, statName);
+    const baseStat = { brawn, agility, intellect, cunning, willpower, presence }[effectiveStat.toLowerCase()] || 0;
     const rank = skills.find(s => s.skill === skillName)?.rank || 0;
     let dicePool = 'G'.repeat(baseStat);
     if (rank > 0) {
@@ -95,7 +103,62 @@ export default function SWCharacterOverview() {
       dicePool = 'G'.repeat(yCount) + 'Y'.repeat(baseStat - yCount);
     }
     const blueBonus = skillBonuses[skillName] || '';
-    return dicePool + blueBonus;
+    
+    // Check abilities for boost dice grants
+    let boostDice = '';
+    
+    // Combine talent abilities and racial abilities for checking
+    const allAbilitiesToCheck = [];
+    
+    // Add talent abilities
+    if (abilities && abilities.length > 0) {
+      allAbilitiesToCheck.push(...abilities);
+    }
+    
+    // Add racial ability if it exists
+    if (raceAbilities && raceAbilities.ability) {
+      allAbilitiesToCheck.push({
+        displayName: 'Racial Ability',
+        finalDescription: raceAbilities.ability,
+        description: raceAbilities.ability
+      });
+    }
+    
+    if (allAbilitiesToCheck.length > 0) {
+      console.log(`Checking boost dice for skill: ${skillName}`);
+      console.log(`Total abilities loaded (talents + racial): ${allAbilitiesToCheck.length}`);
+      allAbilitiesToCheck.forEach((ability, idx) => {
+        // Use finalDescription if available, otherwise use description
+        const descToCheck = (ability.finalDescription || ability.description || '').toLowerCase();
+        console.log(`Ability ${idx}: ${ability.displayName || ability.ability}`);
+        console.log(`  Description: ${descToCheck}`);
+        console.log(`  Has boost die text: ${descToCheck.includes('add a boost die to')}`);
+        
+        if (descToCheck.includes('add a boost die to')) {
+          // Check if the skill name appears in the description
+          // Handle both exact matches and "and" separated skills
+          const skillLower = skillName.toLowerCase();
+          // Look for the skill name as a word (not substring)
+          const skillPatterns = [
+            new RegExp(`\\b${skillLower}\\b`, 'i'),
+            new RegExp(`${skillLower} checks?`, 'i')
+          ];
+          
+          const isMatch = skillPatterns.some(pattern => pattern.test(descToCheck));
+          console.log(`  Skill "${skillName}" matches: ${isMatch}`);
+          
+          if (isMatch) {
+            boostDice += 'B';
+            console.log(`  -> Added boost die! Current boost: ${boostDice}`);
+          }
+        }
+      });
+    } else {
+      console.log(`No abilities loaded for skill: ${skillName}`);
+    }
+    
+    console.log(`Final dice pool for ${skillName}: ${dicePool + blueBonus + boostDice}`);
+    return dicePool + blueBonus + boostDice;
   };
 
   // NEW: Click handler that captures position
@@ -357,6 +420,51 @@ export default function SWCharacterOverview() {
 
     setRollResults({ poolResults, diffResults });
   };
+
+  // Parse abilities for stat substitutions
+  useEffect(() => {
+    const substitutions = {};
+    
+    // Combine talent abilities and racial abilities
+    const allAbilitiesToCheck = [...(abilities || [])];
+    if (raceAbilities && raceAbilities.ability) {
+      allAbilitiesToCheck.push({
+        description: raceAbilities.ability,
+        finalDescription: raceAbilities.ability
+      });
+    }
+    
+    allAbilitiesToCheck.forEach(ability => {
+      const desc = (ability.finalDescription || ability.description || '');
+      
+      // Pattern 1: "may use [Stat1] instead of [Stat2] when making [Skill] checks"
+      const pattern1 = /may use (\w+) instead of (\w+) when making ([\w\s-]+?) checks?/gi;
+      let match;
+      
+      while ((match = pattern1.exec(desc)) !== null) {
+        const newStat = match[1]; // e.g., "Cunning"
+        const oldStat = match[2]; // e.g., "Presence"
+        const skillName = match[3].trim(); // e.g., "Negotiation"
+        
+        console.log(`Found stat substitution: ${skillName} uses ${newStat} instead of ${oldStat}`);
+        substitutions[skillName] = newStat;
+      }
+      
+      // Pattern 2: "When making a [Skill] skill check, the character may use [Stat1] instead of [Stat2]"
+      const pattern2 = /when making a ([\w\s-]+?) skill checks?, the character may use (\w+) instead of (\w+)/gi;
+      
+      while ((match = pattern2.exec(desc)) !== null) {
+        const skillName = match[1].trim(); // e.g., "Negotiation"
+        const newStat = match[2]; // e.g., "Cunning"
+        const oldStat = match[3]; // e.g., "Presence"
+        
+        console.log(`Found stat substitution: ${skillName} uses ${newStat} instead of ${oldStat}`);
+        substitutions[skillName] = newStat;
+      }
+    });
+    
+    setStatSubstitutions(substitutions);
+  }, [abilities, raceAbilities]);
 
   // Close popup when clicking anywhere else
   useEffect(() => {
@@ -1421,11 +1529,12 @@ export default function SWCharacterOverview() {
               </thead>
               <tbody>
                 {skills.map((skill, index) => {
+                  const effectiveStat = getEffectiveStat(skill.skill, skill.stat);
                   const pool = getFinalDicePool(skill.skill, skill.stat);
                   return (
                     <tr key={index} className="bg-gray-100">
                       <td className="border border-black py-1 text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                        {skill.skill} ({skill.stat})
+                        {skill.skill} ({effectiveStat})
                       </td>
                       <td className="border border-black py-1 text-xs text-center font-bold">
                         {skill.rank}

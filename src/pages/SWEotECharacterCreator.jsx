@@ -1562,6 +1562,15 @@ export default function SWEotECharacterCreator() {
                           </div>
                         )}
 
+                        {tempSelectedRace.ability && (
+                          <div className="mb-6">
+                            <h4 className="font-bold text-base mb-2 text-white">Ability</h4>
+                            <div className="border border-white rounded p-3 bg-black text-left text-sm sm:text-base text-white">
+                              {tempSelectedRace.ability}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex flex-col sm:flex-row gap-3 justify-end">
                           <button
                             onClick={() => {

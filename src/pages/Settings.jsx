@@ -1619,7 +1619,7 @@ export default function Settings() {
         .insert([
           {
             race_ID: raceId,
-            career_ID: null, // not used, but for completeness
+            career_ID: item.careerId,
             spec_ID: item.specId
           }
         ]);
@@ -1713,6 +1713,7 @@ export default function Settings() {
             specId: spec.id,
             fullName: `${careerName} - ${spec.spec_name}`,
             careerName,
+            careerId: spec.Career,
             forceSensitive: !!forceSensitiveMap[spec.Career],
             pictures: pictureMap[spec.id] || [],
           };
