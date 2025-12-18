@@ -12,6 +12,8 @@ export default function SWCampaign() {
   const [campaigns, setCampaigns] = useState([]);
   const [campaignCharacters, setCampaignCharacters] = useState({});
   const [openCharacters, setOpenCharacters] = useState({});
+  const [openLogs, setOpenLogs] = useState({});
+  const [campaignLogs, setCampaignLogs] = useState({});
 
   useEffect(() => {
     const username = localStorage.getItem('username');
@@ -282,12 +284,16 @@ export default function SWCampaign() {
                   </div>
                   <div className="flex gap-2 mt-2">
                     <button
-                      onClick={() =>
+                      onClick={() => {
                         setOpenCharacters((prev) => ({
                           ...prev,
                           [campaign.id]: !prev[campaign.id],
-                        }))
-                      }
+                        }));
+                        setOpenLogs((prev) => ({
+                          ...prev,
+                          [campaign.id]: false,
+                        }));
+                      }}
                       className="px-3 py-2 bg-gray-600 text-white text-sm font-bold rounded hover:bg-gray-700 transition whitespace-nowrap"
                     >
                       Characters
@@ -298,6 +304,46 @@ export default function SWCampaign() {
                         className="px-3 py-2 bg-yellow-600 text-white text-sm font-bold rounded hover:bg-yellow-700 transition whitespace-nowrap"
                       >
                         Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={async () => {
+                        const isOpen = openLogs[campaign.id];
+                        setOpenLogs((prev) => ({
+                          ...prev,
+                          [campaign.id]: !prev[campaign.id],
+                        }));
+                        setOpenCharacters((prev) => ({
+                          ...prev,
+                          [campaign.id]: false,
+                        }));
+                        if (!isOpen) {
+                          console.log('Fetching logs for campaign ID:', campaign.id);
+                          const { data, error } = await supabase
+                            .from('SW_campaign_log')
+                            .select('Log, Log_number, campaignID')
+                            .eq('campaignID', campaign.id)
+                            .order('Log_number', { ascending: false });
+                          console.log('Log query result:', { data, error, campaignId: campaign.id });
+                          if (error) {
+                            console.error('Error fetching logs:', error);
+                          }
+                          setCampaignLogs((prev) => ({
+                            ...prev,
+                            [campaign.id]: data || [],
+                          }));
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700 transition whitespace-nowrap"
+                    >
+                      Log
+                    </button>
+                    {campaign.playerID === playerId && (
+                      <button
+                        onClick={() => navigate(`/SW_notes?campaignId=${campaign.id}&campaignName=${encodeURIComponent(campaign.Name)}`)}
+                        className="px-3 py-2 bg-green-600 text-white text-sm font-bold rounded hover:bg-green-700 transition whitespace-nowrap"
+                      >
+                        My Notes
                       </button>
                     )}
                   </div>
@@ -374,6 +420,33 @@ export default function SWCampaign() {
                       </div>
                     ) : (
                       <p className="text-xs text-gray-400 italic">No characters in this campaign yet</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Campaign Logs */}
+                {openLogs[campaign.id] && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-bold text-white mb-2">Campaign Log:</h4>
+                    {campaignLogs[campaign.id] && campaignLogs[campaign.id].length > 0 ? (
+                      <div style={{ backgroundColor: '#1a1a1a', color: '#ffffff', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {campaignLogs[campaign.id].map((log, index) => (
+                          <div
+                            key={index}
+                            style={{
+                              padding: '0.75rem',
+                              backgroundColor: '#2a2a2a',
+                              border: '1px solid #444',
+                              borderRadius: '0.5rem',
+                            }}
+                          >
+                            <p className="text-xs text-gray-400 mb-1">Log #{log.Log_number}</p>
+                            <p className="text-sm text-white whitespace-pre-wrap">{log.Log}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">No logs for this campaign yet</p>
                     )}
                   </div>
                 )}

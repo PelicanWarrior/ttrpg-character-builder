@@ -21,9 +21,15 @@ export default function SWCharacterOverview() {
   const [skills, setSkills] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState('');
+  const [equipmentSearchInput, setEquipmentSearchInput] = useState('');
+  const [showEquipmentDropdown, setShowEquipmentDropdown] = useState(false);
+  const equipmentDropdownRef = useRef(null);
   const [inventory, setInventory] = useState([]);
   const [armour, setArmour] = useState([]);
   const [otherItems, setOtherItems] = useState([]);
+  const [showCustomItemForm, setShowCustomItemForm] = useState(false);
+  const [customItemName, setCustomItemName] = useState('');
+  const [customItemDescription, setCustomItemDescription] = useState('');
   const [characterId, setCharacterId] = useState(null);
   const [playerId, setPlayerId] = useState(null);
   const [woundThreshold, setWoundThreshold] = useState(0);
@@ -79,6 +85,20 @@ export default function SWCharacterOverview() {
   const getEquipmentSoak = () => getEquipment()?.soak || '';
   const getEquipmentDefenceMelee = () => getEquipment()?.defence_melee || '';
   const getEquipmentDefenceRange = () => getEquipment()?.defence_range || '';
+
+  // Format equipment display for dropdown
+  const getEquipmentDisplayText = (item) => {
+    if (item.soak) {
+      // Armor: show name - Soak X
+      return `${item.name} - Soak ${item.soak}`;
+    } else {
+      // Weapon: show name - Skill (DicePool) Range
+      const skillData = skills.find(s => s.id === item.skill);
+      const skillName = skillData ? skillData.skill : 'Unknown';
+      const dicePool = skillData ? getFinalDicePool(skillName, skillData.stat) : 'N/A';
+      return `${item.name} - ${skillName} (${dicePool}) ${item.range}`;
+    }
+  };
 
   // Get the effective stat for a skill, checking for substitutions
   const getEffectiveStat = (skillName, originalStat) => {
@@ -474,6 +494,19 @@ export default function SWCharacterOverview() {
     return () => document.removeEventListener('click', handler);
   }, [dicePopup]);
 
+  // Handle closing equipment dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (equipmentDropdownRef.current && !equipmentDropdownRef.current.contains(event.target)) {
+        setShowEquipmentDropdown(false);
+      }
+    };
+    if (showEquipmentDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showEquipmentDropdown]);
+
   useEffect(() => {
     const fetchCharacterData = async () => {
       const username = localStorage.getItem('username');
@@ -624,12 +657,13 @@ export default function SWCharacterOverview() {
         return;
       }
       setEquipment(equipmentData);
+      const activeCharacterId = characterData.id;
 
-      if (characterId) {
+      if (activeCharacterId) {
         const { data: inventoryData, error: invError } = await supabase
           .from('SW_character_equipment')
           .select('id, characterID, equipmentID, equipped')
-          .eq('characterID', characterId);
+          .eq('characterID', activeCharacterId);
         if (invError) {
           console.error('Error fetching inventory:', invError);
         } else if (inventoryData) {
@@ -655,9 +689,29 @@ export default function SWCharacterOverview() {
             };
           }));
 
+          const consumableItems = enrichedInventory.filter(item => item.consumable);
+
+          let customItems = [];
+          const { data: customData, error: customError } = await supabase
+            .from('SW_custom_inventory')
+            .select('id, Name, Description, characterID')
+            .eq('characterID', activeCharacterId);
+          if (customError) {
+            console.error('Error fetching custom items:', customError);
+          } else if (customData) {
+            customItems = customData.map(item => ({
+              id: item.id,
+              equipment_name: item.Name || '',
+              description: item.Description || '',
+              special: '',
+              consumable: false,
+              custom: true,
+            }));
+          }
+
           setInventory(enrichedInventory.filter(item => !item.soak && !item.consumable));
           setArmour(enrichedInventory.filter(item => item.soak));
-          setOtherItems(enrichedInventory.filter(item => item.consumable));
+          setOtherItems([...consumableItems, ...customItems]);
         }
       }
 
@@ -915,6 +969,44 @@ export default function SWCharacterOverview() {
     }
   };
 
+  const handleSaveCustomItem = async () => {
+    const trimmedName = customItemName.trim();
+    const trimmedDesc = customItemDescription.trim();
+    if (!trimmedName || !characterId) return;
+
+    const { data, error } = await supabase
+      .from('SW_custom_inventory')
+      .insert({ Name: trimmedName, Description: trimmedDesc, characterID: characterId })
+      .select();
+
+    if (error) {
+      console.error('Error adding custom item:', error);
+      return;
+    }
+
+    if (data && data[0]) {
+      const newItem = {
+        id: data[0].id,
+        equipment_name: data[0].Name || trimmedName,
+        description: data[0].Description || trimmedDesc,
+        special: '',
+        consumable: false,
+        custom: true,
+      };
+      setOtherItems(prev => [...prev, newItem]);
+    }
+
+    setCustomItemName('');
+    setCustomItemDescription('');
+    setShowCustomItemForm(false);
+  };
+
+  const handleCancelCustomItem = () => {
+    setCustomItemName('');
+    setCustomItemDescription('');
+    setShowCustomItemForm(false);
+  };
+
   const handleArmourEquipToggle = async (index) => {
     const updatedArmour = [...armour];
     const currentEquipped = updatedArmour[index].equipped;
@@ -961,8 +1053,9 @@ export default function SWCharacterOverview() {
     if (itemToDelete.id && characterId) {
       const confirmDelete = confirm(`Do you really want to delete ${itemToDelete.equipment_name}?`);
       if (confirmDelete) {
+        const targetTable = itemToDelete.custom ? 'SW_custom_inventory' : 'SW_character_equipment';
         const { error } = await supabase
-          .from('SW_character_equipment')
+          .from(targetTable)
           .delete()
           .eq('id', itemToDelete.id);
         if (error) {
@@ -977,10 +1070,11 @@ export default function SWCharacterOverview() {
   };
 
   const handleUseConsumable = async (name) => {
-    const itemsToUse = otherItems.filter(item => item.equipment_name === name);
+    const itemsToUse = otherItems.filter(item => item.equipment_name === name && item.consumable);
     if (itemsToUse.length === 0) return;
 
     const itemToRemove = itemsToUse[0];
+    if (itemToRemove.custom) return;
     const { error } = await supabase
       .from('SW_character_equipment')
       .delete()
@@ -1081,7 +1175,9 @@ export default function SWCharacterOverview() {
     }
   }
 
-  const consolidatedConsumables = otherItems.reduce((acc, item) => {
+  const consolidatedConsumables = otherItems
+    .filter(item => item.consumable)
+    .reduce((acc, item) => {
     if (!acc[item.equipment_name]) {
       acc[item.equipment_name] = {
         name: item.equipment_name,
@@ -1094,7 +1190,7 @@ export default function SWCharacterOverview() {
     acc[item.equipment_name].count += 1;
     acc[item.equipment_name].ids.push(item.id);
     return acc;
-  }, {});
+    }, {});
 
   const consumableList = Object.values(consolidatedConsumables);
 
@@ -1564,12 +1660,42 @@ export default function SWCharacterOverview() {
                 <label className="mr-2 font-bold">Credits:</label>
                 <input type="number" value={credits} onChange={handleCreditsChange} className="border-2 border-black rounded-lg p-1 w-24" min="0" />
               </div>
-              <select value={selectedEquipment} onChange={(e) => setSelectedEquipment(e.target.value)} className="border-2 border-black rounded-lg p-2 w-full mt-4">
-                <option value="">Select Equipment</option>
-                {equipment.sort((a, b) => a.name.localeCompare(b.name)).map((item, index) => (
-                  <option key={index} value={item.name}>{item.name}</option>
-                ))}
-              </select>
+              
+              {/* Searchable Equipment Dropdown */}
+              <div className="relative mt-4" ref={equipmentDropdownRef}>
+                <input
+                  type="text"
+                  placeholder="Search Equipment..."
+                  value={equipmentSearchInput}
+                  onChange={(e) => setEquipmentSearchInput(e.target.value)}
+                  onFocus={() => setShowEquipmentDropdown(true)}
+                  className="border-2 border-black rounded-lg p-2 w-full"
+                />
+                {showEquipmentDropdown && (
+                  <div className="absolute top-full left-0 right-0 border-2 border-black rounded-lg bg-white mt-1 overflow-y-scroll z-50 shadow-lg" style={{ backgroundColor: '#ffffff', maxHeight: 'calc(100vh - 300px)' }}>
+                    {equipment
+                      .filter(item => getEquipmentDisplayText(item).toLowerCase().includes(equipmentSearchInput.toLowerCase()))
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((item, index) => (
+                        <div
+                          key={index}
+                          onClick={() => {
+                            setSelectedEquipment(item.name);
+                            setEquipmentSearchInput(getEquipmentDisplayText(item));
+                            setShowEquipmentDropdown(false);
+                          }}
+                          className="p-2 cursor-pointer hover:bg-blue-200 border-b border-gray-200"
+                        >
+                          {getEquipmentDisplayText(item)}
+                        </div>
+                      ))}
+                    {equipment.filter(item => getEquipmentDisplayText(item).toLowerCase().includes(equipmentSearchInput.toLowerCase())).length === 0 && (
+                      <div className="p-2 text-gray-500">No equipment found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {selectedEquipment && (
                 <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed' }}>
                   <thead>
@@ -1625,9 +1751,47 @@ export default function SWCharacterOverview() {
               )}
               {canEdit && (
                 <div className="mt-4">
-                  <button onClick={handleAddToInventory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                    Add to Inventory
-                  </button>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={handleAddToInventory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                      Add to Inventory
+                    </button>
+                    <button onClick={() => setShowCustomItemForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                      Add Custom Item
+                    </button>
+                  </div>
+
+                  {showCustomItemForm && (
+                    <div className="mt-3 border-2 border-black rounded-lg p-3 bg-white shadow-sm">
+                      <div className="mb-2">
+                        <label className="block font-semibold mb-1">Name</label>
+                        <input
+                          type="text"
+                          value={customItemName}
+                          onChange={(e) => setCustomItemName(e.target.value)}
+                          className="border border-gray-400 rounded p-2 w-full"
+                          placeholder="Item name"
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="block font-semibold mb-1">Description</label>
+                        <textarea
+                          value={customItemDescription}
+                          onChange={(e) => setCustomItemDescription(e.target.value)}
+                          className="border border-gray-400 rounded p-2 w-full"
+                          rows={3}
+                          placeholder="Item description"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={handleSaveCustomItem} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                          Save
+                        </button>
+                        <button onClick={handleCancelCustomItem} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
