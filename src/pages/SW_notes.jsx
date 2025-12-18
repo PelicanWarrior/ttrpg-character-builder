@@ -588,7 +588,7 @@ export default function SWNotes() {
       </div>
     </div>
   );
-}
+
   const [topLevelPlaces, setTopLevelPlaces] = useState([]);
   const dragItem = useRef();
   const dragOverItem = useRef();
