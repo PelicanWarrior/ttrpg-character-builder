@@ -589,25 +589,6 @@ export default function SWNotes() {
     </div>
   );
 }
-
-
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabaseClient';
-import { DragHandle } from '../assets/DragHandle';
-
-export default function SWNotes() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const campaignId = searchParams.get('campaignId');
-  const campaignName = decodeURIComponent(searchParams.get('campaignName') || '');
-
-  const [showAddPlaceForm, setShowAddPlaceForm] = useState(false);
-  const [showAddNPCForm, setShowAddNPCForm] = useState(false);
-  const [placeName, setPlaceName] = useState('');
-  const [description, setDescription] = useState('');
-  const [partOfPlace, setPartOfPlace] = useState('');
-  const [existingPlaces, setExistingPlaces] = useState([]);
   const [topLevelPlaces, setTopLevelPlaces] = useState([]);
   const dragItem = useRef();
   const dragOverItem = useRef();
