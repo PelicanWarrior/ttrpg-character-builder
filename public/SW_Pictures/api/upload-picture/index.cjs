@@ -8,7 +8,7 @@ const router = express.Router();
 
 // Configure multer for file uploads
 const upload = multer({
-  dest: path.join(__dirname, '../../../public/SW_Pictures/'),
+  dest: path.join(__dirname, '../../'),
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'image/png') cb(null, true);
     else cb(new Error('Only PNG files allowed'), false);
@@ -38,8 +38,8 @@ router.post('/', upload.single('file'), async (req, res) => {
     if (error) throw error;
     const pictureId = data.id;
 
-    // Rename file to Picture<ID>.png
-    const newPath = path.join(req.file.destination, `Picture${pictureId}.png`);
+    // Rename file to Picture <ID>.png
+    const newPath = path.join(req.file.destination, `Picture ${pictureId}.png`);
     fs.renameSync(req.file.path, newPath);
 
     // Update SW_campaign_notes with new PictureID

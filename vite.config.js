@@ -7,5 +7,11 @@ export default defineConfig({
   server: {
     middlewareMode: false,
     historyApiFallback: true,
+    proxy: {
+      '/SW_Pictures/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
 });

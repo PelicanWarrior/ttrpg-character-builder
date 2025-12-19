@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
@@ -23,7 +23,9 @@ export default function SelectTTRPG() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTtrpgName, setNewTtrpgName] = useState('');
   const [newTtrpgDndMod, setNewTtrpgDndMod] = useState(false);
+  const [newTtrpgCustomSystems, setNewTtrpgCustomSystems] = useState(false);
   const [pendingLogoFile, setPendingLogoFile] = useState(null);
+  const addFormRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,7 +43,7 @@ export default function SelectTTRPG() {
       setIsAdmin(!!userData.admin);
 
       const [ttrpgQ, diceQ, swCharsQ, swCampsQ, adminCtrlQ] = await Promise.all([
-        supabase.from('TTRPGs').select('TTRPG_name, show, DND_Mod'),
+        supabase.from('TTRPGs').select('TTRPG_name, show, DND_Mod, Custom_System'),
         supabase.from('SW_dice').select('colour, name'),
         supabase
           .from('SW_player_characters')
@@ -55,6 +57,7 @@ export default function SelectTTRPG() {
         name: r.TTRPG_name,
         show: !!r.show,
         dndMod: !!r.DND_Mod,
+        customSystems: !!r.Custom_System,
       }));
       setTtrpgRows(rows);
 
@@ -695,8 +698,11 @@ export default function SelectTTRPG() {
       {/* Dynamic TTRPG Grid (Non-DND Mods) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
         {ttrpgRows
-          .filter(r => !r.dndMod)
-          .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+          .filter(r => !r.dndMod && !r.customSystems)
+          .sort((a, b) => {
+            if (a.show === b.show) return (a.name || '').localeCompare(b.name || '');
+            return a.show ? -1 : 1;
+          })
           .map(row => {
           const initials = initialsFor(row.name);
           if (!shouldShow(row)) return null;
@@ -906,23 +912,27 @@ export default function SelectTTRPG() {
       </div>
 
       {/* Dungeons and Dragons Mods */}
-      {ttrpgRows.some(r => r.dndMod && shouldShow(r)) && (
+      {ttrpgRows.some(r => r.dndMod && !r.customSystems && shouldShow(r)) && (
         <div className="mt-16">
           <h2 className="text-4xl font-bold text-purple-700 text-center mb-10">Dungeons and Dragons Mods</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
             {ttrpgRows
-              .filter(r => r.dndMod)
-              .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+              .filter(r => r.dndMod && !r.customSystems)
+              .sort((a, b) => {
+                if (a.show === b.show) return (a.name || '').localeCompare(b.name || '');
+                return a.show ? -1 : 1;
+              })
               .map(row => {
               if (!shouldShow(row)) return null;
               const initials = initialsFor(row.name);
-              const isSW = initials === 'SW' || row.name === 'Star Wars';
               return (
                 <div key={row.name} className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
                   {isAdmin && (
-                    <div className="bg-gray-900 text-white p-4 flex items-center gap-4">
-                      <input type="checkbox" checked={row.show} onChange={() => toggleTTRPGVisibility(row.name, row.show)} className="w-6 h-6 rounded" />
-                      <span className="font-bold text-lg">Show {row.name}</span>
+                    <div className="bg-gray-900 text-white p-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-4">
+                        <input type="checkbox" checked={row.show} onChange={() => toggleTTRPGVisibility(row.name, row.show)} className="w-6 h-6 rounded" />
+                        <span className="font-bold text-lg">Show {row.name}</span>
+                      </div>
                     </div>
                   )}
                   <div className="p-10 text-center">
@@ -961,12 +971,71 @@ export default function SelectTTRPG() {
         </div>
       )}
 
+      {/* Custom Systems */}
+      {ttrpgRows.some(r => r.customSystems && shouldShow(r)) && (
+        <div className="mt-16">
+          <h2 className="text-4xl font-bold text-blue-700 text-center mb-10">Custom Systems</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
+            {ttrpgRows
+              .filter(r => r.customSystems)
+              .sort((a, b) => {
+                if (a.show === b.show) return (a.name || '').localeCompare(b.name || '');
+                return a.show ? -1 : 1;
+              })
+              .map(row => {
+              if (!shouldShow(row)) return null;
+              const initials = initialsFor(row.name);
+              return (
+                <div key={row.name} className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
+                  {isAdmin && (
+                    <div className="bg-gray-900 text-white p-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-4">
+                        <input type="checkbox" checked={row.show} onChange={() => toggleTTRPGVisibility(row.name, row.show)} className="w-6 h-6 rounded" />
+                        <span className="font-bold text-lg">Show {row.name}</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-10 text-center">
+                    <img
+                      src={`/${initials}_Pictures/Logo.png?t=${Date.now()}`}
+                      alt={`${row.name} Logo`}
+                      className="w-72 mx-auto mb-8"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <div className="flex justify-center gap-4 mb-6">
+                      <button
+                        onClick={() => navigate(`/ttrpg/${initials}/player_characters`)}
+                        className="px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-xl hover:bg-black shadow-lg transition"
+                      >
+                        Your Characters
+                      </button>
+                      <button
+                        onClick={() => navigate(`/ttrpg/${initials}/character_creator`)}
+                        className="px-10 py-4 bg-green-600 text-white font-bold text-lg rounded-xl hover:bg-green-700 shadow-lg transition"
+                      >
+                        Create Character
+                      </button>
+                      <button
+                        onClick={() => navigate(`/ttrpg/${initials}/campaign`)}
+                        className="px-10 py-4 bg-purple-600 text-white font-bold text-lg rounded-xl hover:bg-purple-700 shadow-lg transition"
+                      >
+                        Campaign
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Admin: Add TTRPG */}
       {isAdmin && (
-        <div className="max-w-3xl mx-auto mt-16 mb-8 p-6 border-4 border-gray-900 rounded-2xl bg-white shadow-xl">
+        <div ref={addFormRef} className="max-w-3xl mx-auto mt-16 mb-8 p-6 border-4 border-gray-900 rounded-2xl bg-white shadow-xl">
           {!showAddForm ? (
             <div className="text-center">
-              <button onClick={() => setShowAddForm(true)} className="px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-xl hover:bg-black shadow-lg transition">
+              <button onClick={() => { setShowAddForm(true); setTimeout(() => addFormRef.current?.scrollIntoView({ behavior: 'smooth' }), 0); }} className="px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-xl hover:bg-black shadow-lg transition">
                 Add TTRPG
               </button>
             </div>
@@ -982,6 +1051,10 @@ export default function SelectTTRPG() {
                   <span className="w-32 font-semibold">DND Mod</span>
                   <input type="checkbox" checked={newTtrpgDndMod} onChange={(e) => setNewTtrpgDndMod(e.target.checked)} />
                 </label>
+                <label className="flex items-center gap-3">
+                  <span className="w-32 font-semibold">Custom Systems</span>
+                  <input type="checkbox" checked={newTtrpgCustomSystems} onChange={(e) => setNewTtrpgCustomSystems(e.target.checked)} />
+                </label>
 
                 <div className="flex gap-3 mt-2">
                   <button
@@ -991,10 +1064,10 @@ export default function SelectTTRPG() {
                       try {
                         const { error } = await supabase
                           .from('TTRPGs')
-                          .insert({ TTRPG_name: name, show: false, DND_Mod: newTtrpgDndMod });
+                          .insert({ TTRPG_name: name, show: false, DND_Mod: newTtrpgDndMod, Custom_System: newTtrpgCustomSystems });
                         if (error) { alert('Failed to save TTRPG'); console.error(error); return; }
 
-                        const row = { name, show: false, dndMod: newTtrpgDndMod };
+                        const row = { name, show: false, dndMod: newTtrpgDndMod, customSystems: newTtrpgCustomSystems };
                         setTtrpgRows(prev => [...prev, row]);
 
                         const initials = initialsFor(name);
@@ -1006,6 +1079,7 @@ export default function SelectTTRPG() {
                         setShowAddForm(false);
                         setNewTtrpgName('');
                         setNewTtrpgDndMod(false);
+                        setNewTtrpgCustomSystems(false);
                       } catch (e) {
                         console.error(e);
                         alert('Unexpected error saving TTRPG');
@@ -1016,7 +1090,7 @@ export default function SelectTTRPG() {
                     Save
                   </button>
                   <button
-                    onClick={() => { setShowAddForm(false); setNewTtrpgName(''); setNewTtrpgDndMod(false); }}
+                    onClick={() => { setShowAddForm(false); setNewTtrpgName(''); setNewTtrpgDndMod(false); setNewTtrpgCustomSystems(false); }}
                     className="px-6 py-2 bg-gray-500 text-white rounded font-semibold hover:bg-gray-600"
                   >
                     Cancel
