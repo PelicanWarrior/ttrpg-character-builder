@@ -13,6 +13,19 @@ try {
 
 const app = express();
 
+// CORS middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Parse form data
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -28,13 +41,8 @@ console.log('Registering route: /SW_Pictures/api/upload-picture');
 app.use('/SW_Pictures/api/upload-picture', uploadPictureRoute);
 console.log('Route registered');
 
-// Serve static files (your React app and public assets)
+// Serve static files (public assets only, not the React app)
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Fallback to index.html for React Router (SPA)
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 // Global error handlers for debugging
 process.on('uncaughtException', err => {

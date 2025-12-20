@@ -10,6 +10,7 @@ export default function SWNotes() {
   const campaignName = decodeURIComponent(searchParams.get('campaignName') || '');
 
   const [showAddPlaceForm, setShowAddPlaceForm] = useState(false);
+  const [addPlaceButtonPos, setAddPlaceButtonPos] = useState({ top: 0, left: 0 });
   const [showAddNPCForm, setShowAddNPCForm] = useState(false);
   const [placeName, setPlaceName] = useState('');
   const [description, setDescription] = useState('');
@@ -19,6 +20,8 @@ export default function SWNotes() {
   const [selectedHierarchy, setSelectedHierarchy] = useState([]); // Array of place objects going down
   const [saving, setSaving] = useState(false);
   const [notes, setNotes] = useState([]); // Notes with Order column
+  const [npcs, setNpcs] = useState([]); // NPCs from SW_campaign_NPC table
+  const [selectedNPC, setSelectedNPC] = useState(null); // Currently selected NPC to display details
   const [draggedNote, setDraggedNote] = useState(null);
   const [editingPlaceId, setEditingPlaceId] = useState(null);
   const [editingPlaceData, setEditingPlaceData] = useState({});
@@ -26,6 +29,12 @@ export default function SWNotes() {
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const [uploadingPictureId, setUploadingPictureId] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(null);
+  const [showInlineAddNote, setShowInlineAddNote] = useState(null); // ID of place to add note to
+  const [inlinePlaceName, setInlinePlaceName] = useState('');
+  const [inlineDescription, setInlineDescription] = useState('');
+  const [showInlineAddNPC, setShowInlineAddNPC] = useState(null); // ID of place to add NPC to
+  const [deleteConfirmation, setDeleteConfirmation] = useState(null); // ID of place to delete
+  const [deleting, setDeleting] = useState(false);
 
   // NPC form state
   const [npcName, setNpcName] = useState('');
@@ -37,6 +46,9 @@ export default function SWNotes() {
   const [npcAgility, setNpcAgility] = useState('');
   const [npcIntellect, setNpcIntellect] = useState('');
   const [npcWillpower, setNpcWillpower] = useState('');
+  const [npcSoak, setNpcSoak] = useState('');
+  const [npcWound, setNpcWound] = useState('');
+  const [npcStrain, setNpcStrain] = useState('');
   const [npcPlaceId, setNpcPlaceId] = useState('');
 
   // Lookup lists
@@ -69,16 +81,17 @@ export default function SWNotes() {
     if (campaignId) {
       loadPlaces();
       loadNotes();
+      loadNPCs();
     }
   }, [campaignId]);
 
-  // Load lookups when opening Add NPC
+  // Load lookups when opening Add NPC (both top-level and inline)
   useEffect(() => {
     const loadLookups = async () => {
       try {
         const [racesRes, skillsRes, abilitiesRes, equipmentRes] = await Promise.all([
           supabase.from('races').select('id, name').order('name', { ascending: true }),
-          supabase.from('skills').select('id, name').order('name'),
+          supabase.from('skills').select('id, skill').order('skill'),
           supabase.from('SW_abilities').select('id, ability').order('ability'),
           supabase.from('SW_equipment').select('id, name').order('name'),
         ]);
@@ -87,6 +100,11 @@ export default function SWNotes() {
         if (skillsRes.error) throw skillsRes.error;
         if (abilitiesRes.error) throw abilitiesRes.error;
         if (equipmentRes.error) throw equipmentRes.error;
+
+        console.log('Races loaded:', racesRes.data);
+        console.log('Skills loaded:', skillsRes.data);
+        console.log('Abilities loaded:', abilitiesRes.data);
+        console.log('Equipment loaded:', equipmentRes.data);
 
         setRaceList(racesRes.data || []);
         setSkillsList(skillsRes.data || []);
@@ -97,10 +115,10 @@ export default function SWNotes() {
       }
     };
 
-    if (showAddNPCForm) {
+    if (showAddNPCForm || showInlineAddNPC) {
       loadLookups();
     }
-  }, [showAddNPCForm]);
+  }, [showAddNPCForm, showInlineAddNPC]);
 
   const loadPlaces = async () => {
     try {
@@ -118,6 +136,21 @@ export default function SWNotes() {
       setTopLevelPlaces(topLevel);
     } catch (err) {
       console.error('Failed to load places:', err);
+    }
+  };
+
+  const loadNPCs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('SW_campaign_NPC')
+        .select('id, Name, Race, Part_of_Place, Description, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, races(name)')
+        .eq('CampaignID', campaignId);
+      if (error) throw error;
+
+      setNpcs(data || []);
+      console.log('NPCs loaded:', data);
+    } catch (err) {
+      console.error('Failed to load NPCs:', err);
     }
   };
 
@@ -160,7 +193,7 @@ export default function SWNotes() {
       ]);
 
       // Reload places to reflect changes
-      await loadPlaces();
+      await refreshCurrentLevel();
       setDraggedNote(null);
     } catch (err) {
       console.error('Failed to reorder places:', err);
@@ -202,7 +235,7 @@ export default function SWNotes() {
       alert('Place updated successfully!');
       setEditingPlaceId(null);
       setEditingPlaceData({});
-      await loadPlaces();
+      await refreshSingleNote(editingPlaceId);
     } catch (err) {
       console.error('Failed to save place:', err);
       alert('Failed to save place: ' + err.message);
@@ -212,6 +245,174 @@ export default function SWNotes() {
   const handleCancelEdit = () => {
     setEditingPlaceId(null);
     setEditingPlaceData({});
+  };
+
+  const refreshSingleNote = async (noteId) => {
+    // Refresh just a single note without reloading the entire level
+    try {
+      const { data, error } = await supabase
+        .from('SW_campaign_notes')
+        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+        .eq('id', noteId)
+        .single();
+
+      if (error) throw error;
+
+      // Update the note in selectedHierarchy
+      setSelectedHierarchy(prev => {
+        const updated = [...prev];
+        const lastItem = updated[updated.length - 1];
+
+        if (lastItem && lastItem.id === noteId) {
+          // If the note being refreshed is the last item in hierarchy, update it
+          updated[updated.length - 1] = {
+            ...lastItem,
+            ...data
+          };
+        } else if (lastItem && lastItem.children) {
+          // Otherwise, update it in the children array
+          lastItem.children = lastItem.children.map(child =>
+            child.id === noteId ? { ...child, ...data } : child
+          );
+        }
+
+        return updated;
+      });
+    } catch (err) {
+      console.error('Failed to refresh single note:', err);
+    }
+  };
+
+  const refreshNoteAndChildren = async (noteId) => {
+    // Refresh a note and all its children
+    try {
+      console.log('refreshNoteAndChildren called with noteId:', noteId);
+
+      // Fetch all children of this note
+      const { data: childrenData, error: childrenError } = await supabase
+        .from('SW_campaign_notes')
+        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+        .eq('Part_of_Place', noteId)
+        .order('Order', { ascending: true });
+
+      if (childrenError) throw childrenError;
+      console.log('Fetched children data:', childrenData);
+
+      // Update existingPlaces with the new children
+      setExistingPlaces(prev => {
+        const updated = [...prev];
+        // Remove old children of this note
+        const filtered = updated.filter(p => p.Part_of_Place !== noteId);
+        // Add new children
+        if (childrenData && childrenData.length > 0) {
+          filtered.push(...childrenData);
+        }
+        console.log('Updated existingPlaces:', filtered);
+        return filtered;
+      });
+    } catch (err) {
+      console.error('Failed to refresh note and children:', err);
+    }
+  };
+
+  const refreshCurrentLevel = async () => {
+    // Refresh only the current level of notes without reloading the entire page
+    try {
+      if (selectedHierarchy.length === 0) {
+        // Top level - reload top level notes
+        await loadNotes();
+      } else {
+        // Get the parent place ID
+        const parentId = selectedHierarchy[selectedHierarchy.length - 1].id;
+
+        // Fetch child notes of the current parent
+        const { data, error } = await supabase
+          .from('SW_campaign_notes')
+          .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+          .eq('Part_of_Place', parentId)
+          .order('Order', { ascending: true });
+
+        if (error) throw error;
+
+        // Update the last item in selectedHierarchy with fresh data
+        setSelectedHierarchy(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            children: data || []
+          };
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to refresh current level:', err);
+    }
+  };
+
+  const handleDeletePlace = async (placeId) => {
+    setDeleting(true);
+    try {
+      console.log('Deleting place:', placeId);
+
+      // First, find all child notes (notes where Part_of_Place = placeId)
+      const { data: childNotes, error: fetchError } = await supabase
+        .from('SW_campaign_notes')
+        .select('id')
+        .eq('Part_of_Place', placeId);
+
+      if (fetchError) throw fetchError;
+
+      // Delete all child notes first
+      if (childNotes && childNotes.length > 0) {
+        const childIds = childNotes.map(note => note.id);
+        console.log('Deleting child notes:', childIds);
+        const { error: deleteChildError } = await supabase
+          .from('SW_campaign_notes')
+          .delete()
+          .in('id', childIds);
+
+        if (deleteChildError) throw deleteChildError;
+      }
+
+      // Delete the parent note
+      const { error: deleteError } = await supabase
+        .from('SW_campaign_notes')
+        .delete()
+        .eq('id', placeId);
+
+      if (deleteError) throw deleteError;
+      console.log('Note deleted successfully');
+
+      // Update existingPlaces to remove the deleted note and its children
+      setExistingPlaces(prev => {
+        const childIds = childNotes ? childNotes.map(note => note.id) : [];
+        const filtered = prev.filter(p => p.id !== placeId && !childIds.includes(p.id));
+        console.log('Updated existingPlaces after deletion:', filtered);
+        return filtered;
+      });
+
+      // Update topLevelPlaces to remove the deleted note if it's a top-level note
+      setTopLevelPlaces(prev => {
+        const filtered = prev.filter(p => p.id !== placeId);
+        console.log('Updated topLevelPlaces after deletion:', filtered);
+        return filtered;
+      });
+
+      // Update selectedHierarchy to remove the deleted note if it's in the hierarchy
+      setSelectedHierarchy(prev => {
+        const updated = prev.filter(p => p.id !== placeId);
+        console.log('Updated selectedHierarchy after deletion:', updated);
+        return updated;
+      });
+
+      alert('Note and all associated notes deleted successfully!');
+      setDeleteConfirmation(null);
+    } catch (err) {
+      console.error('Failed to delete place:', err);
+      alert('Failed to delete place: ' + err.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleUploadPicture = async (place) => {
@@ -257,7 +458,7 @@ export default function SWNotes() {
         formData.append('placeId', place.id);
         formData.append('userId', userId);
 
-        const uploadResponse = await fetch('/SW_Pictures/api/upload-picture', {
+        const uploadResponse = await fetch('http://localhost:3001/SW_Pictures/api/upload-picture', {
           method: 'POST',
           body: formData,
         });
@@ -273,7 +474,7 @@ export default function SWNotes() {
 
         alert('Picture uploaded successfully!');
         setShowDropdown(null);
-        await loadPlaces();
+        await refreshSingleNote(place.id);
       } catch (err) {
         console.error('Error uploading picture:', err);
         alert('Error uploading picture: ' + err.message);
@@ -299,6 +500,18 @@ export default function SWNotes() {
     return existingPlaces.filter(p => p.Part_of_Place === parentId);
   };
 
+  const getNPCsForPlace = (placeId) => {
+    // NPCs have Part_of_Place field that may contain comma-separated IDs
+    // We need to find NPCs where placeId is in the Part_of_Place field
+    const result = npcs.filter(npc => {
+      if (!npc.Part_of_Place) return false;
+      const placeIds = npc.Part_of_Place.toString().split(',').map(id => parseInt(id.trim(), 10));
+      return placeIds.includes(placeId);
+    });
+    console.log(`getNPCsForPlace(${placeId}):`, result, 'from npcs:', npcs);
+    return result;
+  };
+
   const handleSavePlace = async () => {
     if (!placeName.trim()) {
       alert('Place Name is required');
@@ -314,9 +527,10 @@ export default function SWNotes() {
         CampaignID: parseInt(campaignId, 10),
       };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('SW_campaign_notes')
-        .insert([payload]);
+        .insert([payload])
+        .select();
 
       if (error) {
         console.error('Error saving place:', error);
@@ -325,11 +539,22 @@ export default function SWNotes() {
       }
 
       alert('Place saved successfully!');
+
+      // Update existingPlaces and topLevelPlaces with the new note
+      if (data && data.length > 0) {
+        const newNote = data[0];
+        setExistingPlaces(prev => [...prev, newNote]);
+        // Only add to topLevelPlaces if it's a top-level note (Part_of_Place is null)
+        if (!newNote.Part_of_Place) {
+          setTopLevelPlaces(prev => [...prev, newNote]);
+        }
+        console.log('Added new note to existingPlaces and topLevelPlaces:', newNote);
+      }
+
       setPlaceName('');
       setDescription('');
       setPartOfPlace('');
       setShowAddPlaceForm(false);
-      await loadPlaces();
     } catch (err) {
       console.error('Error saving place:', err);
       alert('Failed to save place');
@@ -348,6 +573,9 @@ export default function SWNotes() {
     setNpcAgility('');
     setNpcIntellect('');
     setNpcWillpower('');
+    setNpcSoak('');
+    setNpcWound('');
+    setNpcStrain('');
     setNpcPlaceId('');
     setSelectedSkills([]);
     setSelectedAbilities([]);
@@ -432,64 +660,63 @@ export default function SWNotes() {
 
         <div className="flex justify-center gap-3">
           <button
-            onClick={() => setShowAddPlaceForm(true)}
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setAddPlaceButtonPos({
+                top: rect.bottom + window.scrollY,
+                left: rect.left + window.scrollX,
+              });
+              setShowAddPlaceForm(true);
+            }}
             className="px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold"
           >
             Add Note
-          </button>
-          <button
-            onClick={() => setShowAddNPCForm(true)}
-            className="px-6 py-3 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-bold"
-          >
-            Add NPC
           </button>
         </div>
       </div>
 
       {showAddPlaceForm && (
-        <div className="p-6 bg-gray-100 border-b border-gray-300">
-          <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg border border-gray-300">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">Add a Note</h3>
-            <div className="space-y-4">
+        <div
+          style={{
+            position: 'fixed',
+            top: `${addPlaceButtonPos.top}px`,
+            left: `${addPlaceButtonPos.left}px`,
+            backgroundColor: '#d1d5db',
+            padding: '12px',
+            borderRadius: '6px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: 9999,
+            minWidth: '400px',
+          }}
+        >
+          <div className="bg-white rounded-lg p-4">
+            <h3 className="text-lg font-bold mb-3 text-gray-800">Add a Note</h3>
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Place Name</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Place Name</label>
                 <input
                   type="text"
                   value={placeName}
                   onChange={(e) => setPlaceName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                  rows={3}
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Part of Place</label>
-                <select
-                  value={partOfPlace}
-                  onChange={(e) => setPartOfPlace(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">-- None --</option>
-                  {existingPlaces.map((place) => (
-                    <option key={place.id} value={place.id}>{place.Place_Name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
                   onClick={handleSavePlace}
                   disabled={saving}
-                  className="flex-1 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                  className="flex-1 px-4 py-2 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
                 >
                   {saving ? 'Saving...' : 'Save'}
                 </button>
@@ -500,7 +727,7 @@ export default function SWNotes() {
                     setPartOfPlace('');
                     setShowAddPlaceForm(false);
                   }}
-                  className="flex-1 px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                  className="flex-1 px-4 py-2 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition font-bold"
                 >
                   Cancel
                 </button>
@@ -513,7 +740,7 @@ export default function SWNotes() {
       {showAddNPCForm && (
         <div className="p-6 bg-gray-100 border-b border-gray-300">
           <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg border border-gray-300">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">Add NPC</h3>
+            <h3 className="text-xl font-bold mb-4 text-gray-800">Add NPC (Legacy)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">NPC</label>
@@ -582,7 +809,7 @@ export default function SWNotes() {
                   <select id="npc-skill-select" className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500">
                     <option value="">-- Select Skill --</option>
                     {skillsList.map((s) => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
+                      <option key={s.id} value={s.skill}>{s.skill}</option>
                     ))}
                   </select>
                   <button
@@ -803,6 +1030,128 @@ export default function SWNotes() {
                   >
                     Upload Picture
                   </button>
+                  <button
+                    onClick={() => {
+                      setShowInlineAddNote(place.id);
+                      setInlinePlaceName('');
+                      setInlineDescription('');
+                      setShowDropdown(null);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"
+                  >
+                    Add Note
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowInlineAddNPC(place.id);
+                      setShowDropdown(null);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-purple-50 transition border-t border-gray-300"
+                  >
+                    Add NPC
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDeleteConfirmation(place.id);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition border-t border-gray-300"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+
+              {/* Inline Add Note Form - appears to the right of the dropdown */}
+              {showInlineAddNote === place.id && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: `${dropdownPos.top}px`,
+                    left: `${dropdownPos.left + 160}px`,
+                    backgroundColor: '#d1d5db',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    zIndex: 9999,
+                    minWidth: '300px',
+                  }}
+                >
+                  <div className="bg-white rounded-lg p-4">
+                    <h4 className="font-bold text-gray-800 mb-3 text-sm">Add Note to {place.Place_Name}</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Place Name</label>
+                        <input
+                          type="text"
+                          value={inlinePlaceName}
+                          onChange={(e) => setInlinePlaceName(e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                          placeholder="Enter place name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                        <textarea
+                          value={inlineDescription}
+                          onChange={(e) => setInlineDescription(e.target.value)}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                          rows={3}
+                          placeholder="Enter description"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            if (!inlinePlaceName.trim()) {
+                              alert('Place Name is required');
+                              return;
+                            }
+
+                            try {
+                              console.log('Adding note to place:', place.id, place.Place_Name);
+                              const payload = {
+                                Place_Name: inlinePlaceName.trim(),
+                                Description: inlineDescription.trim(),
+                                Part_of_Place: place.id,
+                                CampaignID: parseInt(campaignId, 10),
+                              };
+
+                              console.log('Payload:', payload);
+                              const { error } = await supabase
+                                .from('SW_campaign_notes')
+                                .insert([payload]);
+
+                              if (error) throw error;
+                              console.log('Note inserted successfully');
+
+                              setShowInlineAddNote(null);
+                              setInlinePlaceName('');
+                              setInlineDescription('');
+
+                              // Refresh the place that we added the note to (including its children)
+                              console.log('Calling refreshNoteAndChildren with place.id:', place.id);
+                              await refreshNoteAndChildren(place.id);
+                            } catch (err) {
+                              alert('Error saving note: ' + err.message);
+                            }
+                          }}
+                          className="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition font-bold"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowInlineAddNote(null);
+                            setInlinePlaceName('');
+                            setInlineDescription('');
+                          }}
+                          className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -869,6 +1218,27 @@ export default function SWNotes() {
               ) : (
                 <p className="text-gray-500 text-xs italic">No notes</p>
               )}
+
+              {/* NPCs Section */}
+              {getNPCsForPlace(place.id).length > 0 ? (
+                <>
+                  <h4 className="text-xs font-bold mb-1 text-gray-800 mt-3">NPCs</h4>
+                  <div className="space-y-1">
+                    {getNPCsForPlace(place.id).map((npc) => (
+                      <button
+                        key={npc.id}
+                        onClick={() => setSelectedNPC(npc)}
+                        className="w-full text-left px-2 py-1 rounded text-sm bg-purple-50 text-gray-800 hover:bg-purple-100 border border-purple-300 transition truncate"
+                      >
+                        <div className="font-semibold">{npc.Name}</div>
+                        {npc.races && <div className="text-xs text-gray-600">Race: {npc.races.name}</div>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-500 text-xs italic mt-3">No NPCs</p>
+              )}
               </div>
 
               {/* Picture Box - Only show if this is the last item in hierarchy and has a picture */}
@@ -885,7 +1255,405 @@ export default function SWNotes() {
             </div>
           );
         })}
+
+        {/* NPC Details Column - Show when an NPC is selected */}
+        {selectedNPC && (
+          <div className="flex shrink-0">
+            <div className="w-[28rem] bg-white border-r border-gray-300 p-4 overflow-y-auto flex flex-col relative">
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedNPC(null)}
+                className="absolute top-2 right-2 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+              >
+                ✕ Close
+              </button>
+
+              {/* NPC Name, Race, Description - Grouped Together */}
+              <div className="mb-4 pt-6">
+                <h3 className="font-bold text-lg text-gray-800 mb-1">{selectedNPC.Name}</h3>
+                {selectedNPC.races && <p className="text-sm text-gray-600 mb-1">Race: {selectedNPC.races.name}</p>}
+                {selectedNPC.Description && (
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{selectedNPC.Description}</p>
+                )}
+              </div>
+
+              {/* Attributes */}
+              <div className="mb-4">
+                <h4 className="text-xs font-bold text-gray-800 mb-2">Attributes</h4>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex gap-2"><span>Brawn</span><span className="font-semibold">{selectedNPC.Brawn ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Cunning</span><span className="font-semibold">{selectedNPC.Cunning ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Presence</span><span className="font-semibold">{selectedNPC.Presence ?? '-'}</span></div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex gap-2"><span>Agility</span><span className="font-semibold">{selectedNPC.Agility ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Intellect</span><span className="font-semibold">{selectedNPC.Intellect ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Willpower</span><span className="font-semibold">{selectedNPC.Willpower ?? '-'}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Defense */}
+              <div className="mb-4">
+                <h4 className="text-xs font-bold text-gray-800 mb-2">Defense</h4>
+                <div className="flex justify-between text-xs">
+                  <div className="flex gap-2"><span>Soak</span><span className="font-semibold">{selectedNPC.Soak ?? '-'}</span></div>
+                  <div className="flex gap-2"><span>Wound</span><span className="font-semibold">{selectedNPC.Wound ?? '-'}</span></div>
+                  <div className="flex gap-2"><span>Strain</span><span className="font-semibold">{selectedNPC.Strain ?? '-'}</span></div>
+                </div>
+              </div>
+
+              {/* Skills */}
+              {selectedNPC.Skills && selectedNPC.Skills.trim() && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-bold text-gray-800 mb-2">Skills</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedNPC.Skills.split(',').map((skill, idx) => (
+                      <span key={idx} className="inline-block px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                        {skill.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Abilities */}
+              {selectedNPC.Abilities && selectedNPC.Abilities.trim() && (
+                <div className="mb-4">
+                  <h4 className="text-xs font-bold text-gray-800 mb-2">Abilities</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedNPC.Abilities.split(',').map((ability, idx) => (
+                      <span key={idx} className="inline-block px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded">
+                        {ability.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Delete Confirmation Modal - small box below dropdown menu */}
+      {deleteConfirmation && (
+        <div
+          style={{
+            position: 'fixed',
+            top: `${dropdownPos.top + 160}px`,
+            left: `${dropdownPos.left}px`,
+            backgroundColor: '#d1d5db',
+            padding: '12px',
+            borderRadius: '6px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: 9999,
+            minWidth: '300px',
+          }}
+        >
+          <div className="bg-white rounded-lg p-4">
+            <h3 className="text-sm font-bold text-gray-800 mb-2">Delete Note</h3>
+            <p className="text-xs text-gray-700 mb-4">
+              Are you sure you want to delete <strong>{selectedHierarchy.find(p => p.id === deleteConfirmation)?.Place_Name || 'this note'}</strong> and all notes associated with this?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleDeletePlace(deleteConfirmation)}
+                disabled={deleting}
+                className="flex-1 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition font-bold disabled:opacity-60"
+              >
+                {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+              <button
+                onClick={() => setDeleteConfirmation(null)}
+                disabled={deleting}
+                className="flex-1 px-3 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition font-bold disabled:opacity-60"
+              >
+                No, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Add NPC Form - appears to the right of the dropdown */}
+      {showInlineAddNPC && (
+        <div
+          style={{
+            position: 'fixed',
+            top: `${dropdownPos.top}px`,
+            left: `${dropdownPos.left + 160}px`,
+            backgroundColor: '#d1d5db',
+            padding: '12px',
+            borderRadius: '6px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: 9999,
+            minWidth: '400px',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+          }}
+        >
+          <div className="bg-white rounded-lg p-4">
+            <h4 className="font-bold text-gray-800 mb-3 text-sm">Add NPC to {selectedHierarchy.find(p => p.id === showInlineAddNPC)?.Place_Name || 'Place'}</h4>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">NPC Name</label>
+                <input
+                  type="text"
+                  value={npcName}
+                  onChange={(e) => setNpcName(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                  placeholder="Enter NPC name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Race</label>
+                <select
+                  value={npcRaceId}
+                  onChange={(e) => setNpcRaceId(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">-- Select Race --</option>
+                  {raceList.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={npcDescription}
+                  onChange={(e) => setNpcDescription(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                  rows={2}
+                  placeholder="Enter description"
+                />
+              </div>
+
+              {/* Attributes Grid */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Brawn</label>
+                  <input
+                    type="number"
+                    value={npcBrawn}
+                    onChange={(e) => setNpcBrawn(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Cunning</label>
+                  <input
+                    type="number"
+                    value={npcCunning}
+                    onChange={(e) => setNpcCunning(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Presence</label>
+                  <input
+                    type="number"
+                    value={npcPresence}
+                    onChange={(e) => setNpcPresence(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Agility</label>
+                  <input
+                    type="number"
+                    value={npcAgility}
+                    onChange={(e) => setNpcAgility(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Intellect</label>
+                  <input
+                    type="number"
+                    value={npcIntellect}
+                    onChange={(e) => setNpcIntellect(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Willpower</label>
+                  <input
+                    type="number"
+                    value={npcWillpower}
+                    onChange={(e) => setNpcWillpower(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {/* Soak, Wound, Strain Grid */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Soak</label>
+                  <input
+                    type="number"
+                    value={npcSoak}
+                    onChange={(e) => setNpcSoak(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Wound</label>
+                  <input
+                    type="number"
+                    value={npcWound}
+                    onChange={(e) => setNpcWound(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Strain</label>
+                  <input
+                    type="number"
+                    value={npcStrain}
+                    onChange={(e) => setNpcStrain(e.target.value)}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {/* Skills multi-select */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Skills</label>
+                <div className="flex gap-2">
+                  <select id="inline-npc-skill-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500">
+                    <option value="">-- Select Skill --</option>
+                    {skillsList.map((s) => (
+                      <option key={s.id} value={s.skill}>{s.skill}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('inline-npc-skill-select');
+                      addToList(el.value, selectedSkills, setSelectedSkills);
+                    }}
+                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  >Add</button>
+                </div>
+                {selectedSkills.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedSkills.map((s) => (
+                      <span key={s} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                        {s}
+                        <button onClick={() => removeFromList(s, selectedSkills, setSelectedSkills)} className="text-blue-700 hover:text-blue-900">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Abilities multi-select */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Abilities</label>
+                <div className="flex gap-2">
+                  <select id="inline-npc-ability-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500">
+                    <option value="">-- Select Ability --</option>
+                    {abilitiesList.map((a) => (
+                      <option key={a.id} value={a.ability}>{a.ability}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('inline-npc-ability-select');
+                      addToList(el.value, selectedAbilities, setSelectedAbilities);
+                    }}
+                    className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                  >Add</button>
+                </div>
+                {selectedAbilities.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedAbilities.map((a) => (
+                      <span key={a} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded">
+                        {a}
+                        <button onClick={() => removeFromList(a, selectedAbilities, setSelectedAbilities)} className="text-green-700 hover:text-green-900">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    if (!npcName.trim()) {
+                      alert('NPC Name is required');
+                      return;
+                    }
+
+                    try {
+                      console.log('Adding NPC to place:', showInlineAddNPC);
+                      const payload = {
+                        Name: npcName.trim(),
+                        Race: npcRaceId ? parseInt(npcRaceId, 10) : null,
+                        Description: npcDescription.trim(),
+                        Brawn: npcBrawn ? parseInt(npcBrawn, 10) : null,
+                        Cunning: npcCunning ? parseInt(npcCunning, 10) : null,
+                        Presence: npcPresence ? parseInt(npcPresence, 10) : null,
+                        Agility: npcAgility ? parseInt(npcAgility, 10) : null,
+                        Intellect: npcIntellect ? parseInt(npcIntellect, 10) : null,
+                        Willpower: npcWillpower ? parseInt(npcWillpower, 10) : null,
+                        Soak: npcSoak ? parseInt(npcSoak, 10) : null,
+                        Wound: npcWound ? parseInt(npcWound, 10) : null,
+                        Strain: npcStrain ? parseInt(npcStrain, 10) : null,
+                        Skills: selectedSkills.join(','),
+                        Abilities: selectedAbilities.join(','),
+                        Part_of_Place: showInlineAddNPC,
+                        CampaignID: parseInt(campaignId, 10),
+                      };
+
+                      console.log('Payload:', payload);
+                      const { error } = await supabase
+                        .from('SW_campaign_NPC')
+                        .insert([payload]);
+
+                      if (error) throw error;
+                      console.log('NPC inserted successfully');
+
+                      setShowInlineAddNPC(null);
+                      resetNPCForm();
+                      alert('NPC added successfully!');
+                    } catch (err) {
+                      alert('Error saving NPC: ' + err.message);
+                    }
+                  }}
+                  className="flex-1 px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition font-bold"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setShowInlineAddNPC(null);
+                    resetNPCForm();
+                  }}
+                  className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

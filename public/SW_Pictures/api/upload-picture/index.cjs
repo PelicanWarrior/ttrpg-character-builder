@@ -23,8 +23,13 @@ const supabase = createClient(
 
 router.post('/', upload.single('file'), async (req, res) => {
   try {
+    console.log('Upload request received');
+    console.log('File:', req.file ? 'present' : 'missing');
+    console.log('Body:', req.body);
+
     const { placeId, userId } = req.body;
     if (!req.file || !placeId || !userId) {
+      console.log('Missing data - file:', !!req.file, 'placeId:', placeId, 'userId:', userId);
       return res.status(400).json({ error: 'Missing file, placeId, or userId' });
     }
 
@@ -52,6 +57,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 
     res.json({ success: true, pictureId });
   } catch (err) {
+    console.error('Upload error:', err);
     res.status(500).json({ error: err.message });
   }
 });
