@@ -37,16 +37,27 @@ const handleMulterError = (req, res, next) => {
 
 router.post('/', handleMulterError, async (req, res) => {
   try {
-    console.log('Upload request received');
-    console.log('File:', req.file ? 'present' : 'missing');
+    console.log('=== NPC Upload request received ===');
+    console.log('File present:', !!req.file);
+    if (req.file) {
+      console.log('File details:', {
+        filename: req.file.filename,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        path: req.file.path
+      });
+    }
     console.log('Body:', req.body);
 
-    const { placeId, userId } = req.body;
-    if (!req.file || !placeId || !userId) {
-      console.log('Missing data - file:', !!req.file, 'placeId:', placeId, 'userId:', userId);
-      return res.status(400).json({ error: 'Missing file, placeId, or userId' });
+    const { npcId, userId } = req.body;
+    console.log('Extracted npcId:', npcId, 'userId:', userId);
+
+    if (!req.file || !npcId || !userId) {
+      console.log('Missing data - file:', !!req.file, 'npcId:', npcId, 'userId:', userId);
+      return res.status(400).json({ error: 'Missing file, npcId, or userId' });
     }
 
+    console.log('Step 1: Inserting into SW_pictures...');
     // Insert into SW_pictures and get new id
     const { data, error } = await supabase
       .from('SW_pictures')
@@ -56,31 +67,39 @@ router.post('/', handleMulterError, async (req, res) => {
 
     if (error) {
       console.error('Supabase insert error:', error);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: 'Insert failed: ' + error.message });
     }
     const pictureId = data.id;
+    console.log('Step 1 complete. Picture ID:', pictureId);
 
+    console.log('Step 2: Renaming file...');
     // Rename file to Picture <ID>.png
     const newPath = path.join(req.file.destination, `Picture ${pictureId}.png`);
+    console.log('Renaming from:', req.file.path, 'to:', newPath);
     fs.renameSync(req.file.path, newPath);
+    console.log('Step 2 complete.');
 
-    // Update SW_campaign_notes with new PictureID
+    console.log('Step 3: Updating SW_campaign_NPC...');
+    // Update SW_campaign_NPC with new PictureID
     const { error: updateError } = await supabase
-      .from('SW_campaign_notes')
+      .from('SW_campaign_NPC')
       .update({ PictureID: pictureId })
-      .eq('id', placeId);
+      .eq('id', npcId);
 
     if (updateError) {
       console.error('Supabase update error:', updateError);
-      return res.status(500).json({ error: updateError.message });
+      return res.status(500).json({ error: 'Update failed: ' + updateError.message });
     }
+    console.log('Step 3 complete.');
 
-    console.log('Picture upload successful:', { placeId, pictureId });
+    console.log('NPC picture upload successful:', { npcId, pictureId });
     res.json({ success: true, pictureId });
   } catch (err) {
-    console.error('Upload error:', err);
+    console.error('NPC Upload error:', err);
+    console.error('Error stack:', err.stack);
     res.status(500).json({ error: err.message || 'Unknown error occurred' });
   }
 });
 
 module.exports = router;
+

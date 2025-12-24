@@ -56,11 +56,23 @@ export default function SWNotes() {
   const [skillsList, setSkillsList] = useState([]);
   const [abilitiesList, setAbilitiesList] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]);
+  const [abilityDescriptions, setAbilityDescriptions] = useState({}); // Map of ability name to description
 
   // Selected multi-selects
   const [selectedSkills, setSelectedSkills] = useState([]); // names
   const [selectedAbilities, setSelectedAbilities] = useState([]); // abilities strings
   const [selectedEquipment, setSelectedEquipment] = useState([]); // names
+
+  // Admin and permissions
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [uploadPicturesEnabled, setUploadPicturesEnabled] = useState(false);
+
+  // NPC dropdown and edit state
+  const [showNPCDropdown, setShowNPCDropdown] = useState(null); // ID of NPC with open dropdown
+  const [npcDropdownPos, setNpcDropdownPos] = useState({ top: 0, left: 0 });
+  const [editingNPCId, setEditingNPCId] = useState(null); // ID of NPC being edited
+  const [deletingNPCId, setDeletingNPCId] = useState(null); // ID of NPC to delete
+  const [savingNPC, setSavingNPC] = useState(false);
 
   const loadNotes = async () => {
     try {
@@ -82,8 +94,43 @@ export default function SWNotes() {
       loadPlaces();
       loadNotes();
       loadNPCs();
+      loadPermissions();
     }
   }, [campaignId]);
+
+  const loadPermissions = async () => {
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      if (!user) return;
+
+      // Check if user is admin
+      const { data: userData, error: adminError } = await supabase
+        .from('user')
+        .select('admin')
+        .eq('id', user.id)
+        .single();
+
+      if (adminError) throw adminError;
+
+      setIsAdmin(userData?.admin === true);
+
+      // Fetch Upload Pictures setting
+      const { data: adminControl, error: controlError } = await supabase
+        .from('Admin_Control')
+        .select('Upload_pictures')
+        .eq('id', 1)
+        .single();
+
+      if (controlError) throw controlError;
+
+      setUploadPicturesEnabled(adminControl?.Upload_pictures === true);
+    } catch (err) {
+      console.error('Failed to load permissions:', err);
+    }
+  };
 
   // Load lookups when opening Add NPC (both top-level and inline)
   useEffect(() => {
@@ -154,6 +201,26 @@ export default function SWNotes() {
     }
   };
 
+  const loadAbilityDescriptions = async (abilities) => {
+    if (!abilities || !abilities.trim()) return;
+    try {
+      const abilityNames = abilities.split(',').map(a => a.trim());
+      const { data, error } = await supabase
+        .from('SW_abilities')
+        .select('ability, description')
+        .in('ability', abilityNames);
+      if (error) throw error;
+
+      const descMap = {};
+      (data || []).forEach(row => {
+        descMap[row.ability] = row.description || '';
+      });
+      setAbilityDescriptions(descMap);
+    } catch (err) {
+      console.error('Failed to load ability descriptions:', err);
+    }
+  };
+
   const handleDragStart = (place, e) => {
     setDraggedNote(place);
     e.dataTransfer.effectAllowed = 'move';
@@ -204,6 +271,8 @@ export default function SWNotes() {
   const handleSelectTopLevel = (place) => {
     // Start a new hierarchy path from this top-level place
     setSelectedHierarchy([place]);
+    // Close the NPC box when selecting a new place
+    setSelectedNPC(null);
   };
 
   const handleEditPlace = (place) => {
@@ -489,6 +558,8 @@ export default function SWNotes() {
     const newHierarchy = selectedHierarchy.slice(0, parentIndex + 1);
     newHierarchy.push(place);
     setSelectedHierarchy(newHierarchy);
+    // Close the NPC box when selecting a new place
+    setSelectedNPC(null);
   };
 
   const handleBackPanel = () => {
@@ -582,14 +653,37 @@ export default function SWNotes() {
     setSelectedEquipment([]);
   };
 
+  const populateNPCFormForEdit = (npc) => {
+    setNpcName(npc.Name || '');
+    setNpcRaceId(npc.Race ? String(npc.Race) : '');
+    setNpcDescription(npc.Description || '');
+    setNpcBrawn(npc.Brawn ? String(npc.Brawn) : '');
+    setNpcCunning(npc.Cunning ? String(npc.Cunning) : '');
+    setNpcPresence(npc.Presence ? String(npc.Presence) : '');
+    setNpcAgility(npc.Agility ? String(npc.Agility) : '');
+    setNpcIntellect(npc.Intellect ? String(npc.Intellect) : '');
+    setNpcWillpower(npc.Willpower ? String(npc.Willpower) : '');
+    setNpcSoak(npc.Soak ? String(npc.Soak) : '');
+    setNpcWound(npc.Wound ? String(npc.Wound) : '');
+    setNpcStrain(npc.Strain ? String(npc.Strain) : '');
+    setNpcPlaceId(npc.Part_of_Place ? String(npc.Part_of_Place) : '');
+    setSelectedSkills(npc.Skills ? npc.Skills.split(',').map(s => s.trim()) : []);
+    setSelectedAbilities(npc.Abilities ? npc.Abilities.split(',').map(a => a.trim()) : []);
+    setSelectedEquipment(npc.Equipment ? npc.Equipment.split(',').map(e => e.trim()) : []);
+  };
+
   const addToList = (value, list, setter) => {
     if (!value) return;
-    if (list.includes(value)) return;
+    // Allow duplicates - just add the value
     setter([...list, value]);
   };
 
   const removeFromList = (value, list, setter) => {
-    setter(list.filter((v) => v !== value));
+    // Remove only the first occurrence of the value
+    const index = list.indexOf(value);
+    if (index > -1) {
+      setter([...list.slice(0, index), ...list.slice(index + 1)]);
+    }
   };
 
   const handleSaveNPC = async () => {
@@ -629,11 +723,96 @@ export default function SWNotes() {
       alert('NPC saved successfully!');
       resetNPCForm();
       setShowAddNPCForm(false);
+      await loadNPCs();
     } catch (err) {
       console.error('Error saving NPC:', err);
       alert('Failed to save NPC');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEditNPC = (npc) => {
+    populateNPCFormForEdit(npc);
+    setEditingNPCId(npc.id);
+    setShowNPCDropdown(null);
+  };
+
+  const handleSaveEditedNPC = async () => {
+    if (!npcName.trim()) {
+      alert('NPC Name is required');
+      return;
+    }
+    setSavingNPC(true);
+    try {
+      const payload = {
+        Name: npcName.trim(),
+        Race: npcRaceId ? parseInt(npcRaceId, 10) : null,
+        Description: npcDescription.trim(),
+        Brawn: npcBrawn ? parseInt(npcBrawn, 10) : null,
+        Cunning: npcCunning ? parseInt(npcCunning, 10) : null,
+        Presence: npcPresence ? parseInt(npcPresence, 10) : null,
+        Agility: npcAgility ? parseInt(npcAgility, 10) : null,
+        Intellect: npcIntellect ? parseInt(npcIntellect, 10) : null,
+        Willpower: npcWillpower ? parseInt(npcWillpower, 10) : null,
+        Soak: npcSoak ? parseInt(npcSoak, 10) : null,
+        Wound: npcWound ? parseInt(npcWound, 10) : null,
+        Strain: npcStrain ? parseInt(npcStrain, 10) : null,
+        Skills: selectedSkills.join(','),
+        Abilities: selectedAbilities.join(','),
+        Equipment: selectedEquipment.join(','),
+      };
+
+      const { error } = await supabase
+        .from('SW_campaign_NPC')
+        .update(payload)
+        .eq('id', editingNPCId);
+
+      if (error) {
+        console.error('Error updating NPC:', error);
+        alert('Failed to update NPC: ' + error.message);
+        return;
+      }
+
+      alert('NPC updated successfully!');
+      setEditingNPCId(null);
+      resetNPCForm();
+      await loadNPCs();
+      setSelectedNPC(null);
+    } catch (err) {
+      console.error('Error updating NPC:', err);
+      alert('Failed to update NPC');
+    } finally {
+      setSavingNPC(false);
+    }
+  };
+
+  const handleDeleteNPC = async (npcId) => {
+    if (!window.confirm('Are you sure you want to delete this NPC?')) {
+      return;
+    }
+    setSavingNPC(true);
+    try {
+      const { error } = await supabase
+        .from('SW_campaign_NPC')
+        .delete()
+        .eq('id', npcId);
+
+      if (error) {
+        console.error('Error deleting NPC:', error);
+        alert('Failed to delete NPC: ' + error.message);
+        return;
+      }
+
+      alert('NPC deleted successfully!');
+      setSelectedNPC(null);
+      resetNPCForm();
+      await loadNPCs();
+    } catch (err) {
+      console.error('Error deleting NPC:', err);
+      alert('Failed to delete NPC');
+    } finally {
+      setSavingNPC(false);
     }
   };
 
@@ -822,9 +1001,9 @@ export default function SWNotes() {
                   >Add</button>
                 </div>
                 {selectedSkills.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedSkills.map((s) => (
-                      <span key={s} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                  <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
+                    {selectedSkills.map((s, idx) => (
+                      <span key={`skill-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded flex-shrink-0">
                         {s}
                         <button onClick={() => removeFromList(s, selectedSkills, setSelectedSkills)} className="text-blue-700 hover:text-blue-900">×</button>
                       </span>
@@ -853,9 +1032,9 @@ export default function SWNotes() {
                   >Add</button>
                 </div>
                 {selectedAbilities.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedAbilities.map((a) => (
-                      <span key={a} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded">
+                  <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
+                    {selectedAbilities.map((a, idx) => (
+                      <span key={`ability-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded flex-shrink-0">
                         {a}
                         <button onClick={() => removeFromList(a, selectedAbilities, setSelectedAbilities)} className="text-green-700 hover:text-green-900">×</button>
                       </span>
@@ -884,9 +1063,9 @@ export default function SWNotes() {
                   >Add</button>
                 </div>
                 {selectedEquipment.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedEquipment.map((e) => (
-                      <span key={e} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded">
+                  <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
+                    {selectedEquipment.map((e, idx) => (
+                      <span key={`equipment-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded flex-shrink-0">
                         {e}
                         <button onClick={() => removeFromList(e, selectedEquipment, setSelectedEquipment)} className="text-purple-700 hover:text-purple-900">×</button>
                       </span>
@@ -1024,12 +1203,14 @@ export default function SWNotes() {
                   >
                     Edit
                   </button>
-                  <button
-                    onClick={() => handleUploadPicture(place)}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"
-                  >
-                    Upload Picture
-                  </button>
+                  {(isAdmin || uploadPicturesEnabled) && (
+                    <button
+                      onClick={() => handleUploadPicture(place)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"
+                    >
+                      Upload Picture
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setShowInlineAddNote(place.id);
@@ -1227,7 +1408,10 @@ export default function SWNotes() {
                     {getNPCsForPlace(place.id).map((npc) => (
                       <button
                         key={npc.id}
-                        onClick={() => setSelectedNPC(npc)}
+                        onClick={() => {
+                          setSelectedNPC(npc);
+                          loadAbilityDescriptions(npc.Abilities);
+                        }}
                         className="w-full text-left px-2 py-1 rounded text-sm bg-purple-50 text-gray-800 hover:bg-purple-100 border border-purple-300 transition truncate"
                       >
                         <div className="font-semibold">{npc.Name}</div>
@@ -1241,8 +1425,8 @@ export default function SWNotes() {
               )}
               </div>
 
-              {/* Picture Box - Only show if this is the last item in hierarchy and has a picture */}
-              {index === selectedHierarchy.length - 1 && place.PictureID && (
+              {/* Picture Box - Only show if this is the last item in hierarchy and has a picture AND no NPC is selected */}
+              {index === selectedHierarchy.length - 1 && place.PictureID && !selectedNPC && (
                 <div className="shrink-0 w-64 h-80 bg-gray-50 border-r border-gray-300 p-1 flex flex-col items-center justify-center overflow-hidden" style={{ width: '256px', height: '320px', minWidth: '256px', minHeight: '320px' }}>
                   <img
                     src={`/SW_Pictures/Picture ${place.PictureID}.png`}
@@ -1259,61 +1443,216 @@ export default function SWNotes() {
         {/* NPC Details Column - Show when an NPC is selected */}
         {selectedNPC && (
           <div className="flex shrink-0">
-            <div className="w-[28rem] bg-white border-r border-gray-300 p-4 overflow-y-auto flex flex-col relative">
-              {/* Close Button */}
-              <button
-                onClick={() => setSelectedNPC(null)}
-                className="absolute top-2 right-2 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
-              >
-                ✕ Close
-              </button>
-
-              {/* NPC Name, Race, Description - Grouped Together */}
-              <div className="mb-4 pt-6">
-                <h3 className="font-bold text-lg text-gray-800 mb-1">{selectedNPC.Name}</h3>
-                {selectedNPC.races && <p className="text-sm text-gray-600 mb-1">Race: {selectedNPC.races.name}</p>}
-                {selectedNPC.Description && (
-                  <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{selectedNPC.Description}</p>
-                )}
+            <div className="w-[28rem] bg-white border-r border-gray-300 p-4 overflow-y-auto flex flex-col">
+              {/* Header with Dropdown and Close Button */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg text-gray-800">{selectedNPC.Name}</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      if (showNPCDropdown === selectedNPC.id) {
+                        setShowNPCDropdown(null);
+                      } else {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setNpcDropdownPos({
+                          top: rect.bottom + window.scrollY,
+                          left: rect.left - 100 + window.scrollX,
+                        });
+                        setShowNPCDropdown(selectedNPC.id);
+                      }
+                    }}
+                    className="px-3 py-1 bg-gray-300 text-gray-800 text-xs rounded hover:bg-gray-400 transition"
+                  >
+                    ⋮
+                  </button>
+                  <button
+                    onClick={() => setSelectedNPC(null)}
+                    className="px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
               </div>
 
-              {/* Attributes */}
-              <div className="mb-4">
-                <h4 className="text-xs font-bold text-gray-800 mb-2">Attributes</h4>
+              {/* NPC Dropdown Menu */}
+              {showNPCDropdown === selectedNPC.id && !editingNPCId && (
+                <div
+                  className="fixed bg-white border border-gray-300 rounded shadow-lg z-50 w-40"
+                  style={{
+                    top: `${npcDropdownPos.top}px`,
+                    left: `${npcDropdownPos.left}px`,
+                  }}
+                >
+                  <button
+                    onClick={() => handleEditNPC(selectedNPC)}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDeleteNPC(selectedNPC.id);
+                      setShowNPCDropdown(null);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition border-t border-gray-300"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+
+              {/* Edit NPC Form */}
+              {editingNPCId === selectedNPC.id && (
+                <div className="mb-4 p-3 bg-gray-100 rounded border border-gray-300">
+                  <h4 className="text-sm font-bold text-gray-800 mb-3">Edit NPC</h4>
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={npcName}
+                        onChange={(e) => setNpcName(e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-1">Race</label>
+                      <select
+                        value={npcRaceId}
+                        onChange={(e) => setNpcRaceId(e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select Race --</option>
+                        {raceList.map((race) => (
+                          <option key={race.id} value={race.id}>{race.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={npcDescription}
+                        onChange={(e) => setNpcDescription(e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500 text-xs"
+                        rows="2"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Brawn</label>
+                        <input type="number" value={npcBrawn} onChange={(e) => setNpcBrawn(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Cunning</label>
+                        <input type="number" value={npcCunning} onChange={(e) => setNpcCunning(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Presence</label>
+                        <input type="number" value={npcPresence} onChange={(e) => setNpcPresence(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Agility</label>
+                        <input type="number" value={npcAgility} onChange={(e) => setNpcAgility(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Intellect</label>
+                        <input type="number" value={npcIntellect} onChange={(e) => setNpcIntellect(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Willpower</label>
+                        <input type="number" value={npcWillpower} onChange={(e) => setNpcWillpower(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Soak</label>
+                        <input type="number" value={npcSoak} onChange={(e) => setNpcSoak(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Wound</label>
+                        <input type="number" value={npcWound} onChange={(e) => setNpcWound(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block font-medium text-gray-700 mb-1">Strain</label>
+                        <input type="number" value={npcStrain} onChange={(e) => setNpcStrain(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={handleSaveEditedNPC}
+                        disabled={savingNPC}
+                        className="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition disabled:opacity-60"
+                      >
+                        {savingNPC ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingNPCId(null);
+                          resetNPCForm();
+                        }}
+                        className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Race and Description */}
+              {!editingNPCId && (
+                <>
+                  <div className="mb-4">
+                    {selectedNPC.races && <p className="text-sm text-gray-600 mb-1">Race: {selectedNPC.races.name}</p>}
+                    {selectedNPC.Description && (
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{selectedNPC.Description}</p>
+                    )}
+                  </div>
+
+                  {/* Attributes */}
+                  <div className="mb-4">
+                <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Attributes</h4>
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div className="space-y-1">
-                    <div className="flex gap-2"><span>Brawn</span><span className="font-semibold">{selectedNPC.Brawn ?? '-'}</span></div>
-                    <div className="flex gap-2"><span>Cunning</span><span className="font-semibold">{selectedNPC.Cunning ?? '-'}</span></div>
-                    <div className="flex gap-2"><span>Presence</span><span className="font-semibold">{selectedNPC.Presence ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Brawn:</span><span className="font-semibold">{selectedNPC.Brawn ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Cunning:</span><span className="font-semibold">{selectedNPC.Cunning ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Presence:</span><span className="font-semibold">{selectedNPC.Presence ?? '-'}</span></div>
                   </div>
                   <div className="space-y-1">
-                    <div className="flex gap-2"><span>Agility</span><span className="font-semibold">{selectedNPC.Agility ?? '-'}</span></div>
-                    <div className="flex gap-2"><span>Intellect</span><span className="font-semibold">{selectedNPC.Intellect ?? '-'}</span></div>
-                    <div className="flex gap-2"><span>Willpower</span><span className="font-semibold">{selectedNPC.Willpower ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Agility:</span><span className="font-semibold">{selectedNPC.Agility ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Intellect:</span><span className="font-semibold">{selectedNPC.Intellect ?? '-'}</span></div>
+                    <div className="flex gap-2"><span>Willpower:</span><span className="font-semibold">{selectedNPC.Willpower ?? '-'}</span></div>
                   </div>
                 </div>
               </div>
 
               {/* Defense */}
               <div className="mb-4">
-                <h4 className="text-xs font-bold text-gray-800 mb-2">Defense</h4>
+                <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Defense</h4>
                 <div className="flex justify-between text-xs">
-                  <div className="flex gap-2"><span>Soak</span><span className="font-semibold">{selectedNPC.Soak ?? '-'}</span></div>
-                  <div className="flex gap-2"><span>Wound</span><span className="font-semibold">{selectedNPC.Wound ?? '-'}</span></div>
-                  <div className="flex gap-2"><span>Strain</span><span className="font-semibold">{selectedNPC.Strain ?? '-'}</span></div>
+                  <div className="flex gap-2"><span>Soak:</span><span className="font-semibold">{selectedNPC.Soak ?? '-'}</span></div>
+                  <div className="flex gap-2"><span>Wound:</span><span className="font-semibold">{selectedNPC.Wound ?? '-'}</span></div>
+                  <div className="flex gap-2"><span>Strain:</span><span className="font-semibold">{selectedNPC.Strain ?? '-'}</span></div>
                 </div>
               </div>
 
               {/* Skills */}
               {selectedNPC.Skills && selectedNPC.Skills.trim() && (
                 <div className="mb-4">
-                  <h4 className="text-xs font-bold text-gray-800 mb-2">Skills</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedNPC.Skills.split(',').map((skill, idx) => (
-                      <span key={idx} className="inline-block px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded">
-                        {skill.trim()}
-                      </span>
-                    ))}
+                  <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Skills</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(() => {
+                      const skillsArray = selectedNPC.Skills.split(',').map(s => s.trim());
+                      const skillCounts = {};
+                      skillsArray.forEach(skill => {
+                        skillCounts[skill] = (skillCounts[skill] || 0) + 1;
+                      });
+                      return Object.entries(skillCounts)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([skill, count]) => (
+                          <div key={skill} className="text-xs text-gray-800">
+                            {skill} Rank {count}
+                          </div>
+                        ));
+                    })()}
                   </div>
                 </div>
               )}
@@ -1321,15 +1660,24 @@ export default function SWNotes() {
               {/* Abilities */}
               {selectedNPC.Abilities && selectedNPC.Abilities.trim() && (
                 <div className="mb-4">
-                  <h4 className="text-xs font-bold text-gray-800 mb-2">Abilities</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedNPC.Abilities.split(',').map((ability, idx) => (
-                      <span key={idx} className="inline-block px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded">
-                        {ability.trim()}
-                      </span>
-                    ))}
+                  <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Abilities</h4>
+                  <div className="space-y-2">
+                    {selectedNPC.Abilities.split(',')
+                      .map(a => a.trim())
+                      .sort((a, b) => a.localeCompare(b))
+                      .map((abilityName, idx) => {
+                        const description = abilityDescriptions[abilityName];
+                        return (
+                          <div key={idx} className="text-xs">
+                            <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName}</div>
+                            {description && <div className="text-gray-600 text-xs mt-1">{description}</div>}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
+              )}
+                </>
               )}
             </div>
           </div>
@@ -1389,8 +1737,10 @@ export default function SWNotes() {
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
             zIndex: 9999,
             minWidth: '400px',
+            maxWidth: '500px',
             maxHeight: '80vh',
             overflowY: 'auto',
+            overflowX: 'hidden',
           }}
         >
           <div className="bg-white rounded-lg p-4">
@@ -1550,9 +1900,9 @@ export default function SWNotes() {
                   >Add</button>
                 </div>
                 {selectedSkills.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {selectedSkills.map((s) => (
-                      <span key={s} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                  <div className="mt-2 flex flex-wrap gap-1 overflow-hidden">
+                    {selectedSkills.map((s, idx) => (
+                      <span key={`skill-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded flex-shrink-0">
                         {s}
                         <button onClick={() => removeFromList(s, selectedSkills, setSelectedSkills)} className="text-blue-700 hover:text-blue-900">×</button>
                       </span>
@@ -1581,9 +1931,9 @@ export default function SWNotes() {
                   >Add</button>
                 </div>
                 {selectedAbilities.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {selectedAbilities.map((a) => (
-                      <span key={a} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded">
+                  <div className="mt-2 flex flex-wrap gap-1 overflow-hidden">
+                    {selectedAbilities.map((a, idx) => (
+                      <span key={`ability-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded flex-shrink-0">
                         {a}
                         <button onClick={() => removeFromList(a, selectedAbilities, setSelectedAbilities)} className="text-green-700 hover:text-green-900">×</button>
                       </span>
@@ -1632,6 +1982,7 @@ export default function SWNotes() {
                       setShowInlineAddNPC(null);
                       resetNPCForm();
                       alert('NPC added successfully!');
+                      await loadNPCs();
                     } catch (err) {
                       alert('Error saving NPC: ' + err.message);
                     }

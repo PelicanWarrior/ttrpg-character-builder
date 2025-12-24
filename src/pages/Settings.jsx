@@ -18,6 +18,8 @@ export default function Settings() {
   const [success, setSuccess] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uploadPicturesEnabled, setUploadPicturesEnabled] = useState(false);
+  const [savingUploadPictures, setSavingUploadPictures] = useState(false);
 
   // -----------------------------------------------------------------
   // 2. Star Wars Section State
@@ -147,7 +149,7 @@ export default function Settings() {
   const careerRefs = useRef({});
 
   // -----------------------------------------------------------------
-  // 4. Fetch Admin Status
+  // 4. Fetch Admin Status and Upload Pictures Setting
   // -----------------------------------------------------------------
   useEffect(() => {
     console.log('Player ID:', playerId ?? '—');
@@ -177,6 +179,29 @@ export default function Settings() {
 
     fetchAdminStatus();
   }, [playerId]);
+
+  // Fetch Upload Pictures setting
+  useEffect(() => {
+    const fetchUploadPicturesSetting = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('Admin_Control')
+          .select('Upload_pictures')
+          .eq('id', 1)
+          .single();
+
+        if (error) throw error;
+
+        setUploadPicturesEnabled(data?.Upload_pictures === true);
+      } catch (err) {
+        console.error('Failed to fetch Upload Pictures setting:', err);
+      }
+    };
+
+    if (isAdmin) {
+      fetchUploadPicturesSetting();
+    }
+  }, [isAdmin]);
 
   // Fetch skills when Add Species, Add Specialization, Add Career, or Add Equipment form is shown
   useEffect(() => {
@@ -577,6 +602,26 @@ export default function Settings() {
     } catch (err) {
       console.error('Password update failed:', err);
       setError('Failed to update password. Please try again.');
+    }
+  };
+
+  const handleToggleUploadPictures = async () => {
+    setSavingUploadPictures(true);
+    try {
+      const { error } = await supabase
+        .from('Admin_Control')
+        .update({ Upload_pictures: !uploadPicturesEnabled })
+        .eq('id', 1);
+
+      if (error) throw error;
+
+      setUploadPicturesEnabled(!uploadPicturesEnabled);
+      setSuccess('Upload Pictures setting updated');
+    } catch (err) {
+      setError('Failed to update Upload Pictures setting');
+      console.error(err);
+    } finally {
+      setSavingUploadPictures(false);
     }
   };
 
@@ -2373,6 +2418,23 @@ export default function Settings() {
             >
               Star Wars Stats
             </button>
+          </div>
+
+          {/* Upload Pictures Setting */}
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={uploadPicturesEnabled}
+                onChange={handleToggleUploadPictures}
+                disabled={savingUploadPictures}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <span className="text-sm font-medium text-gray-800">
+                Allow Non-Admin Users to Upload Pictures
+              </span>
+            </label>
+            {savingUploadPictures && <p className="text-xs text-gray-600 mt-2">Saving...</p>}
           </div>
 
           {showPathfinderSection && (
