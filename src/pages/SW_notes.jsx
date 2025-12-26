@@ -74,13 +74,25 @@ export default function SWNotes() {
   const [deletingNPCId, setDeletingNPCId] = useState(null); // ID of NPC to delete
   const [savingNPC, setSavingNPC] = useState(false);
 
+  // Add Existing NPC state
+  const [showAddExistingNPC, setShowAddExistingNPC] = useState(null); // ID of place to add existing NPC to
+  const [existingNPCsList, setExistingNPCsList] = useState([]); // List of NPCs for current player
+  const [selectedExistingNPC, setSelectedExistingNPC] = useState(null); // Currently selected NPC to add
+  const [addExistingNPCPos, setAddExistingNPCPos] = useState({ top: 0, left: 0 });
+
+  // Add Existing Note state
+  const [showAddExistingNote, setShowAddExistingNote] = useState(null); // ID of place to add existing note to
+  const [existingNotesList, setExistingNotesList] = useState([]); // List of notes with Part_of_Place = 0
+  const [selectedExistingNote, setSelectedExistingNote] = useState(null); // Currently selected note to add
+  const [addExistingNotePos, setAddExistingNotePos] = useState({ top: 0, left: 0 });
+
   const loadNotes = async () => {
     try {
       const { data, error } = await supabase
         .from('SW_campaign_notes')
-        .select('id, Place_Name, Order')
+        .select('id, Place_Name, Order, Part_of_Place, Description, PictureID')
         .eq('CampaignID', campaignId)
-        .is('Part_of_Place', null)
+        .or('Part_of_Place.eq.0,Part_of_Place.is.null')
         .order('Order', { ascending: true });
       if (error) throw error;
       setNotes(data || []);
@@ -98,13 +110,22 @@ export default function SWNotes() {
     }
   }, [campaignId]);
 
+
+
   const loadPermissions = async () => {
     try {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
 
-      if (!user) return;
+      if (userError) {
+        console.warn('Auth error (may be expected):', userError.message);
+        return;
+      }
+
+      if (!user) {
+        console.warn('No user logged in');
+        return;
+      }
 
       // Check if user is admin
       const { data: userData, error: adminError } = await supabase
@@ -113,7 +134,10 @@ export default function SWNotes() {
         .eq('id', user.id)
         .single();
 
-      if (adminError) throw adminError;
+      if (adminError) {
+        console.warn('Failed to load admin status:', adminError.message);
+        return;
+      }
 
       setIsAdmin(userData?.admin === true);
 
@@ -124,7 +148,10 @@ export default function SWNotes() {
         .eq('id', 1)
         .single();
 
-      if (controlError) throw controlError;
+      if (controlError) {
+        console.warn('Failed to load upload pictures setting:', controlError.message);
+        return;
+      }
 
       setUploadPicturesEnabled(adminControl?.Upload_pictures === true);
     } catch (err) {
@@ -147,11 +174,6 @@ export default function SWNotes() {
         if (skillsRes.error) throw skillsRes.error;
         if (abilitiesRes.error) throw abilitiesRes.error;
         if (equipmentRes.error) throw equipmentRes.error;
-
-        console.log('Races loaded:', racesRes.data);
-        console.log('Skills loaded:', skillsRes.data);
-        console.log('Abilities loaded:', abilitiesRes.data);
-        console.log('Equipment loaded:', equipmentRes.data);
 
         setRaceList(racesRes.data || []);
         setSkillsList(skillsRes.data || []);
@@ -178,8 +200,8 @@ export default function SWNotes() {
 
       setExistingPlaces(data || []);
 
-      // Filter top-level places (Part_of_Place is null)
-      const topLevel = (data || []).filter(p => !p.Part_of_Place);
+      // Filter top-level places (Part_of_Place = 0 or null)
+      const topLevel = (data || []).filter(p => p.Part_of_Place === 0 || p.Part_of_Place === null);
       setTopLevelPlaces(topLevel);
     } catch (err) {
       console.error('Failed to load places:', err);
@@ -195,9 +217,74 @@ export default function SWNotes() {
       if (error) throw error;
 
       setNpcs(data || []);
-      console.log('NPCs loaded:', data);
     } catch (err) {
       console.error('Failed to load NPCs:', err);
+    }
+  };
+
+  const loadExistingNPCsForPlayer = async () => {
+    try {
+      // Step 1: Get the playerID from SW_campaign where id = campaignId
+      const { data: campaignData, error: campaignError } = await supabase
+        .from('SW_campaign')
+        .select('playerID')
+        .eq('id', campaignId)
+        .single();
+
+      if (campaignError) throw campaignError;
+      const playerId = campaignData?.playerID;
+
+      if (!playerId) {
+        console.warn('No player ID found for this campaign');
+        setExistingNPCsList([]);
+        return;
+      }
+
+      // Step 2: Get all campaigns where playerID matches
+      const { data: playerCampaigns, error: campaignsError } = await supabase
+        .from('SW_campaign')
+        .select('id')
+        .eq('playerID', playerId);
+
+      if (campaignsError) throw campaignsError;
+
+      const campaignIds = playerCampaigns?.map(c => c.id) || [];
+
+      if (campaignIds.length === 0) {
+        setExistingNPCsList([]);
+        return;
+      }
+
+      // Step 3: Get all NPCs from SW_campaign_NPC where CampaignID matches any of the campaign IDs
+      const { data: playerNPCs, error: npcError } = await supabase
+        .from('SW_campaign_NPC')
+        .select('id, Name, Race, Description, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Part_of_Place, races(name)')
+        .in('CampaignID', campaignIds);
+
+      if (npcError) throw npcError;
+
+      setExistingNPCsList(playerNPCs || []);
+    } catch (err) {
+      console.error('Failed to load existing NPCs:', err);
+      console.error('Error details:', err);
+    }
+  };
+
+  const loadExistingNotesForCampaign = async () => {
+    try {
+      // Get all notes for the current campaign (regardless of Part_of_Place value)
+      const { data: notes, error: notesError } = await supabase
+        .from('SW_campaign_notes')
+        .select('id, Place_Name, Description, PictureID, Part_of_Place')
+        .eq('CampaignID', campaignId)
+        .order('Place_Name', { ascending: true });
+
+      if (notesError) throw notesError;
+
+      setExistingNotesList(notes || []);
+    } catch (err) {
+      console.error('Failed to load existing notes:', err);
+      console.error('Error details:', err);
     }
   };
 
@@ -241,26 +328,81 @@ export default function SWNotes() {
     }
 
     try {
-      // Swap the Order values
       const draggedOrder = draggedNote.Order;
       const targetOrder = targetPlace.Order;
 
-      console.log(`Swapping: ${draggedNote.Place_Name} (Order: ${draggedOrder}) with ${targetPlace.Place_Name} (Order: ${targetOrder})`);
+      // Determine the direction of the move
+      const isMovingUp = draggedOrder > targetOrder;
 
-      // Update both places in the database
-      await Promise.all([
-        supabase
-          .from('SW_campaign_notes')
-          .update({ Order: targetOrder })
-          .eq('id', draggedNote.id),
-        supabase
-          .from('SW_campaign_notes')
-          .update({ Order: draggedOrder })
-          .eq('id', targetPlace.id),
-      ]);
+      // Get all items that need to be reordered
+      const itemsToUpdate = [];
+
+      if (isMovingUp) {
+        // Moving up: shift items down between target and dragged
+        // Example: Moving item with Order 5 to position of Order 2
+        // Items with Order 2, 3, 4 should become 3, 4, 5
+        for (let i = targetOrder; i < draggedOrder; i++) {
+          const item = topLevelPlaces.find(p => p.Order === i);
+          if (item) {
+            itemsToUpdate.push({ id: item.id, newOrder: i + 1 });
+          }
+        }
+        // Dragged item gets the target order
+        itemsToUpdate.push({ id: draggedNote.id, newOrder: targetOrder });
+      } else {
+        // Moving down: shift items up between dragged and target
+        // Example: Moving item with Order 2 to position of Order 5
+        // Items with Order 3, 4, 5 should become 2, 3, 4
+        for (let i = draggedOrder + 1; i <= targetOrder; i++) {
+          const item = topLevelPlaces.find(p => p.Order === i);
+          if (item) {
+            itemsToUpdate.push({ id: item.id, newOrder: i - 1 });
+          }
+        }
+        // Dragged item gets the target order
+        itemsToUpdate.push({ id: draggedNote.id, newOrder: targetOrder });
+      }
+
+      // Update all items in the database
+      await Promise.all(
+        itemsToUpdate.map(item =>
+          supabase
+            .from('SW_campaign_notes')
+            .update({ Order: item.newOrder })
+            .eq('id', item.id)
+        )
+      );
 
       // Reload places to reflect changes
       await refreshCurrentLevel();
+
+      // After reordering, fetch all top-level places and renumber them sequentially
+      const { data: allTopLevelPlaces, error: fetchError } = await supabase
+        .from('SW_campaign_notes')
+        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+        .eq('Part_of_Place', 0)
+        .eq('CampaignID', parseInt(campaignId, 10))
+        .order('Order', { ascending: true });
+
+      if (fetchError) throw fetchError;
+
+      // Renumber all top-level places sequentially
+      const renumberUpdates = (allTopLevelPlaces || []).map((item, index) => ({
+        id: item.id,
+        newOrder: index + 1
+      }));
+
+      await Promise.all(
+        renumberUpdates.map(item =>
+          supabase
+            .from('SW_campaign_notes')
+            .update({ Order: item.newOrder })
+            .eq('id', item.id)
+        )
+      );
+
+      // Reload places to reflect changes
+      await loadNotes();
       setDraggedNote(null);
     } catch (err) {
       console.error('Failed to reorder places:', err);
@@ -355,29 +497,56 @@ export default function SWNotes() {
   const refreshNoteAndChildren = async (noteId) => {
     // Refresh a note and all its children
     try {
-      console.log('refreshNoteAndChildren called with noteId:', noteId);
-
-      // Fetch all children of this note
-      const { data: childrenData, error: childrenError } = await supabase
+      // Fetch the parent note to get its Part_of_Place field (which contains comma-separated child IDs)
+      const { data: parentNote, error: parentError } = await supabase
         .from('SW_campaign_notes')
         .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
-        .eq('Part_of_Place', noteId)
-        .order('Order', { ascending: true });
+        .eq('id', noteId)
+        .single();
 
-      if (childrenError) throw childrenError;
-      console.log('Fetched children data:', childrenData);
+      if (parentError) throw parentError;
 
-      // Update existingPlaces with the new children
+      // Get the child IDs from the parent's Part_of_Place field
+      let childIds = [];
+      if (parentNote.Part_of_Place) {
+        childIds = parentNote.Part_of_Place.toString().split(',').map(id => parseInt(id.trim(), 10));
+      }
+
+      // Fetch all children using their IDs
+      let childrenData = [];
+      if (childIds.length > 0) {
+        const { data, error: childrenError } = await supabase
+          .from('SW_campaign_notes')
+          .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+          .in('id', childIds)
+          .order('Order', { ascending: true });
+
+        if (childrenError) throw childrenError;
+        childrenData = data || [];
+      }
+
+      // Update existingPlaces with the parent and its children
       setExistingPlaces(prev => {
         const updated = [...prev];
-        // Remove old children of this note
-        const filtered = updated.filter(p => p.Part_of_Place !== noteId);
-        // Add new children
-        if (childrenData && childrenData.length > 0) {
+        // Remove the parent note and all its old children
+        const filtered = updated.filter(p => p.id !== noteId && !childIds.includes(p.id));
+        // Add the updated parent note
+        filtered.push(parentNote);
+        // Add the new children
+        if (childrenData.length > 0) {
           filtered.push(...childrenData);
         }
-        console.log('Updated existingPlaces:', filtered);
         return filtered;
+      });
+
+      // Also update the note itself if it's in the hierarchy
+      setSelectedHierarchy(prev => {
+        const updated = [...prev];
+        const noteIndex = updated.findIndex(p => p.id === noteId);
+        if (noteIndex !== -1) {
+          updated[noteIndex] = parentNote;
+        }
+        return updated;
       });
     } catch (err) {
       console.error('Failed to refresh note and children:', err);
@@ -421,8 +590,6 @@ export default function SWNotes() {
   const handleDeletePlace = async (placeId) => {
     setDeleting(true);
     try {
-      console.log('Deleting place:', placeId);
-
       // First, find all child notes (notes where Part_of_Place = placeId)
       const { data: childNotes, error: fetchError } = await supabase
         .from('SW_campaign_notes')
@@ -434,7 +601,6 @@ export default function SWNotes() {
       // Delete all child notes first
       if (childNotes && childNotes.length > 0) {
         const childIds = childNotes.map(note => note.id);
-        console.log('Deleting child notes:', childIds);
         const { error: deleteChildError } = await supabase
           .from('SW_campaign_notes')
           .delete()
@@ -450,27 +616,23 @@ export default function SWNotes() {
         .eq('id', placeId);
 
       if (deleteError) throw deleteError;
-      console.log('Note deleted successfully');
 
       // Update existingPlaces to remove the deleted note and its children
       setExistingPlaces(prev => {
         const childIds = childNotes ? childNotes.map(note => note.id) : [];
         const filtered = prev.filter(p => p.id !== placeId && !childIds.includes(p.id));
-        console.log('Updated existingPlaces after deletion:', filtered);
         return filtered;
       });
 
       // Update topLevelPlaces to remove the deleted note if it's a top-level note
       setTopLevelPlaces(prev => {
         const filtered = prev.filter(p => p.id !== placeId);
-        console.log('Updated topLevelPlaces after deletion:', filtered);
         return filtered;
       });
 
       // Update selectedHierarchy to remove the deleted note if it's in the hierarchy
       setSelectedHierarchy(prev => {
         const updated = prev.filter(p => p.id !== placeId);
-        console.log('Updated selectedHierarchy after deletion:', updated);
         return updated;
       });
 
@@ -538,8 +700,7 @@ export default function SWNotes() {
           return;
         }
 
-        const result = await uploadResponse.json();
-        console.log('Picture uploaded successfully:', result);
+        await uploadResponse.json();
 
         alert('Picture uploaded successfully!');
         setShowDropdown(null);
@@ -568,7 +729,16 @@ export default function SWNotes() {
   };
 
   const getChildPlaces = (parentId) => {
-    return existingPlaces.filter(p => p.Part_of_Place === parentId);
+    // Find all notes where Part_of_Place equals parentId (or contains parentId in comma-separated list)
+    const children = existingPlaces.filter(p => {
+      if (!p.Part_of_Place) return false;
+
+      // Handle both single ID and comma-separated IDs
+      const parentIds = p.Part_of_Place.toString().split(',').map(id => parseInt(id.trim(), 10));
+      return parentIds.includes(parentId);
+    });
+
+    return children;
   };
 
   const getNPCsForPlace = (placeId) => {
@@ -579,7 +749,6 @@ export default function SWNotes() {
       const placeIds = npc.Part_of_Place.toString().split(',').map(id => parseInt(id.trim(), 10));
       return placeIds.includes(placeId);
     });
-    console.log(`getNPCsForPlace(${placeId}):`, result, 'from npcs:', npcs);
     return result;
   };
 
@@ -591,11 +760,30 @@ export default function SWNotes() {
 
     setSaving(true);
     try {
+      // Get the max Order value from all campaigns
+      const { data: allNotes, error: fetchError } = await supabase
+        .from('SW_campaign_notes')
+        .select('Order')
+        .order('Order', { ascending: false })
+        .limit(1);
+
+      if (fetchError) {
+        console.error('Error fetching max order:', fetchError);
+        alert('Failed to fetch order information: ' + fetchError.message);
+        return;
+      }
+
+      // Calculate the next order number
+      const nextOrder = (allNotes && allNotes.length > 0 && allNotes[0].Order)
+        ? allNotes[0].Order + 1
+        : 1;
+
       const payload = {
         Place_Name: placeName.trim(),
         Description: description.trim(),
-        Part_of_Place: partOfPlace ? parseInt(partOfPlace, 10) : null,
+        Part_of_Place: partOfPlace ? parseInt(partOfPlace, 10) : 0,
         CampaignID: parseInt(campaignId, 10),
+        Order: nextOrder,
       };
 
       const { data, error } = await supabase
@@ -619,7 +807,6 @@ export default function SWNotes() {
         if (!newNote.Part_of_Place) {
           setTopLevelPlaces(prev => [...prev, newNote]);
         }
-        console.log('Added new note to existingPlaces and topLevelPlaces:', newNote);
       }
 
       setPlaceName('');
@@ -1113,9 +1300,9 @@ export default function SWNotes() {
         {/* Panel 1: Top-Level Places */}
         <div className="shrink-0 w-56 bg-gray-50 border-r border-gray-300 p-2 overflow-y-auto flex flex-col relative">
           <h2 className="text-sm font-bold mb-2 text-gray-800">Places</h2>
-          {topLevelPlaces.length > 0 ? (
+          {notes.length > 0 ? (
             <div className="space-y-1">
-              {topLevelPlaces.map((place) => (
+              {notes.map((place) => (
                 <div
                   key={place.id}
                   draggable
@@ -1188,59 +1375,7 @@ export default function SWNotes() {
                 </div>
               </div>
 
-              {/* Dropdown Menu - Positioned outside the scrollable container */}
-              {showDropdown === place.id && (
-                <div
-                  className="fixed bg-white border border-gray-300 rounded shadow-lg z-50 w-40"
-                  style={{
-                    top: `${dropdownPos.top}px`,
-                    left: `${dropdownPos.left}px`,
-                  }}
-                >
-                  <button
-                    onClick={() => handleEditPlace(place)}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition"
-                  >
-                    Edit
-                  </button>
-                  {(isAdmin || uploadPicturesEnabled) && (
-                    <button
-                      onClick={() => handleUploadPicture(place)}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"
-                    >
-                      Upload Picture
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setShowInlineAddNote(place.id);
-                      setInlinePlaceName('');
-                      setInlineDescription('');
-                      setShowDropdown(null);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"
-                  >
-                    Add Note
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowInlineAddNPC(place.id);
-                      setShowDropdown(null);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-purple-50 transition border-t border-gray-300"
-                  >
-                    Add NPC
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDeleteConfirmation(place.id);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition border-t border-gray-300"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
+
 
               {/* Inline Add Note Form - appears to the right of the dropdown */}
               {showInlineAddNote === place.id && (
@@ -1289,7 +1424,6 @@ export default function SWNotes() {
                             }
 
                             try {
-                              console.log('Adding note to place:', place.id, place.Place_Name);
                               const payload = {
                                 Place_Name: inlinePlaceName.trim(),
                                 Description: inlineDescription.trim(),
@@ -1297,21 +1431,18 @@ export default function SWNotes() {
                                 CampaignID: parseInt(campaignId, 10),
                               };
 
-                              console.log('Payload:', payload);
                               const { error } = await supabase
                                 .from('SW_campaign_notes')
                                 .insert([payload]);
 
                               if (error) throw error;
-                              console.log('Note inserted successfully');
 
                               setShowInlineAddNote(null);
                               setInlinePlaceName('');
                               setInlineDescription('');
 
-                              // Refresh the place that we added the note to (including its children)
-                              console.log('Calling refreshNoteAndChildren with place.id:', place.id);
-                              await refreshNoteAndChildren(place.id);
+                              alert('Note added successfully!');
+                              await loadPlaces();
                             } catch (err) {
                               alert('Error saving note: ' + err.message);
                             }
@@ -1386,13 +1517,24 @@ export default function SWNotes() {
                   <h4 className="text-xs font-bold mb-1 text-gray-800">Notes</h4>
                   <div className="space-y-1">
                     {childPlaces.map((child) => (
-                      <button
+                      <div
                         key={child.id}
-                        onClick={() => handleSelectPlace(child, index)}
-                        className="w-full text-left px-2 py-1 rounded text-sm bg-blue-50 text-gray-800 hover:bg-blue-100 border border-blue-300 transition truncate"
+                        draggable
+                        onDragStart={(e) => handleDragStart(child, e)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(child, e)}
                       >
-                        {child.Place_Name}
-                      </button>
+                        <button
+                          onClick={() => handleSelectPlace(child, index)}
+                          className={`w-full text-left px-2 py-1 rounded text-sm bg-blue-50 text-gray-800 hover:bg-blue-100 border border-blue-300 transition truncate ${
+                            draggedNote?.id === child.id
+                              ? 'bg-blue-200 border-blue-400 opacity-50'
+                              : ''
+                          }`}
+                        >
+                          {child.Place_Name}
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </>
@@ -1490,6 +1632,53 @@ export default function SWNotes() {
                     Edit
                   </button>
                   <button
+                    onClick={async () => {
+                      try {
+                        // Get the current place ID from the hierarchy
+                        const currentPlace = selectedHierarchy[selectedHierarchy.length - 1];
+                        const currentPlaceId = currentPlace?.id;
+
+                        if (!currentPlaceId) {
+                          alert('Could not determine current place');
+                          return;
+                        }
+
+                        // Get the current Part_of_Place value
+                        const currentPartOfPlace = selectedNPC.Part_of_Place || '';
+
+                        if (!currentPartOfPlace) {
+                          alert('NPC is not assigned to any place');
+                          return;
+                        }
+
+                        // Split the comma-separated IDs and filter out the current place ID
+                        const placeIds = currentPartOfPlace.toString().split(',').map(id => parseInt(id.trim(), 10));
+                        const updatedPlaceIds = placeIds.filter(id => id !== currentPlaceId);
+
+                        // Create the new Part_of_Place value
+                        const newPartOfPlace = updatedPlaceIds.length > 0 ? updatedPlaceIds.join(',') : null;
+
+                        // Update the NPC's Part_of_Place field
+                        const { error: updateError } = await supabase
+                          .from('SW_campaign_NPC')
+                          .update({ Part_of_Place: newPartOfPlace })
+                          .eq('id', selectedNPC.id);
+
+                        if (updateError) throw updateError;
+
+                        alert('NPC removed from place successfully!');
+                        setShowNPCDropdown(null);
+                        setSelectedNPC(null);
+                        await loadNPCs();
+                      } catch (err) {
+                        alert('Error removing NPC from place: ' + err.message);
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition border-t border-gray-300"
+                  >
+                    Remove from {selectedHierarchy[selectedHierarchy.length - 1]?.Place_Name || 'Place'}
+                  </button>
+                  <button
                     onClick={() => {
                       handleDeleteNPC(selectedNPC.id);
                       setShowNPCDropdown(null);
@@ -1575,6 +1764,71 @@ export default function SWNotes() {
                         <input type="number" value={npcStrain} onChange={(e) => setNpcStrain(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
                       </div>
                     </div>
+
+                    {/* Skills in Edit Mode */}
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-1">Skills</label>
+                      <div className="flex gap-2">
+                        <select id="edit-npc-skill-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
+                          <option value="">-- Select Skill --</option>
+                          {skillsList.map((skill) => (
+                            <option key={skill.id} value={skill.name}>{skill.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById('edit-npc-skill-select');
+                            addToList(el.value, selectedSkills, setSelectedSkills);
+                            el.value = '';
+                          }}
+                          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                        >Add</button>
+                      </div>
+                      {selectedSkills.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
+                          {selectedSkills.map((s, idx) => (
+                            <span key={`edit-skill-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded flex-shrink-0">
+                              {s}
+                              <button onClick={() => removeFromList(s, selectedSkills, setSelectedSkills)} className="text-blue-700 hover:text-blue-900">×</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Abilities in Edit Mode */}
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-1">Abilities</label>
+                      <div className="flex gap-2">
+                        <select id="edit-npc-ability-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
+                          <option value="">-- Select Ability --</option>
+                          {abilitiesList.map((a) => (
+                            <option key={a.id} value={a.ability}>{a.ability}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById('edit-npc-ability-select');
+                            addToList(el.value, selectedAbilities, setSelectedAbilities);
+                            el.value = '';
+                          }}
+                          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                        >Add</button>
+                      </div>
+                      {selectedAbilities.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
+                          {selectedAbilities.map((a, idx) => (
+                            <span key={`edit-ability-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded flex-shrink-0">
+                              {a}
+                              <button onClick={() => removeFromList(a, selectedAbilities, setSelectedAbilities)} className="text-green-700 hover:text-green-900">×</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={handleSaveEditedNPC}
@@ -1951,7 +2205,6 @@ export default function SWNotes() {
                     }
 
                     try {
-                      console.log('Adding NPC to place:', showInlineAddNPC);
                       const payload = {
                         Name: npcName.trim(),
                         Race: npcRaceId ? parseInt(npcRaceId, 10) : null,
@@ -1971,13 +2224,11 @@ export default function SWNotes() {
                         CampaignID: parseInt(campaignId, 10),
                       };
 
-                      console.log('Payload:', payload);
                       const { error } = await supabase
                         .from('SW_campaign_NPC')
                         .insert([payload]);
 
                       if (error) throw error;
-                      console.log('NPC inserted successfully');
 
                       setShowInlineAddNPC(null);
                       resetNPCForm();
@@ -2003,6 +2254,432 @@ export default function SWNotes() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Add Existing NPC Panel */}
+      {showAddExistingNPC && (
+        <div
+          style={{
+            position: 'fixed',
+            top: `${addExistingNPCPos.top}px`,
+            left: `${addExistingNPCPos.left + 160}px`,
+            backgroundColor: '#d1d5db',
+            padding: '12px',
+            borderRadius: '6px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: 9999,
+            minWidth: '400px',
+            maxWidth: '500px',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div className="bg-white rounded-lg p-4 flex flex-col" style={{ maxHeight: 'none' }}>
+            <h4 className="font-bold text-gray-800 mb-3 text-sm">Add Existing NPC</h4>
+
+            {/* NPC Selection Dropdown */}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-2">Select NPC</label>
+              <select
+                value={selectedExistingNPC?.id || ''}
+                onChange={(e) => {
+                  const npc = existingNPCsList.find(n => n.id === parseInt(e.target.value, 10));
+                  setSelectedExistingNPC(npc || null);
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+              >
+                <option value="">-- Select an NPC --</option>
+                {existingNPCsList.map((npc) => (
+                  <option key={npc.id} value={npc.id}>
+                    {npc.Name} {npc.races ? `(${npc.races.name})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* NPC Preview - Scrollable */}
+            {selectedExistingNPC && (
+              <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300 text-xs space-y-2 overflow-y-auto" style={{ maxHeight: '300px' }}>
+                <div>
+                  <span className="font-semibold text-gray-800">{selectedExistingNPC.Name}</span>
+                  {selectedExistingNPC.races && <span className="text-gray-600 ml-2">({selectedExistingNPC.races.name})</span>}
+                </div>
+
+                {selectedExistingNPC.Description && (
+                  <div className="text-gray-700 whitespace-pre-wrap break-words">{selectedExistingNPC.Description}</div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="font-semibold">Brawn:</span> {selectedExistingNPC.Brawn ?? '-'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Cunning:</span> {selectedExistingNPC.Cunning ?? '-'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Presence:</span> {selectedExistingNPC.Presence ?? '-'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Agility:</span> {selectedExistingNPC.Agility ?? '-'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Intellect:</span> {selectedExistingNPC.Intellect ?? '-'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Willpower:</span> {selectedExistingNPC.Willpower ?? '-'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Soak:</span> {selectedExistingNPC.Soak ?? '-'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Wound:</span> {selectedExistingNPC.Wound ?? '-'}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Strain:</span> {selectedExistingNPC.Strain ?? '-'}
+                  </div>
+                </div>
+
+                {selectedExistingNPC.Skills && selectedExistingNPC.Skills.trim() && (
+                  <div>
+                    <span className="font-semibold">Skills:</span> {selectedExistingNPC.Skills}
+                  </div>
+                )}
+
+                {selectedExistingNPC.Abilities && selectedExistingNPC.Abilities.trim() && (
+                  <div>
+                    <span className="font-semibold">Abilities:</span> {selectedExistingNPC.Abilities}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons - Right under dropdown */}
+            <div className="flex gap-2 pt-2 border-t border-gray-300">
+              <button
+                onClick={async () => {
+                  if (!selectedExistingNPC) {
+                    alert('Please select an NPC');
+                    return;
+                  }
+
+                  try {
+                    // Get the current Part_of_Place value
+                    const currentPartOfPlace = selectedExistingNPC.Part_of_Place || '';
+
+                    // Append the new place ID with comma separation
+                    const newPartOfPlace = currentPartOfPlace
+                      ? `${currentPartOfPlace},${showAddExistingNPC}`
+                      : String(showAddExistingNPC);
+
+                    // Update the NPC's Part_of_Place field
+                    const { error: updateError } = await supabase
+                      .from('SW_campaign_NPC')
+                      .update({ Part_of_Place: newPartOfPlace })
+                      .eq('id', selectedExistingNPC.id);
+
+                    if (updateError) throw updateError;
+
+                    alert('NPC added successfully!');
+                    setShowAddExistingNPC(null);
+                    setSelectedExistingNPC(null);
+                    await loadNPCs();
+                    await loadExistingNPCsForPlayer();
+                  } catch (err) {
+                    alert('Error adding NPC: ' + err.message);
+                  }
+                }}
+                className="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition font-bold"
+              >
+                Add NPC
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddExistingNPC(null);
+                  setSelectedExistingNPC(null);
+                }}
+                className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Existing Note Panel */}
+      {showAddExistingNote && (
+        <div
+          style={{
+            position: 'fixed',
+            top: `${addExistingNotePos.top}px`,
+            left: `${addExistingNotePos.left + 160}px`,
+            backgroundColor: '#d1d5db',
+            padding: '12px',
+            borderRadius: '6px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            zIndex: 9999,
+            minWidth: '400px',
+            maxWidth: '500px',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          }}
+        >
+          <div className="bg-white rounded-lg p-4">
+            <h4 className="font-bold text-gray-800 mb-3 text-sm">Add Existing Note</h4>
+
+            {/* Note Selection Dropdown */}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-2">Select Note</label>
+              <select
+                value={selectedExistingNote?.id || ''}
+                onChange={(e) => {
+                  const note = existingNotesList.find(n => n.id === parseInt(e.target.value, 10));
+                  setSelectedExistingNote(note || null);
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+              >
+                <option value="">-- Select a Note --</option>
+                {existingNotesList.map((note) => (
+                  <option key={note.id} value={note.id}>
+                    {note.Place_Name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Note Preview */}
+            {selectedExistingNote && (
+              <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300 text-xs space-y-2">
+                <div>
+                  <span className="font-semibold text-gray-800">{selectedExistingNote.Place_Name}</span>
+                </div>
+
+                {selectedExistingNote.Description && (
+                  <div className="text-gray-700 whitespace-pre-wrap break-words">{selectedExistingNote.Description}</div>
+                )}
+
+                {selectedExistingNote.PictureID && (
+                  <div className="text-gray-600">
+                    <span className="font-semibold">Picture ID:</span> {selectedExistingNote.PictureID}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (!selectedExistingNote) {
+                    alert('Please select a note');
+                    return;
+                  }
+
+                  try {
+                    // Get the current Part_of_Place value from the note
+                    const currentPartOfPlace = selectedExistingNote.Part_of_Place || '';
+
+                    // Append the current place ID with comma separation
+                    const newPartOfPlace = currentPartOfPlace
+                      ? `${currentPartOfPlace},${showAddExistingNote}`
+                      : String(showAddExistingNote);
+
+                    // Update the note's Part_of_Place field
+                    const { error: updateError } = await supabase
+                      .from('SW_campaign_notes')
+                      .update({ Part_of_Place: newPartOfPlace })
+                      .eq('id', selectedExistingNote.id);
+
+                    if (updateError) throw updateError;
+
+                    alert('Note added successfully!');
+                    setShowAddExistingNote(null);
+                    setSelectedExistingNote(null);
+                    await loadPlaces();
+                    await loadExistingNotesForCampaign();
+                  } catch (err) {
+                    alert('Error adding note: ' + err.message);
+                  }
+                }}
+                className="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition font-bold"
+              >
+                Add Note
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddExistingNote(null);
+                  setSelectedExistingNote(null);
+                }}
+                className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dropdown Menu - Rendered at root level to avoid overflow clipping */}
+      {showDropdown && selectedHierarchy.find(p => p.id === showDropdown) && (
+        <div
+          className="fixed bg-white border border-gray-300 rounded shadow-lg z-50 w-40"
+          style={{
+            top: `${dropdownPos.top}px`,
+            left: `${dropdownPos.left}px`,
+          }}
+        >
+          {(() => {
+            const place = selectedHierarchy.find(p => p.id === showDropdown);
+            if (!place) return null;
+
+            // Get the parent place name if it exists
+            const currentPlaceIndex = selectedHierarchy.findIndex(p => p.id === place.id);
+            const parentPlace = currentPlaceIndex > 0 ? selectedHierarchy[currentPlaceIndex - 1] : null;
+
+            return (
+              <>
+                <button
+                  onClick={() => handleEditPlace(place)}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition"
+                >
+                  Edit
+                </button>
+                {(isAdmin || uploadPicturesEnabled) && (
+                  <button
+                    onClick={() => handleUploadPicture(place)}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"
+                  >
+                    Upload Picture
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowInlineAddNote(place.id);
+                    setInlinePlaceName('');
+                    setInlineDescription('');
+                    setShowDropdown(null);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"
+                >
+                  Add Note
+                </button>
+                <button
+                  onClick={() => {
+                    setShowInlineAddNPC(place.id);
+                    setShowDropdown(null);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-purple-50 transition border-t border-gray-300"
+                >
+                  Add NPC
+                </button>
+                <button
+                  onClick={async (e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setAddExistingNPCPos({
+                      top: rect.bottom + window.scrollY,
+                      left: rect.left + window.scrollX,
+                    });
+                    setShowAddExistingNPC(place.id);
+                    setSelectedExistingNPC(null);
+                    setShowDropdown(null);
+                    await loadExistingNPCsForPlayer();
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-purple-50 transition border-t border-gray-300"
+                >
+                  Add Existing NPC
+                </button>
+                <button
+                  onClick={async (e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setAddExistingNotePos({
+                      top: rect.bottom + window.scrollY,
+                      left: rect.left + window.scrollX,
+                    });
+                    setShowAddExistingNote(place.id);
+                    setSelectedExistingNote(null);
+                    setShowDropdown(null);
+                    await loadExistingNotesForCampaign();
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"
+                >
+                  Add Existing Note
+                </button>
+                {parentPlace && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        // Get the parent place ID (the one before the current place in the hierarchy)
+                        const currentPlaceIndex = selectedHierarchy.findIndex(p => p.id === place.id);
+
+                        if (currentPlaceIndex <= 0) {
+                          alert('This is a top-level place and cannot be removed from a parent');
+                          return;
+                        }
+
+                        const parentPlaceId = selectedHierarchy[currentPlaceIndex - 1].id;
+                        const parentPlace = selectedHierarchy[currentPlaceIndex - 1];
+
+                        // Ask for confirmation
+                        if (!window.confirm(`Are you sure you want to remove "${place.Place_Name}" from "${parentPlace.Place_Name}"?`)) {
+                          return;
+                        }
+
+                        // Get the current Part_of_Place value
+                        const currentPartOfPlace = place.Part_of_Place || '';
+
+                        console.log('Current place.id:', place.id);
+                        console.log('Parent place ID to remove:', parentPlaceId);
+                        console.log('Current Part_of_Place:', currentPartOfPlace, 'type:', typeof currentPartOfPlace);
+
+                        if (!currentPartOfPlace) {
+                          alert('This note is not part of any place');
+                          return;
+                        }
+
+                        // Split the comma-separated IDs and filter out the parent place ID
+                        const placeIds = currentPartOfPlace.toString().split(',').map(id => parseInt(id.trim(), 10));
+                        console.log('Parsed placeIds:', placeIds);
+
+                        const updatedPlaceIds = placeIds.filter(id => id !== parentPlaceId);
+                        console.log('Updated placeIds after filter:', updatedPlaceIds);
+
+                        // Create the new Part_of_Place value
+                        const newPartOfPlace = updatedPlaceIds.length > 0 ? updatedPlaceIds.join(',') : null;
+                        console.log('New Part_of_Place to set:', newPartOfPlace);
+
+                        // Update the note's Part_of_Place field
+                        const { error: updateError } = await supabase
+                          .from('SW_campaign_notes')
+                          .update({ Part_of_Place: newPartOfPlace })
+                          .eq('id', place.id);
+
+                        if (updateError) throw updateError;
+
+                        alert('Note removed from place successfully!');
+                        setShowDropdown(null);
+                        await loadPlaces();
+                      } catch (err) {
+                        alert('Error removing note from place: ' + err.message);
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 transition border-t border-gray-300"
+                  >
+                    Remove from {parentPlace.Place_Name}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setDeleteConfirmation(place.id);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition border-t border-gray-300"
+                >
+                  Delete
+                </button>
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

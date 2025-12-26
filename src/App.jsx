@@ -4,7 +4,6 @@ import LoginPage from './pages/LoginPage';
 import SelectTTRPG from './pages/SelectTTRPG';
 import SWEotECharacterCreator from './pages/SWEotECharacterCreator';
 import SWCharacterOverview from './pages/SWCharacterOverview';
-import FeastlandsCharacterCreator from './pages/FeastlandsCharacterCreator';
 import SWCampaign from './pages/SW_campaign';
 import SWCampaignEdit from './pages/SW_campaign_edit';
 import SWNotes from './pages/SW_notes';
@@ -19,7 +18,6 @@ export default function App() {
       <Route path="/select-ttrpg" element={<SelectTTRPG />} />
       <Route path="/sweote-character-creator" element={<SWEotECharacterCreator />} />
       <Route path="/SW_character_overview" element={<SWCharacterOverview />} />
-      <Route path="/feastlands-character-creator" element={<FeastlandsCharacterCreator />} />
       <Route path="/SW_campaign" element={<SWCampaign />} />
       <Route path="/SW_campaign_edit" element={<SWCampaignEdit />} />
       <Route path="/SW_notes" element={<SWNotes />} />

@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
+// Dynamically import character creator components
+const characterCreators = {
+  'F': () => import('./F_character_creator').then(m => m.default),
+  // Add more TTRPGs here as needed
+};
+
 export default function TTRPGGenericPage() {
   const navigate = useNavigate();
   const { initials, page } = useParams();
@@ -9,6 +15,7 @@ export default function TTRPGGenericPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [rows, setRows] = useState([]);
   const [userId, setUserId] = useState(null);
+  const [CharacterCreatorComponent, setCharacterCreatorComponent] = useState(null);
 
   const upperInitials = (initials || '').toUpperCase();
 
@@ -25,7 +32,15 @@ export default function TTRPGGenericPage() {
           setUserId(userData?.id || null);
         }
 
-        if (page === 'player_characters') {
+        if (page === 'character_creator') {
+          // Dynamically load the character creator component
+          if (characterCreators[initials]) {
+            const component = await characterCreators[initials]();
+            setCharacterCreatorComponent(() => component);
+          } else {
+            setErrorMsg(`Character creator not found for ${initials}`);
+          }
+        } else if (page === 'player_characters') {
           const table = `${upperInitials}_player_characters`;
           const { data, error } = await supabase
             .from(table)
@@ -68,6 +83,21 @@ export default function TTRPGGenericPage() {
         <div>Loading...</div>
       </div>
     );
+  }
+
+  if (page === 'character_creator') {
+    if (errorMsg) {
+      return (
+        <div className="max-w-5xl mx-auto p-6">
+          <button onClick={goBack} className="mb-4 px-4 py-2 bg-gray-700 text-white rounded">Back</button>
+          <div className="text-red-700 font-semibold">{errorMsg}</div>
+        </div>
+      );
+    }
+    if (CharacterCreatorComponent) {
+      return <CharacterCreatorComponent />;
+    }
+    return <div>Loading character creator...</div>;
   }
 
   if (errorMsg) {

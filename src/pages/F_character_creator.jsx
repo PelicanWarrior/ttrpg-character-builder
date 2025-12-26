@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
-export default function FeastlandsCharacterCreator() {
+export default function FCharacterCreator() {
   const [races, setRaces] = useState([]);
   const [selectedRace, setSelectedRace] = useState('');
   const [characterName, setCharacterName] = useState('');
@@ -35,7 +35,7 @@ export default function FeastlandsCharacterCreator() {
   return (
     <div className="flex flex-col items-center min-h-screen bg-white py-10">
       {/* ---------- FIXED POSITION ELEMENTS ---------- */}
-      <img src="/Feastlands.png" alt="Feastlands" className="w-64 mb-6" />
+      <img src="/F_Pictures/Logo.png" alt="Feastlands" className="w-64 mb-6" />
 
       <div className="w-3/4 max-w-lg text-center mb-6">
         <button
@@ -58,7 +58,7 @@ export default function FeastlandsCharacterCreator() {
       </div>
 
       {/* ---------- TAB SYSTEM – 3× WIDER CONTENT ---------- */}
-      <div className="w-3/4 max-w-6xl">               {/* 3× the original max-w-lg */}
+      <div className="w-full max-w-5xl"> {/* Wider race list */}
         {/* Tab Headers */}
         <div className="flex border-b-2 border-black">
           <button
@@ -85,22 +85,22 @@ export default function FeastlandsCharacterCreator() {
 
         {/* Fixed-height + scrollable content */}
         <div
-          className="border-2 border-black rounded-b-lg p-4 bg-white"
-          style={{ height: '500px', overflowY: 'auto' }}
+          className="p-0 bg-white"
+          style={{ height: '500px', overflowY: 'auto', overflowX: 'hidden' }}
         >
           {activeTab === 'Species' && (
-            <div className="flex flex-col space-y-4">
+            <div className="border-2 border-black rounded-b-lg p-4 h-full flex flex-col space-y-4 bg-white">
               {races.map((race, index) => (
                 <div
                   key={index}
-                  className={`border-2 border-black rounded-lg p-2 flex items-center justify-between cursor-pointer w-full ${
+                  className={`rounded-lg p-2 flex items-center justify-between cursor-pointer w-full ${
                     selectedRace === race.race_name ? 'bg-gray-200' : ''
                   }`}
                   onClick={() => handleRaceSelect(race.race_name)}
                 >
                   <div className="flex items-center">
                     <img
-                      src={`/FL_${race.race_name}_Face.png`}
+                      src={`/F_Pictures/${race.race_name}_Face.png`}
                       alt={`${race.race_name} Face`}
                       className="w-16 h-16 mr-4 border-2 border-black rounded"
                     />
@@ -122,3 +122,4 @@ export default function FeastlandsCharacterCreator() {
     </div>
   );
 }
+
