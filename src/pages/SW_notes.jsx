@@ -63,9 +63,13 @@ export default function SWNotes() {
   const [selectedAbilities, setSelectedAbilities] = useState([]); // abilities strings
   const [selectedEquipment, setSelectedEquipment] = useState([]); // names
 
+
   // Admin and permissions
   const [isAdmin, setIsAdmin] = useState(false);
   const [uploadPicturesEnabled, setUploadPicturesEnabled] = useState(false);
+
+  // Helper: can the current user upload pictures?
+  const canUploadPictures = () => isAdmin || uploadPicturesEnabled;
 
   // NPC dropdown and edit state
   const [showNPCDropdown, setShowNPCDropdown] = useState(null); // ID of NPC with open dropdown
@@ -114,24 +118,19 @@ export default function SWNotes() {
 
   const loadPermissions = async () => {
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.warn('Auth error (may be expected):', userError.message);
+      // Use localStorage-based login system
+      const username = localStorage.getItem('username');
+      if (!username) {
+        console.warn('No user logged in (localStorage.username missing)');
         return;
       }
-
-      if (!user) {
-        console.warn('No user logged in');
-        return;
-      }
-
       // Check if user is admin
+
+      // Use username from localStorage to check admin
       const { data: userData, error: adminError } = await supabase
         .from('user')
         .select('admin')
-        .eq('id', user.id)
+        .eq('username', username)
         .single();
 
       if (adminError) {
@@ -212,7 +211,7 @@ export default function SWNotes() {
     try {
       const { data, error } = await supabase
         .from('SW_campaign_NPC')
-        .select('id, Name, Race, Part_of_Place, Description, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, races(name)')
+        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, races(name)')
         .eq('CampaignID', campaignId);
       if (error) throw error;
 
@@ -704,6 +703,7 @@ export default function SWNotes() {
 
         alert('Picture uploaded successfully!');
         setShowDropdown(null);
+        // Refresh parent note so user sees the new picture immediately
         await refreshSingleNote(place.id);
       } catch (err) {
         console.error('Error uploading picture:', err);
@@ -908,6 +908,10 @@ export default function SWNotes() {
       }
 
       alert('NPC saved successfully!');
+      // Refresh parent note so user sees the change immediately
+      if (npcPlaceId) {
+        await refreshSingleNote(Number(npcPlaceId));
+      }
       resetNPCForm();
       setShowAddNPCForm(false);
       await loadNPCs();
@@ -1625,6 +1629,48 @@ export default function SWNotes() {
                     left: `${npcDropdownPos.left}px`,
                   }}
                 >
+                  {/* Add Picture to Database (Admin only) */}
+                  {isAdmin && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          // 1. Insert new row into SW_pictures with user_ID
+                          const userId = localStorage.getItem('userId') || localStorage.getItem('userid') || localStorage.getItem('user_id');
+                          if (!userId) {
+                            alert('User ID not found in localStorage.');
+                            return;
+                          }
+                          const { data: pictureRow, error: pictureError } = await supabase
+                            .from('SW_pictures')
+                            .insert([{ user_ID: userId }])
+                            .select('id')
+                            .single();
+                          if (pictureError || !pictureRow?.id) {
+                            alert('Failed to create picture row: ' + (pictureError?.message || 'Unknown error'));
+                            return;
+                          }
+                          // 2. Update NPC's PictureID
+                          const { error: npcError } = await supabase
+                            .from('SW_campaign_NPC')
+                            .update({ PictureID: pictureRow.id })
+                            .eq('id', selectedNPC.id);
+                          if (npcError) {
+                            alert('Failed to update NPC with new PictureID: ' + npcError.message);
+                            return;
+                          }
+                          // 3. Show message
+                          alert(`Picture ${pictureRow.id} has been created, upload Picture.`);
+                          setShowNPCDropdown(null);
+                          await loadNPCs();
+                        } catch (err) {
+                          alert('Error adding picture: ' + err.message);
+                        }
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 transition border-b border-gray-300"
+                    >
+                      Add Picture to Database
+                    </button>
+                  )}
                   <button
                     onClick={() => handleEditNPC(selectedNPC)}
                     className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition"
@@ -1851,10 +1897,25 @@ export default function SWNotes() {
                 </div>
               )}
 
-              {/* Race and Description */}
+              {/* Race, Picture, and Description */}
               {!editingNPCId && (
                 <>
-                  <div className="mb-4">
+                  <div className="mb-4" style={{ overflow: 'hidden' }}>
+                    {(() => {
+                      console.log('NPC PictureID:', selectedNPC.PictureID, 'for NPC:', selectedNPC.Name);
+                      if (selectedNPC.PictureID) {
+                        return (
+                          <img
+                            src={`/SW_Pictures/Picture ${selectedNPC.PictureID}.png`}
+                            alt={selectedNPC.Name}
+                            className="rounded"
+                            style={{ width: '200px', height: '240px', float: 'right', marginLeft: '1rem', marginBottom: '1rem', objectFit: 'contain', display: 'block' }}
+                            onError={e => { e.target.style.display = 'none'; }}
+                          />
+                        );
+                      }
+                      return null;
+                    })()}
                     {selectedNPC.races && <p className="text-sm text-gray-600 mb-1">Race: {selectedNPC.races.name}</p>}
                     {selectedNPC.Description && (
                       <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{selectedNPC.Description}</p>
@@ -2546,7 +2607,7 @@ export default function SWNotes() {
                 >
                   Edit
                 </button>
-                {(isAdmin || uploadPicturesEnabled) && (
+                {canUploadPictures() && (
                   <button
                     onClick={() => handleUploadPicture(place)}
                     className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition border-t border-gray-300"

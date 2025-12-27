@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -8,8 +9,6 @@ export default function SelectTTRPG() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [playerId, setPlayerId] = useState(null);
   const [ttrpgRows, setTtrpgRows] = useState([]);
-
-  // Dice roll state (shared popup for all boxes)
   const [dicePopup, setDicePopup] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [rollResults, setRollResults] = useState(null);
@@ -18,8 +17,6 @@ export default function SelectTTRPG() {
   const [showCharacterList, setShowCharacterList] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
   const [showSWCampaigns, setShowSWCampaigns] = useState(false);
-
-  // Add TTRPG form state (admin only)
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTtrpgName, setNewTtrpgName] = useState('');
   const [newTtrpgDndMod, setNewTtrpgDndMod] = useState(false);
@@ -28,6 +25,7 @@ export default function SelectTTRPG() {
   const addFormRef = useRef(null);
 
   useEffect(() => {
+    console.log('Hello World');
     const fetchData = async () => {
       const uname = localStorage.getItem('username');
       if (!uname) return;
@@ -78,6 +76,7 @@ export default function SelectTTRPG() {
 
     fetchData();
   }, []);
+
 
   const toggleTTRPGVisibility = async (name, current) => {
     const newVal = !current;

@@ -31,6 +31,7 @@ export default function LoginPage() {
         } else {
           setMessage(`Welcome, ${data.username}!`);
           localStorage.setItem('username', data.username); // Store username
+          localStorage.setItem('userId', data.id); // Store user ID for later use
           navigate('/select-ttrpg'); // Navigate to new page
         }
       } else {

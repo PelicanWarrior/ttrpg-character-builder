@@ -1,3 +1,4 @@
+
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
@@ -5,6 +6,8 @@ import { supabase } from '../supabaseClient';
 export default function SWCampaignEdit() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  // NPC state
+  const [npc, setNpc] = useState(null);
   const [campaignName, setCampaignName] = useState('');
   const [description, setDescription] = useState('');
   const [editMode, setEditMode] = useState(false);
@@ -24,6 +27,20 @@ export default function SWCampaignEdit() {
         return;
       }
 
+      // If editing an NPC, fetch NPC data
+      const npcId = searchParams.get('npc');
+      if (npcId) {
+        const { data: npcData, error: npcError } = await supabase
+          .from('SW_campaign_NPC')
+          .select('id, Name, Description, PictureID')
+          .eq('id', npcId)
+          .single();
+        if (!npcError && npcData) {
+          setNpc(npcData);
+          setDescription(npcData.Description || '');
+        }
+      }
+
       const { data: campaign, error } = await supabase
         .from('SW_campaign')
         .select('Name, description')
@@ -35,7 +52,7 @@ export default function SWCampaignEdit() {
         navigate('/SW_campaign');
       } else {
         setCampaignName(campaign.Name);
-        setDescription(campaign.description || '');
+        if (!npc) setDescription(campaign.description || '');
 
         const { data: chars, error: charsErr } = await supabase
           .from('SW_player_characters')
@@ -65,6 +82,7 @@ export default function SWCampaignEdit() {
     };
 
     fetchCampaign();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, navigate]);
 
   const handleSave = async () => {
@@ -187,6 +205,7 @@ export default function SWCampaignEdit() {
           )}
         </div>
 
+        {/* Description with NPC Picture (if present) */}
         {editMode ? (
           <textarea
             value={description}
@@ -196,7 +215,19 @@ export default function SWCampaignEdit() {
             rows={5}
           />
         ) : (
-          <p className="text-lg text-gray-200 leading-relaxed">{description || 'No description provided.'}</p>
+          <div className="flex items-start mb-6">
+            {/* NPC Picture (if PictureID is present) */}
+            {npc && npc.PictureID && (
+              <img
+                src={`/SW_Pictures/Picture ${npc.PictureID}.png`}
+                alt="NPC"
+                className="w-40 h-52 object-cover rounded-lg shadow-lg mr-6 mb-2 float-right"
+                style={{ float: 'right', marginLeft: '1.5rem', marginBottom: '0.5rem' }}
+                onError={e => { e.target.style.display = 'none'; }}
+              />
+            )}
+            <p className="text-lg text-gray-200 leading-relaxed" style={{ overflowWrap: 'anywhere' }}>{description || 'No description provided.'}</p>
+          </div>
         )}
 
         <div className="mt-8">

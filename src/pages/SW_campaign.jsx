@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function SWCampaign() {
+  // NPCs by campaignId
+  const [campaignNpcs, setCampaignNpcs] = useState({});
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [campaignName, setCampaignName] = useState('');
@@ -11,8 +13,7 @@ export default function SWCampaign() {
   const [loading, setLoading] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
   const [campaignCharacters, setCampaignCharacters] = useState({});
-  const [openCharacters, setOpenCharacters] = useState({});
-  const [openLogs, setOpenLogs] = useState({});
+  const [openCharacters, setOpenCharacters] = useState({});  const [openLogs, setOpenLogs] = useState({});
   const [campaignLogs, setCampaignLogs] = useState({});
 
   useEffect(() => {
@@ -21,27 +22,26 @@ export default function SWCampaign() {
       const fetchPlayerIdAndCampaigns = async () => {
         const { data: userData } = await supabase
           .from('user')
-          .select('id')
+          .select('id, admin')
           .eq('username', username)
           .single();
         if (userData) {
           setPlayerId(userData.id);
-          
+          if (userData.admin === true) {
+            console.log('This user is Admin');
+          }
           // Fetch campaigns where user is DM
           const { data: dmCampaigns } = await supabase
             .from('SW_campaign')
             .select('id, Name, description, playerID, campaign_code, user:playerID(username)')
             .eq('playerID', userData.id);
-          
           // Fetch campaigns where user's characters are members
           const { data: userCharacters } = await supabase
             .from('SW_player_characters')
             .select('campaign_joined')
             .eq('user_number', userData.id)
             .not('campaign_joined', 'is', null);
-          
           const memberCampaignIds = [...new Set((userCharacters || []).map(c => c.campaign_joined))];
-          
           let memberCampaigns = [];
           if (memberCampaignIds.length > 0) {
             const { data: campaigns } = await supabase
@@ -50,28 +50,34 @@ export default function SWCampaign() {
               .in('id', memberCampaignIds);
             memberCampaigns = campaigns || [];
           }
-          
           // Combine and deduplicate campaigns
           const allCampaignsMap = new Map();
           [...(dmCampaigns || []), ...memberCampaigns].forEach(c => {
             if (c) allCampaignsMap.set(c.id, c);
           });
           const allCampaigns = Array.from(allCampaignsMap.values());
-          
           const sortedCampaigns = allCampaigns.slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
           setCampaigns(sortedCampaigns);
-          
           // Fetch characters for each campaign
           if (allCampaigns.length > 0) {
             const charactersByCampaign = {};
+            const npcsByCampaign = {};
             for (const campaign of allCampaigns) {
-              const { data: chars } = await supabase
-                .from('SW_player_characters')
-                .select('id, name, race, career, spec, picture, user_number, user:user_number(username)')
-                .eq('campaign_joined', campaign.id);
+              const [{ data: chars }, { data: npcs }] = await Promise.all([
+                supabase
+                  .from('SW_player_characters')
+                  .select('id, name, race, career, spec, picture, user_number, user:user_number(username)')
+                  .eq('campaign_joined', campaign.id),
+                supabase
+                  .from('SW_campaign_NPC')
+                  .select('id, Name, Description, PictureID, campaignID')
+                  .eq('campaignID', campaign.id)
+              ]);
               charactersByCampaign[campaign.id] = chars || [];
+              npcsByCampaign[campaign.id] = npcs || [];
             }
             setCampaignCharacters(charactersByCampaign);
+            setCampaignNpcs(npcsByCampaign);
           }
         }
       };
@@ -165,17 +171,26 @@ export default function SWCampaign() {
         const sortedCampaigns = allCampaigns.slice().sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
         setCampaigns(sortedCampaigns);
         
-        // Fetch characters for the new campaign
+        // Fetch characters and NPCs for the new campaign
         if (allCampaigns.length > 0) {
           const charactersByCampaign = {};
+          const npcsByCampaign = {};
           for (const campaign of allCampaigns) {
-            const { data: chars } = await supabase
-              .from('SW_player_characters')
-              .select('id, name, race, career, spec, picture, user_number, user:user_number(username)')
-              .eq('campaign_joined', campaign.id);
+            const [{ data: chars }, { data: npcs }] = await Promise.all([
+              supabase
+                .from('SW_player_characters')
+                .select('id, name, race, career, spec, picture, user_number, user:user_number(username)')
+                .eq('campaign_joined', campaign.id),
+              supabase
+                .from('SW_campaign_NPC')
+                .select('id, Name, Description, PictureID, campaignID')
+                .eq('campaignID', campaign.id)
+            ]);
             charactersByCampaign[campaign.id] = chars || [];
+            npcsByCampaign[campaign.id] = npcs || [];
           }
           setCampaignCharacters(charactersByCampaign);
+          setCampaignNpcs(npcsByCampaign);
         }
       }
     } catch (err) {
@@ -261,7 +276,40 @@ export default function SWCampaign() {
               <div key={campaign.id} className="rounded-2xl p-6 border-2 border-gray-600" style={{ backgroundColor: '#d1d5db', marginBottom: '2rem' }}>
                 <h3 className="text-xl font-bold mb-1 text-white text-center">{campaign.Name}</h3>
                 <p className="text-sm text-gray-800 font-semibold mb-2 text-left">DM: {campaign.user?.username || 'Unknown'}</p>
-                <p className="text-gray-300 mb-4">{campaign.description}</p>
+                {/* NPCs with PictureID shown to the right of the description */}
+                {campaignNpcs[campaign.id] && campaignNpcs[campaign.id].length > 0 ? (
+                  <div className="flex items-start mb-4">
+                    {/* Show the first NPC with a PictureID, or just the first NPC */}
+                    {(() => {
+                      const npc = campaignNpcs[campaign.id].find(n => n.PictureID);
+                      if (npc && npc.PictureID) {
+                        return (
+                          <img
+                            src={`/SW_Pictures/Picture ${npc.PictureID}.png`}
+                            alt={npc.Name}
+                            className="w-40 h-52 object-cover rounded-lg shadow-lg mr-6 mb-2 float-right"
+                            style={{ float: 'right', marginLeft: '1.5rem', marginBottom: '0.5rem' }}
+                            onError={e => { e.target.style.display = 'none'; }}
+                          />
+                        );
+                      }
+                      return null;
+                    })()}
+                    <div style={{ flex: 1 }}>
+                      <p className="text-gray-300 mb-2" style={{ overflowWrap: 'anywhere' }}>{campaign.description}</p>
+                      {/* Optionally show NPC description below or merged with campaign description */}
+                      {(() => {
+                        const npc = campaignNpcs[campaign.id].find(n => n.Description);
+                        if (npc && npc.Description) {
+                          return <p className="text-gray-400 text-sm mt-2">NPC: {npc.Description}</p>;
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-300 mb-4">{campaign.description}</p>
+                )}
                 
                 <div className="bg-gray-700 rounded-lg p-4 mb-4">
                   <div className="flex gap-2 items-center mb-2">
@@ -375,7 +423,7 @@ export default function SWCampaign() {
                               className="rounded object-contain"
                               style={{ width: '80px', height: '100px' }}
                               onError={(e) => {
-                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="100"%3E%3Crect fill="%23333" width="80" height="100"/%3E%3C/svg%3E';
+                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"100\"%3E%3Crect fill=\"%23333\" width=\"80\" height=\"100\"/%3E%3C/svg%3E';
                               }}
                             />
                             <div className="flex-1 min-w-0">
