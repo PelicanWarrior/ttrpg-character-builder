@@ -1,7 +1,8 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { DragHandle } from '../assets/DragHandle';
+import DicePoolPopup from './DicePoolPopup';
 
 export default function SWNotes() {
   const navigate = useNavigate();
@@ -89,6 +90,7 @@ export default function SWNotes() {
   const [existingNotesList, setExistingNotesList] = useState([]); // List of notes with Part_of_Place = 0
   const [selectedExistingNote, setSelectedExistingNote] = useState(null); // Currently selected note to add
   const [addExistingNotePos, setAddExistingNotePos] = useState({ top: 0, left: 0 });
+
 
   const loadNotes = async () => {
     try {
@@ -919,7 +921,7 @@ export default function SWNotes() {
       console.error('Error saving NPC:', err);
       alert('Failed to save NPC');
     } finally {
-      setSaving(false);
+      setSavingNPC(false);
     }
   };
 
@@ -1006,6 +1008,49 @@ export default function SWNotes() {
       setSavingNPC(false);
     }
   };
+
+  const loadSkills = async () => {
+    try {
+      const { data, error } = await supabase.from('skills').select('id, skill').order('skill');
+      if (error) throw error;
+      setSkillsList(data || []);
+    } catch (err) {
+      console.error('Failed to load skills:', err);
+    }
+  };
+
+  // Load skills on mount and when campaignId changes
+  useEffect(() => {
+    if (campaignId) {
+      loadSkills();
+    }
+  }, [campaignId]);
+
+  // Dice pool click-to-roll popup state
+  const [dicePopup, setDicePopup] = useState(null);
+
+  // Handler for dice pool click
+  const handleDicePoolClick = (e, pool, label) => {
+    if (!pool) return;
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    let x = rect.left + window.scrollX;
+    let y = rect.bottom + window.scrollY + 8;
+    setDicePopup({ pool, x, y, label });
+  };
+
+  // Refs for scrolling notes and NPCs into view
+  const noteRefs = useRef({});
+  const npcRefs = useRef({});
+
+  // Scroll to selected note/NPC when selected
+  useEffect(() => {
+    if (selectedNPC && npcRefs.current[selectedNPC.id]) {
+      npcRefs.current[selectedNPC.id].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [selectedNPC]);
+
+  // Optionally, scroll to a selected note if you have a selectedNoteId state
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -1413,7 +1458,7 @@ export default function SWNotes() {
                         <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
                         <textarea
                           value={inlineDescription}
-                          onChange={(e) => setInlineDescription(e.target.value)}
+                          onChange={(e) => setInlinePlaceName(e.target.value)}
                           className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
                           rows={3}
                           placeholder="Enter description"
@@ -1461,7 +1506,7 @@ export default function SWNotes() {
                             setInlinePlaceName('');
                             setInlineDescription('');
                           }}
-                          className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+                          className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition font-bold"
                         >
                           Cancel
                         </button>
@@ -1529,7 +1574,15 @@ export default function SWNotes() {
                         onDrop={(e) => handleDrop(child, e)}
                       >
                         <button
-                          onClick={() => handleSelectPlace(child, index)}
+                          ref={el => noteRefs.current[child.id] = el}
+                          onClick={() => {
+                            handleSelectPlace(child, index);
+                            setTimeout(() => {
+                              if (noteRefs.current[child.id]) {
+                                noteRefs.current[child.id].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
+                            }, 0);
+                          }}
                           className={`w-full text-left px-2 py-1 rounded text-sm bg-blue-50 text-gray-800 hover:bg-blue-100 border border-blue-300 transition truncate ${
                             draggedNote?.id === child.id
                               ? 'bg-blue-200 border-blue-400 opacity-50'
@@ -1554,9 +1607,15 @@ export default function SWNotes() {
                     {getNPCsForPlace(place.id).map((npc) => (
                       <button
                         key={npc.id}
+                        ref={el => npcRefs.current[npc.id] = el}
                         onClick={() => {
                           setSelectedNPC(npc);
                           loadAbilityDescriptions(npc.Abilities);
+                          setTimeout(() => {
+                            if (npcRefs.current[npc.id]) {
+                              npcRefs.current[npc.id].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }, 0);
                         }}
                         className="w-full text-left px-2 py-1 rounded text-sm bg-purple-50 text-gray-800 hover:bg-purple-100 border border-purple-300 transition truncate"
                       >
@@ -1589,6 +1648,7 @@ export default function SWNotes() {
         {/* NPC Details Column - Show when an NPC is selected */}
         {selectedNPC && (
           <div className="flex shrink-0">
+            {/* NPC Details Panel */}
             <div className="w-[28rem] bg-white border-r border-gray-300 p-4 overflow-y-auto flex flex-col">
               {/* Header with Dropdown and Close Button */}
               <div className="flex justify-between items-center mb-4">
@@ -1768,7 +1828,7 @@ export default function SWNotes() {
                       <textarea
                         value={npcDescription}
                         onChange={(e) => setNpcDescription(e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500 text-xs"
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                         rows="2"
                       />
                     </div>
@@ -1783,9 +1843,6 @@ export default function SWNotes() {
                       </div>
                       <div>
                         <label className="block font-medium text-gray-700 mb-1">Presence</label>
-                        <input type="number" value={npcPresence} onChange={(e) => setNpcPresence(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
-                      </div>
-                      <div>
                         <label className="block font-medium text-gray-700 mb-1">Agility</label>
                         <input type="number" value={npcAgility} onChange={(e) => setNpcAgility(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
                       </div>
@@ -1922,78 +1979,89 @@ export default function SWNotes() {
                     )}
                   </div>
 
-                  {/* Attributes */}
-                  <div className="mb-4">
-                <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Attributes</h4>
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div className="space-y-1">
-                    <div className="flex gap-2"><span>Brawn:</span><span className="font-semibold">{selectedNPC.Brawn ?? '-'}</span></div>
-                    <div className="flex gap-2"><span>Cunning:</span><span className="font-semibold">{selectedNPC.Cunning ?? '-'}</span></div>
-                    <div className="flex gap-2"><span>Presence:</span><span className="font-semibold">{selectedNPC.Presence ?? '-'}</span></div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex gap-2"><span>Agility:</span><span className="font-semibold">{selectedNPC.Agility ?? '-'}</span></div>
-                    <div className="flex gap-2"><span>Intellect:</span><span className="font-semibold">{selectedNPC.Intellect ?? '-'}</span></div>
-                    <div className="flex gap-2"><span>Willpower:</span><span className="font-semibold">{selectedNPC.Willpower ?? '-'}</span></div>
-                  </div>
-                </div>
-              </div>
+                  {/* Attributes section hidden */}
 
-              {/* Defense */}
-              <div className="mb-4">
-                <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Defense</h4>
-                <div className="flex justify-between text-xs">
-                  <div className="flex gap-2"><span>Soak:</span><span className="font-semibold">{selectedNPC.Soak ?? '-'}</span></div>
-                  <div className="flex gap-2"><span>Wound:</span><span className="font-semibold">{selectedNPC.Wound ?? '-'}</span></div>
-                  <div className="flex gap-2"><span>Strain:</span><span className="font-semibold">{selectedNPC.Strain ?? '-'}</span></div>
-                </div>
-              </div>
+                  {/* Skills section hidden */}
 
-              {/* Skills */}
-              {selectedNPC.Skills && selectedNPC.Skills.trim() && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Skills</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(() => {
-                      const skillsArray = selectedNPC.Skills.split(',').map(s => s.trim());
-                      const skillCounts = {};
-                      skillsArray.forEach(skill => {
-                        skillCounts[skill] = (skillCounts[skill] || 0) + 1;
-                      });
-                      return Object.entries(skillCounts)
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([skill, count]) => (
-                          <div key={skill} className="text-xs text-gray-800">
-                            {skill} Rank {count}
-                          </div>
-                        ));
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* Abilities */}
-              {selectedNPC.Abilities && selectedNPC.Abilities.trim() && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Abilities</h4>
-                  <div className="space-y-2">
-                    {selectedNPC.Abilities.split(',')
-                      .map(a => a.trim())
-                      .sort((a, b) => a.localeCompare(b))
-                      .map((abilityName, idx) => {
-                        const description = abilityDescriptions[abilityName];
-                        return (
-                          <div key={idx} className="text-xs">
-                            <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName}</div>
-                            {description && <div className="text-gray-600 text-xs mt-1">{description}</div>}
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
+                  {/* Abilities section remains */}
+                  {selectedNPC.Abilities && selectedNPC.Abilities.trim() && (
+                    <div className="mb-4">
+                      <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Abilities</h4>
+                      <div className="space-y-2">
+                        {selectedNPC.Abilities.split(',')
+                          .map(a => a.trim())
+                          .sort((a, b) => a.localeCompare(b))
+                          .map((abilityName, idx) => {
+                            const description = abilityDescriptions[abilityName];
+                            return (
+                              <div key={idx} className="text-xs">
+                                <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName}</div>
+                                {description && <div className="text-gray-600 text-xs mt-1">{description}</div>}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
+            </div>
+
+            {/* Skills & Dice Pool Panel */}
+            <div className="w-[24rem] bg-gray-50 border-r border-gray-300 p-4 overflow-y-auto flex flex-col">
+              <h4 className="font-bold text-md text-gray-800 mb-2">Skills & Dice Pool</h4>
+              <table className="w-full text-xs border border-gray-300 rounded">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="px-2 py-1 border">Skill</th>
+                    <th className="px-2 py-1 border">Dice Pool</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {skillsList.map(skillObj => {
+                    const skillStatMap = {
+                      Astrogation: 'Intellect', Athletics: 'Brawn', Brawl: 'Brawn', Charm: 'Presence', Coercion: 'Willpower', Computers: 'Intellect', Cool: 'Presence', Coordination: 'Agility', 'Core Worlds': 'Intellect', Deception: 'Cunning', Discipline: 'Willpower', Education: 'Intellect', Gunnery: 'Agility', Leadership: 'Presence', Lightsaber: 'Brawn', Lore: 'Intellect', Mechanics: 'Intellect', Medicine: 'Intellect', Melee: 'Brawn', Negotiation: 'Presence', 'Outer Rim': 'Intellect', Perception: 'Cunning', 'Piloting-Planetary': 'Agility', 'Piloting-Space': 'Agility', 'Ranged-Heavy': 'Agility', 'Ranged-Light': 'Agility', Resilience: 'Brawn', Skulduggery: 'Cunning', Stealth: 'Agility', Streetwise: 'Cunning', Survival: 'Cunning', Underworld: 'Intellect', Vigilance: 'Willpower', Warfare: 'Intellect', Xenology: 'Intellect',
+                    };
+                    const skillName = skillObj.skill;
+                    const statName = skillStatMap[skillName] || '';
+                    const statValue = parseInt(selectedNPC[statName], 10) || 0;
+                    // Count skill rank from NPC's Skills string
+                    let rank = 0;
+                    if (selectedNPC.Skills) {
+                      const skillsArr = selectedNPC.Skills.split(',').map(s => s.trim());
+                      rank = skillsArr.filter(s => s === skillName).length;
+                    }
+                    // Dice pool: upgrade greens to yellows for each rank
+                    let dicePool = 'G'.repeat(statValue);
+                    if (rank > 0) {
+                      const yCount = Math.min(rank, dicePool.length);
+                      dicePool = dicePool.split('');
+                      for (let i = 0; i < yCount; i++) {
+                        dicePool[i] = 'Y';
+                      }
+                      dicePool = dicePool.join('');
+                    }
+                    return (
+                      <tr key={skillName}>
+                        <td className="px-2 py-1 border">{skillName}</td>
+                        <td className="px-2 py-1 border font-mono">
+                          {dicePool && dicePool !== '-' ? (
+                            <button
+                              className="px-2 py-1 bg-gray-200 rounded hover:bg-yellow-200 transition font-mono"
+                              onClick={e => handleDicePoolClick(e, dicePool, skillName)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {dicePool}
+                            </button>
+                          ) : (
+                            <span>-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -2332,8 +2400,9 @@ export default function SWNotes() {
             zIndex: 9999,
             minWidth: '400px',
             maxWidth: '500px',
-            display: 'flex',
-            flexDirection: 'column',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            overflowX: 'hidden',
           }}
         >
           <div className="bg-white rounded-lg p-4 flex flex-col" style={{ maxHeight: 'none' }}>
@@ -2743,6 +2812,16 @@ export default function SWNotes() {
           })()}
         </div>
       )}
+      {/* Dice Pool Popup - MATCH SWCharacterOverview */}
+      {dicePopup && (
+        <DicePoolPopup
+          dicePopup={dicePopup}
+          setDicePopup={setDicePopup}
+          selectedNPC={selectedNPC}
+        />
+      )}
+
+    // DicePoolPopup component (copied and adapted from SWCharacterOverview)
     </div>
   );
 }

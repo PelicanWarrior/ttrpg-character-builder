@@ -1,10 +1,38 @@
+
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
+// Force Power Tree Talent Name dropdown state
+// (must be after imports)
+
+
 export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // --- Force Power Tree Talent Name dropdown state ---
+  const [forceTalentNames, setForceTalentNames] = useState([]);
+  const [selectedForceTalentName, setSelectedForceTalentName] = useState('');
+  const [selectedForceTalentDescription, setSelectedForceTalentDescription] = useState('');
+  const [forceTalentCost, setForceTalentCost] = useState('');
+  // State for grid talents (16 boxes: 1-4 in first row, 5-8 in second, etc.)
+  const [gridTalents, setGridTalents] = useState(Array(16).fill(null).map(() => ({ name: '', cost: '', description: '' })));
+  // State for tracking merged boxes: { "0-1": true } means boxes 0 and 1 are merged
+  const [mergedBoxes, setMergedBoxes] = useState({});
+  // State for merge confirmation dialog
+  const [mergePending, setMergePending] = useState(null); // { boxIndex, direction, mergeKey }
+  // State for tracking which boxes are in "add new talent" mode
+  const [addingNewTalent, setAddingNewTalent] = useState({}); // { boxIndex: true }
+  const [newTalentNames, setNewTalentNames] = useState({}); // { boxIndex: 'name' }
+  const [newTalentDescriptions, setNewTalentDescriptions] = useState({}); // { boxIndex: 'description' }
+  // State for top talent box add new mode
+  const [addingNewTopTalent, setAddingNewTopTalent] = useState(false);
+  const [newTopTalentName, setNewTopTalentName] = useState('');
+  const [newTopTalentDescription, setNewTopTalentDescription] = useState('');
+  // State for checkbox links - tracks which checkboxes are checked
+  // For grid: gridCheckboxLinks[boxIndex] = { up: bool, down: bool, left: bool, right: bool }
+  const [gridCheckboxLinks, setGridCheckboxLinks] = useState(Array(16).fill(null).map(() => ({ up: false, down: false, left: false, right: false })));
 
   const playerId = location.state?.playerId;
 
@@ -29,6 +57,10 @@ export default function Settings() {
   const [showCareerPictures, setShowCareerPictures] = useState(false);
   const [showAddSpeciesForm, setShowAddSpeciesForm] = useState(false);
   const [showAddSpecializationForm, setShowAddSpecializationForm] = useState(false);
+  // Add Force Tree tab state
+  const [showAddForceTreeForm, setShowAddForceTreeForm] = useState(false);
+  const [powerTreeName, setPowerTreeName] = useState('');
+  const [forcePrerequisite, setForcePrerequisite] = useState('');
   const [showAddEquipmentForm, setShowAddEquipmentForm] = useState(false);
   const [showAddCareerForm, setShowAddCareerForm] = useState(false);
 
@@ -155,12 +187,12 @@ export default function Settings() {
     console.log('Player ID:', playerId ?? '—');
 
     const fetchAdminStatus = async () => {
-      if (!playerId) {
-        setLoading(false);
-        return;
-      }
-
       try {
+        if (!playerId) {
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase
           .from('user')
           .select('admin')
@@ -185,7 +217,7 @@ export default function Settings() {
     const fetchUploadPicturesSetting = async () => {
       try {
         const { data, error } = await supabase
-          .from('Admin_Control')
+          .from('user')
           .select('Upload_pictures')
           .eq('id', 1)
           .single();
@@ -557,6 +589,33 @@ export default function Settings() {
     }
   }, [showAddPathfinderRaceForm, isAdmin]);
 
+  // Fetch Force Talents from SW_force_talents table
+  useEffect(() => {
+    const fetchForceTalents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('SW_force_talents')
+          .select('id, talent_name, description');
+        
+        if (error) {
+          console.error('Error fetching force talents:', error);
+          return;
+        }
+
+        if (data) {
+          const sortedTalents = data.sort((a, b) => a.talent_name.localeCompare(b.talent_name));
+          setForceTalentNames(sortedTalents);
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching force talents:', err);
+      }
+    };
+
+    if (showAddForceTreeForm && isAdmin) {
+      fetchForceTalents();
+    }
+  }, [showAddForceTreeForm, isAdmin]);
+
   // -----------------------------------------------------------------
   // 7. Handlers
   // -----------------------------------------------------------------
@@ -609,7 +668,7 @@ export default function Settings() {
     setSavingUploadPictures(true);
     try {
       const { error } = await supabase
-        .from('Admin_Control')
+        .from('user')
         .update({ Upload_pictures: !uploadPicturesEnabled })
         .eq('id', 1);
 
@@ -692,8 +751,10 @@ export default function Settings() {
     setShowCareerPictures(false);
   };
 
+
   const handleAddSpecialization = () => {
     setShowAddSpecializationForm(true);
+    setShowAddForceTreeForm(false);
     setShowAddSpeciesForm(false);
     setShowAddEquipmentForm(false);
     setShowAddCareerForm(false);
@@ -701,10 +762,174 @@ export default function Settings() {
     setShowCareerPictures(false);
   };
 
+  const handleAddForceTree = () => {
+    setShowAddForceTreeForm(true);
+    setShowAddSpecializationForm(false);
+    setShowAddSpeciesForm(false);
+    setShowAddEquipmentForm(false);
+    setShowAddCareerForm(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+  };
+
+  const handleSaveForceTree = async () => {
+    try {
+      // Validate required fields
+      if (!powerTreeName.trim()) {
+        alert('Please enter a Power Tree Name');
+        return;
+      }
+
+      if (!selectedForceTalentName) {
+        alert('Please select a talent for the top ability');
+        return;
+      }
+
+      // Helper function to get talent ID from name
+      const getTalentId = (talentName) => {
+        const talent = forceTalentNames.find(t => t.talent_name === talentName);
+        return talent?.id || null;
+      };
+
+      // Validate that top talent has a valid ID
+      const topTalentId = getTalentId(selectedForceTalentName);
+      if (!topTalentId) {
+        alert('Top talent not found in database');
+        return;
+      }
+
+      // Helper function to build links string from checkbox array
+      const buildLinksString = (checkboxStates, directions) => {
+        const links = [];
+        if (checkboxStates[0]) links.push(directions[0]); // Up
+        if (checkboxStates[1]) links.push(directions[1]); // Right
+        if (checkboxStates[2]) links.push(directions[2]); // Down
+        if (checkboxStates[3]) links.push(directions[3]); // Left
+        return links.length > 0 ? links.join(', ') : '';
+      };
+
+      // Build the data object for insertion - start with required fields
+      const forceTreeData = {
+        PowerTreeName: powerTreeName.trim(),
+        ForcePrerequisite: forcePrerequisite.trim() || null,
+        ability_1_1: topTalentId,
+        ability_1_1_cost: forceTalentCost ? parseInt(forceTalentCost) : null,
+      };
+      
+      // Add top talent links only if they exist
+      if (gridCheckboxLinks[0]?.up) forceTreeData.ability_1_1_links = 'Down';
+      if (gridCheckboxLinks[1]?.up) forceTreeData.ability_1_2_links = 'Down';
+      if (gridCheckboxLinks[2]?.up) forceTreeData.ability_1_3_links = 'Down';
+      if (gridCheckboxLinks[3]?.up) forceTreeData.ability_1_4_links = 'Down';
+
+      // Process 4x4 grid
+      const rowNames = ['2', '3', '4'];
+      const colNames = ['1', '2', '3', '4'];
+      let boxNumber = 0;
+
+      for (let rowIndex = 0; rowIndex < 3; rowIndex++) {
+        for (let colIndex = 0; colIndex < 4; colIndex++) {
+          const rowNum = rowNames[rowIndex];
+          const colNum = colNames[colIndex];
+          const talentName = gridTalents[boxNumber]?.name;
+          
+          if (talentName) {
+            const talentId = getTalentId(talentName);
+            
+            // Only add to data if talent was found in database
+            if (talentId) {
+              const cost = gridTalents[boxNumber]?.cost;
+              
+              // Determine which directions apply based on position
+              const directions = [];
+              if (rowIndex === 0) directions.push('Up'); // Can connect to top
+              if (rowIndex < 2) directions.push('Down'); // Can connect down
+              if (colIndex > 0) directions.push('Left'); // Can connect left
+              if (colIndex < 3) directions.push('Right'); // Can connect right
+
+              // Get checkbox states for this box
+              const checkboxStates = [
+                gridCheckboxLinks[boxNumber]?.up || false,
+                gridCheckboxLinks[boxNumber]?.right || false,
+                gridCheckboxLinks[boxNumber]?.down || false,
+                gridCheckboxLinks[boxNumber]?.left || false,
+              ];
+
+              // Build links string
+              const linksString = buildLinksString(checkboxStates, directions);
+
+              // Add to data object
+              const abilityKey = `ability_${rowNum}_${colNum}`;
+              const costKey = `${abilityKey}_cost`;
+              const linksKey = `${abilityKey}_links`;
+
+              forceTreeData[abilityKey] = talentId;
+              // Only add cost if it's provided and valid
+              if (cost) {
+                forceTreeData[costKey] = parseInt(cost);
+              }
+              // Only add links if they exist
+              if (linksString) {
+                forceTreeData[linksKey] = linksString;
+              }
+
+              // Check if this box is merged with the next one
+              const mergeKey = `${boxNumber}-${boxNumber + 1}`;
+              if (mergedBoxes[mergeKey] && colIndex < 3) {
+                // Same talent in next box - put ID and cost in next column too
+                const nextColNum = colNames[colIndex + 1];
+                const nextAbilityKey = `ability_${rowNum}_${nextColNum}`;
+                const nextCostKey = `${nextAbilityKey}_cost`;
+                const nextLinksKey = `${nextAbilityKey}_links`;
+
+                forceTreeData[nextAbilityKey] = talentId;
+                // Only add cost if it's provided and valid
+                if (cost) {
+                  forceTreeData[nextCostKey] = parseInt(cost);
+                }
+                // Only add links if they exist
+                if (linksString) {
+                  forceTreeData[nextLinksKey] = linksString;
+                }
+              }
+            }
+          }
+
+          boxNumber++;
+        }
+      }
+
+      // Insert or update the force tree in database
+      const { error } = await supabase
+        .from('SW_force_power_tree')
+        .insert([forceTreeData]);
+
+      if (error) {
+        console.error('Error saving force tree:', error);
+        alert('Failed to save force tree: ' + error.message);
+        return;
+      }
+
+      alert('Force tree saved successfully!');
+      // Reset form
+      setPowerTreeName('');
+      setForcePrerequisite('');
+      setSelectedForceTalentName('');
+      setForceTalentCost('');
+      setGridTalents(Array(16).fill(null).map(() => ({ name: '', cost: '', description: '' })));
+      setMergedBoxes({});
+      setGridCheckboxLinks(Array(16).fill(null).map(() => ({ up: false, down: false, left: false, right: false })));
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('Failed to save force tree: ' + err.message);
+    }
+  };
+
   const handleAddCareer = () => {
     setShowAddCareerForm(true);
-    setShowAddSpeciesForm(false);
+    setShowAddForceTreeForm(false);
     setShowAddSpecializationForm(false);
+    setShowAddSpeciesForm(false);
     setShowAddEquipmentForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -712,8 +937,9 @@ export default function Settings() {
 
   const handleAddEquipment = () => {
     setShowAddEquipmentForm(true);
-    setShowAddSpeciesForm(false);
+    setShowAddForceTreeForm(false);
     setShowAddSpecializationForm(false);
+    setShowAddSpeciesForm(false);
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -729,16 +955,6 @@ export default function Settings() {
     setSpeciesSkills(speciesSkills.filter(s => s !== skillToRemove));
   };
 
-  const handleAddTalent = (talent) => {
-    if (talent && !speciesTalents.includes(talent)) {
-      setSpeciesTalents([...speciesTalents, talent]);
-    }
-  };
-
-  const handleRemoveTalent = (talentToRemove) => {
-    setSpeciesTalents(speciesTalents.filter(t => t !== talentToRemove));
-  };
-
   const handleAddSpecSkill = (skill) => {
     if (skill && !specSkills.includes(skill)) {
       setSpecSkills([...specSkills, skill]);
@@ -747,49 +963,6 @@ export default function Settings() {
 
   const handleRemoveSpecSkill = (skillToRemove) => {
     setSpecSkills(specSkills.filter(s => s !== skillToRemove));
-  };
-
-  const handleTalentTreeChange = async (boxIndex, talentName) => {
-    if (talentName === '__ADD_NEW__') {
-      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: true }));
-      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
-      setSpecTalentTree(prev => ({ ...prev, [boxIndex]: '' }));
-      setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
-      setSpecTalentActivations(prev => ({ ...prev, [boxIndex]: 'Passive' }));
-    } else if (talentName) {
-      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: false }));
-      setSpecTalentTree(prev => ({
-        ...prev,
-        [boxIndex]: talentName
-      }));
-
-      // Fetch description from SW_abilities
-      try {
-        const { data, error } = await supabase
-          .from('SW_abilities')
-          .select('description')
-          .eq('ability', talentName)
-          .single();
-
-        if (error) {
-          console.error('Error fetching talent description:', error);
-          setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: 'Description not found' }));
-          setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
-        } else {
-          setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: data?.description || '' }));
-          setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
-        }
-      } catch (err) {
-        console.error('Failed to fetch description:', err);
-        setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
-        setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
-      }
-    } else {
-      setSpecTalentTree(prev => ({ ...prev, [boxIndex]: '' }));
-      setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
-      setSpecTalentActivations(prev => ({ ...prev, [boxIndex]: '' }));
-      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
-    }
   };
 
   const handleCustomTalentInput = (boxIndex, value) => {
@@ -808,6 +981,19 @@ export default function Settings() {
       setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
     }
     setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: false }));
+  };
+
+  const handleTalentTreeChange = (boxIndex, value) => {
+    if (value === '__ADD_NEW__') {
+      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: true }));
+      setSpecTalentTree(prev => ({ ...prev, [boxIndex]: '' }));
+    } else {
+      setSpecTalentTree(prev => ({
+        ...prev,
+        [boxIndex]: value
+      }));
+      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
+    }
   };
 
   const handleDescriptionChange = (boxIndex, description) => {
@@ -1070,7 +1256,7 @@ export default function Settings() {
           }
           if (abilityMode === 'update') {
             // Update description/activation
-            let updRes = await supabase
+            await supabase
               .from('SW_abilities')
               .update({ description: description || '', activation: activation || 'Passive' })
               .eq('id', abRow.id);
@@ -1812,7 +1998,7 @@ export default function Settings() {
       }
 
       // Insert into SW_pictures
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('SW_pictures')
         .insert([
           {
@@ -2632,6 +2818,7 @@ export default function Settings() {
                 </button>
               </div>
 
+
               <div className="flex space-x-3 mt-4">
                 <button
                   onClick={handleAddSpecies}
@@ -2640,19 +2827,27 @@ export default function Settings() {
                   Add Species
                 </button>
 
-
                 <button
                   onClick={handleAddCareer}
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm font-medium"
                 >
                   Add Career
                 </button>
+
                 <button
                   onClick={handleAddSpecialization}
-                  className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition text-sm font-medium"
+                  className={`flex-1 px-4 py-2 rounded transition text-sm font-medium ${showAddSpecializationForm ? 'bg-yellow-700 text-white' : 'bg-yellow-600 text-white hover:bg-yellow-700'}`}
                 >
                   Add Specialization
                 </button>
+
+                <button
+                  onClick={handleAddForceTree}
+                  className={`flex-1 px-4 py-2 rounded transition text-sm font-medium ${showAddForceTreeForm ? 'bg-cyan-700 text-white' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}
+                >
+                  Add Force Tree
+                </button>
+
                 <button
                   onClick={handleAddEquipment}
                   className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition text-sm font-medium"
@@ -2660,6 +2855,696 @@ export default function Settings() {
                   Add Equipment
                 </button>
               </div>
+
+              {showAddForceTreeForm && (
+                <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add or Edit Force Power Tree</h3>
+                  {/* Tree Header Section - moved directly under main header */}
+                  <div className="mb-4 flex flex-col gap-2">
+                    <label className="text-2xl font-bold text-blue-700 flex items-center">
+                      Power Tree Name:
+                      <input
+                        type="text"
+                        value={powerTreeName}
+                        onChange={e => setPowerTreeName(e.target.value)}
+                        className="ml-2 px-2 py-1 border border-gray-400 rounded text-black text-lg font-normal"
+                        style={{ minWidth: '220px' }}
+                      />
+                    </label>
+                    <label className="text-lg font-semibold text-gray-800 flex items-center">
+                      Force Prerequisite:
+                      <input
+                        type="text"
+                        value={forcePrerequisite}
+                        onChange={e => setForcePrerequisite(e.target.value)}
+                        className="ml-2 px-2 py-1 border border-gray-400 rounded text-black text-base font-normal"
+                        style={{ minWidth: '180px' }}
+                      />
+                    </label>
+                  </div>
+                    <div className="overflow-y-auto border border-gray-300 rounded-lg p-4 bg-white" style={{ minHeight: '500px', maxHeight: '700px', width: 'fit-content' }}>
+                    <table className="border-separate text-center text-xs" style={{ borderSpacing: '0' }}>
+                      <tbody>
+                        {/* Top row: single merged ability box with Talent Name dropdown */}
+                        <tr className="bg-gray-50">
+                          <td colSpan={8} style={{
+                            border: '2px solid #1976d2',
+                            width: '1040px',
+                            height: '190px',
+                            textAlign: 'center',
+                            verticalAlign: 'middle',
+                            background: '#e3f2fd',
+                            padding: 0,
+                            position: 'relative'
+                          }}>
+                            <div
+                              className="talent-box"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                textAlign: 'left',
+                                padding: '24px',
+                                position: 'relative',
+                                boxSizing: 'border-box',
+                                backgroundColor: '#e3f2fd',
+                                border: '1px solid #90caf9',
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                justifyContent: 'flex-start',
+                                color: '#1976d2',
+                                fontWeight: 700,
+                                fontSize: '1.3rem',
+                                position: 'relative'
+                              }}
+                            >
+                              
+                              <div style={{ position: 'absolute', top: 12, left: 12, right: 12, zIndex: 2, display: 'flex', flexDirection: 'column', height: 'calc(100% - 24px)' }}>
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '8px', alignItems: 'flex-start' }}>
+                                  <div style={{ flex: 1 }}>
+                                    <label className="block font-bold text-blue-900 mb-1" style={{ fontSize: '1.3rem' }}>Talent Name</label>
+                                    {addingNewTopTalent ? (
+                                      <input
+                                        type="text"
+                                        value={newTopTalentName}
+                                        onChange={e => setNewTopTalentName(e.target.value)}
+                                        placeholder="Enter new talent name..."
+                                        className="px-2 py-1 border border-blue-400 rounded text-blue-900 bg-white font-semibold"
+                                        style={{ fontSize: '1.3rem', width: '100%' }}
+                                      />
+                                    ) : (
+                                      <select
+                                        value={selectedForceTalentName}
+                                        onChange={e => {
+                                          if (e.target.value === '__ADD_NEW__') {
+                                            setAddingNewTopTalent(true);
+                                            setNewTopTalentName('');
+                                            setNewTopTalentDescription('');
+                                          } else {
+                                            const selected = forceTalentNames.find(t => t.talent_name === e.target.value);
+                                            setSelectedForceTalentName(e.target.value);
+                                            setSelectedForceTalentDescription(selected ? selected.description || '' : '');
+                                          }
+                                        }}
+                                        className="px-2 py-1 border border-blue-400 rounded text-blue-900 bg-white font-semibold"
+                                        style={{ fontSize: '1.3rem', width: '100%' }}
+                                      >
+                                        <option value="">-- Select Talent --</option>
+                                        <option value="__ADD_NEW__">+ Add New Talent</option>
+                                        {forceTalentNames.map(talent => (
+                                          <option key={talent.talent_name} value={talent.talent_name}>{talent.talent_name}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </div>
+                                  <div style={{ width: '80px' }}>
+                                    <label className="block font-bold text-blue-900 mb-1" style={{ fontSize: '1.3rem' }}>Cost</label>
+                                    <input
+                                      type="text"
+                                      value={forceTalentCost}
+                                      onChange={e => setForceTalentCost(e.target.value)}
+                                      placeholder="###"
+                                      className="px-2 py-1 border border-blue-400 rounded text-blue-900 bg-white font-semibold text-center"
+                                      style={{ fontSize: '1.3rem', width: '100%' }}
+                                    />
+                                  </div>
+                                </div>
+                                {(selectedForceTalentDescription || addingNewTopTalent) && (
+                                  <textarea
+                                    value={addingNewTopTalent ? newTopTalentDescription : selectedForceTalentDescription}
+                                    onChange={addingNewTopTalent ? (e => setNewTopTalentDescription(e.target.value)) : undefined}
+                                    readOnly={!addingNewTopTalent}
+                                    placeholder={addingNewTopTalent ? "Enter talent description..." : ""}
+                                    className={`px-2 py-1 border border-blue-400 rounded text-blue-900 ${addingNewTopTalent ? 'bg-white' : 'bg-blue-50'} text-sm font-normal flex-1`}
+                                    style={{ resize: 'none', width: '100%' }}
+                                  />
+                                )}
+                                
+                                {/* Save/Cancel buttons for new talent */}
+                                {addingNewTopTalent && (
+                                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                    <button
+                                      onClick={async () => {
+                                        const talentName = newTopTalentName.trim();
+                                        const description = newTopTalentDescription.trim();
+                                        
+                                        if (!talentName) {
+                                          alert('Please enter a talent name');
+                                          return;
+                                        }
+                                        
+                                        try {
+                                          const { data, error } = await supabase
+                                            .from('SW_force_talents')
+                                            .insert([{ talent_name: talentName, description: description || '' }])
+                                            .select();
+                                          
+                                          if (error) {
+                                            console.error('Error saving talent:', error);
+                                            alert('Failed to save talent: ' + error.message);
+                                            return;
+                                          }
+                                          
+                                          // Refresh talent list
+                                          const { data: talents, error: fetchError } = await supabase
+                                            .from('SW_force_talents')
+                                            .select('id, talent_name, description');
+                                          
+                                          if (!fetchError && talents) {
+                                            const sortedTalents = talents.sort((a, b) => a.talent_name.localeCompare(b.talent_name));
+                                            setForceTalentNames(sortedTalents);
+                                          }
+                                          
+                                          // Set the new talent as selected
+                                          setSelectedForceTalentName(talentName);
+                                          setSelectedForceTalentDescription(description || '');
+                                          
+                                          // Exit add mode
+                                          setAddingNewTopTalent(false);
+                                        } catch (err) {
+                                          console.error('Unexpected error:', err);
+                                          alert('Failed to save talent');
+                                        }
+                                      }}
+                                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700"
+                                      style={{ fontSize: '1rem' }}
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setAddingNewTopTalent(false)}
+                                      className="flex-1 px-3 py-2 bg-gray-400 text-white rounded font-semibold hover:bg-gray-500"
+                                      style={{ fontSize: '1rem' }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Remaining rows: 4 ability boxes per row, as before */}
+                        {(() => {
+                          // Hardcoded demo links array for 4x4 grid: each cell has an array of directions ("Up", "Down", "Left", "Right")
+                          // You can later replace this with dynamic data from your backend or user input
+                          const linksGrid = [
+                            [ ["Up", "Down", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left"] ],
+                            [ ["Up", "Down", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left"] ],
+                            [ ["Up", "Down", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left"] ],
+                            [ ["Up", "Right"], ["Up", "Left", "Right"], ["Up", "Left", "Right"], ["Up", "Left"] ]
+                          ];
+                          return Array.from({ length: 4 }, (_, rowIndex) => (
+                          <tr key={`force-row-${rowIndex}`} className="bg-gray-50">
+                            {Array.from({ length: 4 }, (_, colIndex) => {
+                              const boxIndex = (rowIndex) * 4 + colIndex;
+                              const links = linksGrid[rowIndex][colIndex];
+                              const talent = gridTalents[boxIndex];
+                              
+                              // Check if this box is part of a merged set
+                              const getMergeKey = (idx) => {
+                                for (const key in mergedBoxes) {
+                                  if (mergedBoxes[key]) {
+                                    const [start, end] = key.split('-').map(Number);
+                                    if (idx >= start && idx <= end) {
+                                      return key;
+                                    }
+                                  }
+                                }
+                                return null;
+                              };
+                              
+                              const currentMergeKey = getMergeKey(boxIndex);
+                              const isSecondMergedBox = currentMergeKey ? 
+                                (() => {
+                                  const [start, end] = currentMergeKey.split('-').map(Number);
+                                  return boxIndex === end; // Check if this is the second (end) box in the merge
+                                })() 
+                                : false;
+                              
+                              // Get links for the merged box (use second box's right link if merged)
+                              const rightBoxIndex = boxIndex + 1;
+                              const rightBoxLinks = currentMergeKey && colIndex < 3 ? linksGrid[rowIndex][colIndex + 1] : [];
+                              const mergedLinks = currentMergeKey && !isSecondMergedBox ? {
+                                up: links.includes('Up'),
+                                down: links.includes('Down'),
+                                left: links.includes('Left'),
+                                right: rightBoxLinks.includes('Right') // Use right box's right link
+                              } : null;
+                              
+                              const handleTalentSelect = (talentName) => {
+                                const selected = forceTalentNames.find(t => t.talent_name === talentName);
+                                const newGridTalents = [...gridTalents];
+                                newGridTalents[boxIndex] = {
+                                  name: talentName,
+                                  cost: newGridTalents[boxIndex].cost,
+                                  description: selected ? selected.description || '' : ''
+                                };
+                                setGridTalents(newGridTalents);
+                                
+                                // Check for merge opportunities with adjacent boxes
+                                if (talentName !== '') {
+                                  // Check right box
+                                  const rightBoxIndex = boxIndex + 1;
+                                  const isRightAdjacent = colIndex < 3; // Not on the right edge
+                                  
+                                  if (isRightAdjacent && newGridTalents[rightBoxIndex]?.name === talentName) {
+                                    // Same talent in adjacent right box, ask to merge
+                                    const mergeKey = `${boxIndex}-${rightBoxIndex}`;
+                                    setMergePending({ boxIndex, direction: 'right', mergeKey });
+                                    return;
+                                  }
+                                  
+                                  // Check left box
+                                  const leftBoxIndex = boxIndex - 1;
+                                  const isLeftAdjacent = colIndex > 0; // Not on the left edge
+                                  
+                                  if (isLeftAdjacent && newGridTalents[leftBoxIndex]?.name === talentName) {
+                                    // Same talent in adjacent left box, ask to merge
+                                    const mergeKey = `${leftBoxIndex}-${boxIndex}`;
+                                    setMergePending({ boxIndex: leftBoxIndex, direction: 'right', mergeKey });
+                                    return;
+                                  }
+                                }
+                              };
+                              
+                              const handleCostChange = (cost) => {
+                                const newGridTalents = [...gridTalents];
+                                newGridTalents[boxIndex] = {
+                                  ...newGridTalents[boxIndex],
+                                  cost: cost
+                                };
+                                setGridTalents(newGridTalents);
+                              };
+                              
+                              const handleUnmerge = () => {
+                                const newMergedBoxes = { ...mergedBoxes };
+                                delete newMergedBoxes[currentMergeKey];
+                                setMergedBoxes(newMergedBoxes);
+                              };
+                              
+                              return (
+                                <>
+                                  <td 
+                                    key={`force-td-${colIndex}`} 
+                                    style={{
+                                      position: isSecondMergedBox ? 'static' : 'relative',
+                                      border: isSecondMergedBox ? 'none' : '2px solid #1976d2',
+                                      width: '260px',
+                                      height: '190px',
+                                      textAlign: 'center',
+                                      verticalAlign: 'middle',
+                                      background: isSecondMergedBox ? 'transparent' : '#e3f2fd',
+                                      padding: '8px',
+                                      overflow: isSecondMergedBox ? 'hidden' : 'visible'
+                                    }}
+                                  >
+                                    {!isSecondMergedBox && (
+                                      <div
+                                        className="talent-box"
+                                        style={{
+                                          width: currentMergeKey ? '544px' : '100%', // 260+24+260 = 544px for merged
+                                          height: '100%',
+                                          textAlign: 'left',
+                                          padding: '8px',
+                                          position: currentMergeKey ? 'absolute' : 'relative',
+                                          top: currentMergeKey ? '8px' : undefined,
+                                          left: currentMergeKey ? '8px' : undefined,
+                                          boxSizing: 'border-box',
+                                          backgroundColor: '#e3f2fd',
+                                          border: '1px solid #90caf9',
+                                          borderRadius: '6px',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          color: '#1976d2',
+                                          fontWeight: 600,
+                                          zIndex: currentMergeKey ? 10 : 1
+                                        }}
+                                      >
+                                      {/* Checkboxes - only render Right and Down to avoid duplicates */}
+                                      {/* Each box owns its right and down checkboxes */}
+                                      
+                                      {/* Down checkboxes - show for all rows except last row */}
+                                      {rowIndex < 3 && !currentMergeKey && (
+                                        <input 
+                                          type="checkbox" 
+                                          checked={gridCheckboxLinks[boxIndex]?.down || false}
+                                          onChange={e => {
+                                            const newLinks = [...gridCheckboxLinks];
+                                            newLinks[boxIndex] = { ...newLinks[boxIndex], down: e.target.checked };
+                                            setGridCheckboxLinks(newLinks);
+                                          }}
+                                          style={{ position: 'absolute', bottom: '-18px', left: '50%', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
+                                          title="Down" 
+                                        />
+                                      )}
+                                      
+                                      {/* Down checkboxes for merged boxes - one at left edge, one at right edge */}
+                                      {rowIndex < 3 && currentMergeKey && !isSecondMergedBox && (
+                                        <>
+                                          <input 
+                                            type="checkbox" 
+                                            checked={gridCheckboxLinks[boxIndex]?.down || false}
+                                            onChange={e => {
+                                              const newLinks = [...gridCheckboxLinks];
+                                              newLinks[boxIndex] = { ...newLinks[boxIndex], down: e.target.checked };
+                                              setGridCheckboxLinks(newLinks);
+                                            }}
+                                            style={{ position: 'absolute', bottom: '-18px', left: 'calc(50% - 132px)', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
+                                            title="Down" 
+                                          />
+                                          <input 
+                                            type="checkbox"
+                                            // Second merged box's down link - need to check the right box's down link
+                                            checked={gridCheckboxLinks[boxIndex + 1]?.down || false}
+                                            onChange={e => {
+                                              const newLinks = [...gridCheckboxLinks];
+                                              newLinks[boxIndex + 1] = { ...newLinks[boxIndex + 1], down: e.target.checked };
+                                              setGridCheckboxLinks(newLinks);
+                                            }}
+                                            style={{ position: 'absolute', bottom: '-18px', left: 'calc(50% + 132px)', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
+                                            title="Down" 
+                                          />
+                                        </>
+                                      )}
+                                      
+                                      {/* Right checkbox - show for non-merged boxes except last column */}
+                                      {!currentMergeKey && colIndex < 3 && (
+                                        <input 
+                                          type="checkbox" 
+                                          checked={gridCheckboxLinks[boxIndex]?.right || false}
+                                          onChange={e => {
+                                            const newLinks = [...gridCheckboxLinks];
+                                            newLinks[boxIndex] = { ...newLinks[boxIndex], right: e.target.checked };
+                                            setGridCheckboxLinks(newLinks);
+                                          }}
+                                          style={{ position: 'absolute', right: '-18px', top: '50%', transform: 'translateY(-50%)', width: '22px', height: '22px' }} 
+                                          title="Right" 
+                                        />
+                                      )}
+                                      
+                                      {/* Right checkbox for merged boxes - position at the right edge of merged area */}
+                                      {currentMergeKey && !isSecondMergedBox && colIndex < 2 && (
+                                        <input 
+                                          type="checkbox" 
+                                          checked={gridCheckboxLinks[boxIndex]?.right || false}
+                                          onChange={e => {
+                                            const newLinks = [...gridCheckboxLinks];
+                                            newLinks[boxIndex] = { ...newLinks[boxIndex], right: e.target.checked };
+                                            setGridCheckboxLinks(newLinks);
+                                          }}
+                                          style={{ position: 'absolute', right: '-18px', top: '50%', transform: 'translateY(-50%)', width: '22px', height: '22px' }} 
+                                          title="Right" 
+                                        />
+                                      )}
+                                      
+                                      {/* Up checkboxes - only for first row to connect to top talent box */}
+                                      {rowIndex === 0 && !currentMergeKey && (
+                                        <input 
+                                          type="checkbox" 
+                                          checked={gridCheckboxLinks[boxIndex]?.up || false}
+                                          onChange={e => {
+                                            const newLinks = [...gridCheckboxLinks];
+                                            newLinks[boxIndex] = { ...newLinks[boxIndex], up: e.target.checked };
+                                            setGridCheckboxLinks(newLinks);
+                                          }}
+                                          style={{ position: 'absolute', top: '-18px', left: '50%', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
+                                          title="Up" 
+                                        />
+                                      )}
+                                      
+                                      {/* Up checkboxes for merged boxes - one at left edge, one at right edge */}
+                                      {rowIndex === 0 && currentMergeKey && !isSecondMergedBox && (
+                                        <>
+                                          <input 
+                                            type="checkbox" 
+                                            checked={gridCheckboxLinks[boxIndex]?.up || false}
+                                            onChange={e => {
+                                              const newLinks = [...gridCheckboxLinks];
+                                              newLinks[boxIndex] = { ...newLinks[boxIndex], up: e.target.checked };
+                                              setGridCheckboxLinks(newLinks);
+                                            }}
+                                            style={{ position: 'absolute', top: '-18px', left: 'calc(50% - 132px)', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
+                                            title="Up" 
+                                          />
+                                          <input 
+                                            type="checkbox"
+                                            checked={gridCheckboxLinks[boxIndex + 1]?.up || false}
+                                            onChange={e => {
+                                              const newLinks = [...gridCheckboxLinks];
+                                              newLinks[boxIndex + 1] = { ...newLinks[boxIndex + 1], up: e.target.checked };
+                                              setGridCheckboxLinks(newLinks);
+                                            }}
+                                            style={{ position: 'absolute', top: '-18px', left: 'calc(50% + 132px)', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
+                                            title="Up" 
+                                          />
+                                        </>
+                                      )}
+                                      
+                                      {/* Talent Name and Cost */}
+                                      <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', width: '100%' }}>
+                                        {addingNewTalent[boxIndex] ? (
+                                          <input
+                                            type="text"
+                                            value={newTalentNames[boxIndex] || ''}
+                                            onChange={e => setNewTalentNames({ ...newTalentNames, [boxIndex]: e.target.value })}
+                                            placeholder="Enter new talent name..."
+                                            className="flex-1 px-1 py-0 border border-blue-400 rounded text-blue-900 bg-white font-semibold text-xs"
+                                            style={{ minHeight: '24px', flex: 1 }}
+                                          />
+                                        ) : (
+                                          <select
+                                            value={talent.name}
+                                            onChange={e => {
+                                              if (e.target.value === '__ADD_NEW__') {
+                                                setAddingNewTalent({ ...addingNewTalent, [boxIndex]: true });
+                                                setNewTalentNames({ ...newTalentNames, [boxIndex]: '' });
+                                                setNewTalentDescriptions({ ...newTalentDescriptions, [boxIndex]: '' });
+                                              } else {
+                                                handleTalentSelect(e.target.value);
+                                              }
+                                            }}
+                                            className="flex-1 px-1 py-0 border border-blue-400 rounded text-blue-900 bg-white font-semibold text-xs"
+                                            style={{ minHeight: '24px', flex: 1 }}
+                                          >
+                                            <option value="">Select</option>
+                                            <option value="__ADD_NEW__">+ Add New Talent</option>
+                                            {forceTalentNames.map(t => (
+                                              <option key={t.talent_name} value={t.talent_name}>{t.talent_name}</option>
+                                            ))}
+                                          </select>
+                                        )}
+                                        <input
+                                          type="text"
+                                          value={talent.cost}
+                                          onChange={e => handleCostChange(e.target.value)}
+                                          placeholder="Cost"
+                                          className="px-1 py-0 border border-blue-400 rounded text-blue-900 bg-white font-semibold text-xs text-center"
+                                          style={{ minHeight: '24px', width: '60px' }}
+                                        />
+                                      </div>
+                                      
+                                      {/* Description */}
+                                      {(talent.description || addingNewTalent[boxIndex]) && (
+                                        <textarea
+                                          value={addingNewTalent[boxIndex] ? (newTalentDescriptions[boxIndex] || '') : talent.description}
+                                          onChange={addingNewTalent[boxIndex] ? (e => setNewTalentDescriptions({ ...newTalentDescriptions, [boxIndex]: e.target.value })) : undefined}
+                                          readOnly={!addingNewTalent[boxIndex]}
+                                          placeholder={addingNewTalent[boxIndex] ? "Enter talent description..." : ""}
+                                          className={`flex-1 px-1 py-1 border border-blue-400 rounded text-blue-900 ${addingNewTalent[boxIndex] ? 'bg-white' : 'bg-blue-50'} text-xs font-normal`}
+                                          style={{ resize: 'none', width: '100%', minHeight: addingNewTalent[boxIndex] ? '100px' : '130px', overflowY: 'auto' }}
+                                        />
+                                      )}
+                                      
+                                      {/* Save/Cancel buttons for new talent */}
+                                      {addingNewTalent[boxIndex] && (
+                                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                                          <button
+                                            onClick={async () => {
+                                              const talentName = newTalentNames[boxIndex]?.trim();
+                                              const description = newTalentDescriptions[boxIndex]?.trim();
+                                              
+                                              if (!talentName) {
+                                                alert('Please enter a talent name');
+                                                return;
+                                              }
+                                              
+                                              try {
+                                                const { data, error } = await supabase
+                                                  .from('SW_force_talents')
+                                                  .insert([{ talent_name: talentName, description: description || '' }])
+                                                  .select();
+                                                
+                                                if (error) {
+                                                  console.error('Error saving talent:', error);
+                                                  alert('Failed to save talent: ' + error.message);
+                                                  return;
+                                                }
+                                                
+                                                // Refresh talent list
+                                                const { data: talents, error: fetchError } = await supabase
+                                                  .from('SW_force_talents')
+                                                  .select('id, talent_name, description');
+                                                
+                                                if (!fetchError && talents) {
+                                                  const sortedTalents = talents.sort((a, b) => a.talent_name.localeCompare(b.talent_name));
+                                                  setForceTalentNames(sortedTalents);
+                                                }
+                                                
+                                                // Update grid with new talent
+                                                const newGridTalents = [...gridTalents];
+                                                newGridTalents[boxIndex] = {
+                                                  name: talentName,
+                                                  cost: newGridTalents[boxIndex].cost,
+                                                  description: description || ''
+                                                };
+                                                setGridTalents(newGridTalents);
+                                                
+                                                // Exit add mode
+                                                const newAddingState = { ...addingNewTalent };
+                                                delete newAddingState[boxIndex];
+                                                setAddingNewTalent(newAddingState);
+                                              } catch (err) {
+                                                console.error('Unexpected error:', err);
+                                                alert('Failed to save talent');
+                                              }
+                                            }}
+                                            className="flex-1 px-2 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              const newAddingState = { ...addingNewTalent };
+                                              delete newAddingState[boxIndex];
+                                              setAddingNewTalent(newAddingState);
+                                            }}
+                                            className="flex-1 px-2 py-1 bg-gray-400 text-white rounded text-xs font-semibold hover:bg-gray-500"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Unmerge button - only show for merged boxes */}
+                                      {currentMergeKey && !isSecondMergedBox && (
+                                        <button
+                                          onClick={handleUnmerge}
+                                          className="px-2 py-1 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700"
+                                          style={{ position: 'absolute', bottom: '4px', right: '4px' }}
+                                        >
+                                          Unmerge
+                                        </button>
+                                      )}
+                                      </div>
+                                    )}
+                                  </td>
+                                  {colIndex < 3 && (
+                                    <td key={`force-hspacer-${colIndex}`} style={{ width: '24px', textAlign: 'center', background: 'transparent', border: 'none', padding: 0 }} />
+                                  )}
+                                </>
+                              );
+                            })}
+                          </tr>
+                        ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Save Force Tree Button */}
+                  <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={handleSaveForceTree}
+                      className="px-8 py-3 bg-green-600 text-white rounded font-bold hover:bg-green-700 transition text-lg"
+                    >
+                      Save Force Tree
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddForceTreeForm(false);
+                        setPowerTreeName('');
+                        setForcePrerequisite('');
+                        setSelectedForceTalentName('');
+                        setForceTalentCost('');
+                        setGridTalents(Array(16).fill(null).map(() => ({ name: '', cost: '', description: '' })));
+                        setMergedBoxes({});
+                        setGridCheckboxLinks(Array(16).fill(null).map(() => ({ up: false, down: false, left: false, right: false })));
+                      }}
+                      className="px-8 py-3 bg-gray-400 text-white rounded font-bold hover:bg-gray-500 transition text-lg"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  
+                  {/* Merge Confirmation Dialog */}
+                  {mergePending && (
+                    <>
+                      <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        zIndex: 999
+                      }} />
+                      <div style={{
+                        position: 'fixed',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        backgroundColor: 'white',
+                        border: '2px solid #1976d2',
+                        borderRadius: '8px',
+                        padding: '20px',
+                        zIndex: 1000,
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+                        minWidth: '300px'
+                      }}>
+                        <h3 style={{ marginTop: 0, color: '#1976d2', fontSize: '1.2rem' }}>Merge Talents?</h3>
+                        <p>These horizontally adjacent boxes have the same talent. Would you like to merge them?</p>
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => setMergePending(null)}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#e0e0e0',
+                              border: '1px solid #999',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            No
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMergedBoxes({
+                                ...mergedBoxes,
+                                [mergePending.mergeKey]: true
+                              });
+                              setMergePending(null);
+                            }}
+                            style={{
+                              padding: '8px 16px',
+                              backgroundColor: '#1976d2',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Yes, Merge
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {showAddSpeciesForm && (
                 <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">

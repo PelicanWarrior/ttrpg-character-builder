@@ -1,12 +1,24 @@
+
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
+
+// Force Power Tree Talent Name dropdown state
+// (must be after imports)
+
 
 export default function Settings() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Get playerId from location state
+  // --- Force Power Tree Talent Name dropdown state ---
+  const [forceTalentNames, setForceTalentNames] = useState([]);
+  const [selectedForceTalentName, setSelectedForceTalentName] = useState('');
+  const [selectedForceTalentDescription, setSelectedForceTalentDescription] = useState('');
+  const [forceTalentCost, setForceTalentCost] = useState('');
+  // State for grid talents (16 boxes: 1-4 in first row, 5-8 in second, etc.)
+  const [gridTalents, setGridTalents] = useState(Array(16).fill(null).map(() => ({ name: '', cost: '', description: '' })));
+
   const playerId = location.state?.playerId;
 
   // -----------------------------------------------------------------
@@ -30,9 +42,12 @@ export default function Settings() {
   const [showCareerPictures, setShowCareerPictures] = useState(false);
   const [showAddSpeciesForm, setShowAddSpeciesForm] = useState(false);
   const [showAddSpecializationForm, setShowAddSpecializationForm] = useState(false);
+  // Add Force Tree tab state
+  const [showAddForceTreeForm, setShowAddForceTreeForm] = useState(false);
+  const [powerTreeName, setPowerTreeName] = useState('');
+  const [forcePrerequisite, setForcePrerequisite] = useState('');
   const [showAddEquipmentForm, setShowAddEquipmentForm] = useState(false);
   const [showAddCareerForm, setShowAddCareerForm] = useState(false);
-  const [showAddForceTreeForm, setShowAddForceTreeForm] = useState(false);
 
   // -----------------------------------------------------------------
   // 2a. Pathfinder Section State
@@ -50,37 +65,10 @@ export default function Settings() {
   const [pRaceAbilities, setPRaceAbilities] = useState('');
   const [pRaceLanguages, setPRaceLanguages] = useState('');
   const [pRaceHighIntLanguages, setPRaceHighIntLanguages] = useState('');
+  const [savingPRace, setSavingPRace] = useState(false);
 
   // -----------------------------------------------------------------
-  // 2b. Specialization Form State
-  // -----------------------------------------------------------------
-  const [specName, setSpecName] = useState('');
-  const [specCareer, setSpecCareer] = useState('');
-  const [specDescription, setSpecDescription] = useState('');
-  const [specSkills, setSpecSkills] = useState([]);
-  const [specTalentTree, setSpecTalentTree] = useState({});
-  const [specTalentDescriptions, setSpecTalentDescriptions] = useState({});
-  const [specTalentActivations, setSpecTalentActivations] = useState({});
-  const [specTalentLinks, setSpecTalentLinks] = useState({});
-  const [customTalentInputMode, setCustomTalentInputMode] = useState({});
-  const [isCustomTalent, setIsCustomTalent] = useState({});
-  const [availableCareers, setAvailableCareers] = useState([]);
-  const [careersWithIds, setCareersWithIds] = useState([]);
-  const [availableTalentsForTree, setAvailableTalentsForTree] = useState([]);
-  const [existingSpecs, setExistingSpecs] = useState([]);
-  const [editingSpecId, setEditingSpecId] = useState(null);
-  const [savingSpec, setSavingSpec] = useState(false);
-  const [specConflict, setSpecConflict] = useState(null);
-  const [abilityConflicts, setAbilityConflicts] = useState([]);
-  const [abilityConflictAction, setAbilityConflictAction] = useState(null);
-  const [abilityMapById, setAbilityMapById] = useState({});
-  const [forceTreeAbilities, setForceTreeAbilities] = useState({});
-  const [forceTreeCustomInputMode, setForceTreeCustomInputMode] = useState({});
-  const [forceTreeIsCustom, setForceTreeIsCustom] = useState({});
-  const [availableForceAbilities, setAvailableForceAbilities] = useState([]);
-
-  // -----------------------------------------------------------------
-  // 2c. Species Form State
+  // 2b. Add Species Form State
   // -----------------------------------------------------------------
   const [speciesName, setSpeciesName] = useState('');
   const [speciesSourceBook, setSpeciesSourceBook] = useState('');
@@ -105,276 +93,158 @@ export default function Settings() {
   const [editingSpeciesId, setEditingSpeciesId] = useState(null);
 
   // -----------------------------------------------------------------
-  // 2d. Career Form State
+  // 2c. Add Specialization Form State
+  // -----------------------------------------------------------------
+  const [specName, setSpecName] = useState('');
+  const [specCareer, setSpecCareer] = useState('');
+  const [specDescription, setSpecDescription] = useState('');
+  const [specSkills, setSpecSkills] = useState([]);
+  const [specTalentTree, setSpecTalentTree] = useState({}); // { boxIndex: talentName }
+  const [specTalentDescriptions, setSpecTalentDescriptions] = useState({}); // { boxIndex: description }
+  const [specTalentActivations, setSpecTalentActivations] = useState({}); // { boxIndex: 'Passive'|'Active' }
+  const [specTalentLinks, setSpecTalentLinks] = useState({}); // { 'row_col_direction': true/false }
+  const [customTalentInputMode, setCustomTalentInputMode] = useState({}); // { boxIndex: true/false }
+  const [isCustomTalent, setIsCustomTalent] = useState({}); // { boxIndex: true/false }
+  const [availableCareers, setAvailableCareers] = useState([]);
+  const [careersWithIds, setCareersWithIds] = useState([]);
+  const [availableTalentsForTree, setAvailableTalentsForTree] = useState([]);
+  const [existingSpecs, setExistingSpecs] = useState([]); // full rows for editing
+  const [editingSpecId, setEditingSpecId] = useState(null);
+  const [abilityMapById, setAbilityMapById] = useState({}); // { id: { name, description, activation } }
+  const [savingSpec, setSavingSpec] = useState(false);
+  const [specConflict, setSpecConflict] = useState(null); // { id, name }
+  const [abilityConflicts, setAbilityConflicts] = useState([]); // [{ name, id }]
+  const [abilityConflictAction, setAbilityConflictAction] = useState(null); // 'addNew' | 'update'
+
+  // -----------------------------------------------------------------
+  // 2e. Add Equipment Form State
+  // -----------------------------------------------------------------
+  const [equipmentName, setEquipmentName] = useState('');
+  const [equipmentDescription, setEquipmentDescription] = useState('');
+  const [equipmentSkillId, setEquipmentSkillId] = useState('');
+  const [equipmentRange, setEquipmentRange] = useState('');
+  const [equipmentEncumbrance, setEquipmentEncumbrance] = useState('');
+  const [equipmentPrice, setEquipmentPrice] = useState('');
+  const [equipmentRarity, setEquipmentRarity] = useState('');
+  const [equipmentDamage, setEquipmentDamage] = useState('');
+  const [equipmentCritical, setEquipmentCritical] = useState('');
+  const [equipmentHP, setEquipmentHP] = useState('');
+  const [equipmentSpecial, setEquipmentSpecial] = useState('');
+  const [equipmentSoak, setEquipmentSoak] = useState('');
+  const [equipmentDamageRange, setEquipmentDamageRange] = useState('');
+  const [equipmentDamageMelee, setEquipmentDamageMelee] = useState('');
+  const [equipmentConsumable, setEquipmentConsumable] = useState(false);
+  const [availableSkillsDetailed, setAvailableSkillsDetailed] = useState([]); // [{ id, skill }]
+
+  // -----------------------------------------------------------------
+  // 2d. Add Career Form State
   // -----------------------------------------------------------------
   const [careerName, setCareerName] = useState('');
   const [careerDescription, setCareerDescription] = useState('');
   const [careerSkills, setCareerSkills] = useState([]);
   const [careerSourceBook, setCareerSourceBook] = useState('');
   const [careerForceSensitive, setCareerForceSensitive] = useState(false);
-  const [availableSkillsForCareer, setAvailableSkillsForCareer] = useState([]);
-  const [existingCareers, setExistingCareers] = useState([]);
+  const [existingCareers, setExistingCareers] = useState([]); // full rows for editing
   const [editingCareerId, setEditingCareerId] = useState(null);
+  const [careerBooks, setCareerBooks] = useState([]); // [{ id, Book_name }]
   const [savingCareer, setSavingCareer] = useState(false);
-  const [careerBooks, setCareerBooks] = useState([]);
 
   // -----------------------------------------------------------------
-  // 2e. Equipment Form State
+  // 3. Data
   // -----------------------------------------------------------------
-  const [equipmentName, setEquipmentName] = useState('');
-  const [equipmentDescription, setEquipmentDescription] = useState('');
-  const [equipmentSkill, setEquipmentSkill] = useState('');
-  const [equipmentSkillId, setEquipmentSkillId] = useState('');
-  const [equipmentDamage, setEquipmentDamage] = useState('');
-  const [equipmentRange, setEquipmentRange] = useState('');
-  const [equipmentEncumbrance, setEquipmentEncumbrance] = useState('');
-  const [equipmentPrice, setEquipmentPrice] = useState('');
-  const [equipmentRarity, setEquipmentRarity] = useState('');
-  const [equipmentDamageMelee, setEquipmentDamageMelee] = useState('');
-  const [equipmentConsumable, setEquipmentConsumable] = useState(false);
-  const [equipmentCritical, setEquipmentCritical] = useState('');
-  const [equipmentHP, setEquipmentHP] = useState('');
-  const [equipmentSpecial, setEquipmentSpecial] = useState('');
-  const [equipmentSoak, setEquipmentSoak] = useState('');
-  const [equipmentDamageRange, setEquipmentDamageRange] = useState('');
-
-  // -----------------------------------------------------------------
-  // 2f. Pathfinder Race Form State
-  // -----------------------------------------------------------------
-  const [savingPRace, setSavingPRace] = useState(false);
-  const [showAddAbilityTreeForm, setShowAddAbilityTreeForm] = useState(false);
-
-  // -----------------------------------------------------------------
-  // 2g. Force Tree Form State
-  // -----------------------------------------------------------------
-  const [forceTreeName, setForceTreeName] = useState('');
-  const [forceTreeDescription, setForceTreeDescription] = useState('');
-  const [forceTreeTopAbility, setForceTreeTopAbility] = useState('');
-  const [forceTreeTopCost, setForceTreeTopCost] = useState('');
-  const [forceTreeTopDescription, setForceTreeTopDescription] = useState('');
-  const [forceTreeTopActivation, setForceTreeTopActivation] = useState('Passive');
-  const [forceTreeMerged, setForceTreeMerged] = useState({});
-  const [forceTreeLinks, setForceTreeLinks] = useState({});
-
-  // -----------------------------------------------------------------
-  // 3. Race and Career Display State
-  // -----------------------------------------------------------------
-  const [raceData, setRaceData] = useState([]);
-  const [careerData, setCareerData] = useState([]);
+  const [raceData, setRaceData] = useState([]); // { id, name, pictures: [{ id, careerSpec }] }
+  const [careerData, setCareerData] = useState([]); // { specId, fullName, pictures: [{ id, raceName }] }
   const [racesLoading, setRacesLoading] = useState(false);
-  const [racesError, setRacesError] = useState('');
   const [careersLoading, setCareersLoading] = useState(false);
+  const [racesError, setRacesError] = useState('');
   const [careersError, setCareersError] = useState('');
-  const [selectedSpecPerRace, setSelectedSpecPerRace] = useState({});
-  const [availableSpecsPerRace, setAvailableSpecsPerRace] = useState({});
-  const [availableRacesPerSpec, setAvailableRacesPerSpec] = useState({});
-  const [selectedRacePerSpec, setSelectedRacePerSpec] = useState({});
+  const [selectedSpecPerRace, setSelectedSpecPerRace] = useState({}); // { raceId: specId }
+  const [availableSpecsPerRace, setAvailableSpecsPerRace] = useState({}); // { raceId: [specs] }
+  const [availableRacesPerSpec, setAvailableRacesPerSpec] = useState({}); // { specId: [race objects] }
+  const [selectedRacePerSpec, setSelectedRacePerSpec] = useState({}); // { specId: raceId }
   const raceRefs = useRef({});
   const careerRefs = useRef({});
 
-  const handleSaveSpecialization = async (options = {}) => {
-    const { abilityModeOverride, updateSpec = false, specIdOverride = null } = options;
-    try {
-      setSpecConflict(null);
-      setAbilityConflicts([]);
-      if (!specName.trim()) {
-        alert('Specialization name is required');
-        return;
-      }
-      if (!specCareer) {
-        alert('Please select a career');
-        return;
-      }
-      setSavingSpec(true);
-      const abilityConflictsFound = new Set();
-      const abilityMode = abilityModeOverride || abilityConflictAction || null;
-      const skipSpecConflictCheck = updateSpec || !!specIdOverride;
-      const forceCreateSpec = false;
-      // 0) Check for existing spec by name
-      const { data: existingSpec, error: existingSpecErr } = await supabase
-        .from('SW_spec')
-        .select('id')
-        .eq('spec_name', specName)
-        .maybeSingle();
-      if (existingSpecErr) {
-        console.error('Error checking existing spec:', existingSpecErr);
-      }
-      if (existingSpec?.id && !forceCreateSpec && !updateSpec && !skipSpecConflictCheck) {
-        setSpecConflict({ id: existingSpec.id, name: specName });
-        setSavingSpec(false);
-        return;
-      }
-      // 1) Resolve Career ID
-      const { data: careerRow, error: careerErr } = await supabase
-        .from('SW_career')
-        .select('id')
-        .eq('name', specCareer)
-        .single();
-      if (careerErr || !careerRow) {
-        console.error('Error resolving career:', careerErr);
-        alert('Failed to find career id');
-        setSavingSpec(false);
-        return;
-      }
-      const careerId = careerRow.id;
-      // 2) Insert or update SW_spec
-      let specId = specIdOverride || existingSpec?.id || null;
-      if (updateSpec) {
-        if (!specId) {
-          alert('No specialization selected to update');
-          setSavingSpec(false);
-          return;
-        }
-        const { error: updErr } = await supabase
-          .from('SW_spec')
-          .update({
-            spec_name: specName,
-            Career: careerId,
-            description: specDescription,
-            spec_skills: (specSkills || []).join(', ')
-          })
-          .eq('id', existingSpec.id);
-        if (updErr) {
-          console.error('Error updating specialization:', updErr);
-          alert('Failed to update specialization');
-          setSavingSpec(false);
-          return;
-        }
-        specId = specIdOverride || existingSpec?.id;
-      } else if (!existingSpec?.id || forceCreateSpec) {
-        const { data: specInsert, error: specErr } = await supabase
-          .from('SW_spec')
-          .insert([{
-            spec_name: specName,
-            Career: careerId,
-            description: specDescription,
-            spec_skills: (specSkills || []).join(', ')
-          }])
-          .select('id')
-          .single();
-        if (specErr || !specInsert) {
-          console.error('Error inserting specialization:', specErr);
-          alert('Failed to save specialization');
-          setSavingSpec(false);
-          return;
-        }
-        specId = specInsert.id;
-      }
-      // Helpers to resolve/insert abilities and get IDs
-      const getAbilityId = async (abilityName, description, activation, isCustom) => {
-        if (!abilityName) return null;
-        // Try fetch id from SW_abilities
-        let { data: abRow, error: abErr } = await supabase
-          .from('SW_abilities')
-          .select('id')
-          .eq('ability', abilityName)
-          .maybeSingle();
-        if (abErr) {
-          console.warn('Lookup SW_abilities failed:', abErr?.message);
-        }
-        // If found and custom
-        if (abRow?.id && isCustom) {
-          if (!abilityMode) {
-            abilityConflictsFound.add(abilityName);
-            throw new Error('ABILITY_CONFLICT');
-          }
-          if (abilityMode === 'update') {
-            // Update description/activation
-            let updRes = await supabase
-              .from('SW_abilities')
-              .update({ description: description || '', activation: activation || 'Passive' })
-              .eq('id', abRow.id);
-            return abRow.id;
-          }
-          // abilityMode === 'addNew' -> fall through to insert
-        }
-        if (abRow?.id) return abRow.id;
-        // If custom, insert into abilities table
-        if (isCustom) {
-          // Prefer plural table; fallback to singular
-          let insertRes = await supabase
-            .from('SW_abilities')
-            .insert([{ ability: abilityName, description: description || '', activation: activation || 'Passive' }])
-            .select('id')
-            .single();
-          if (insertRes.error) return null;
-          return insertRes.data?.id || null;
-        }
-        return null;
-      };
-      for (let r = 0; r < 5; r++) {
-        for (let c = 1; c <= 4; c++) {
-          const boxIndex = r * 4 + (c - 1);
-          const abilityName = specTalentTree[boxIndex] || '';
-          const isCustom = !!isCustomTalent[boxIndex];
-          const desc = specTalentDescriptions[boxIndex] || '';
-          const activation = specTalentActivations[boxIndex] || '';
-          const abilityId = await getAbilityId(abilityName, desc, activation, isCustom);
-          const fieldBase = `ability_${rows[r]}_${c}`;
-          treePayload[fieldBase] = abilityId;
-          const links = [];
-          // Check for links to the left (from the space to the left of this talent)
-          if (c > 1 && specTalentLinks[`${r}_${c - 2}_right`]) links.push('Left');
-          // Check for links to the right (from the space to the right of this talent)
-          if (c < 4 && specTalentLinks[`${r}_${c - 1}_right`]) links.push('Right');
-          // Check for links up (from the space above this talent)
-          if (r > 0 && specTalentLinks[`${r - 1}_${c - 1}_down`]) links.push('Up');
-          // Check for links down (from the space below this talent)
-          if (r < 4 && specTalentLinks[`${r}_${c - 1}_down`]) links.push('Down');
-          treePayload[`${fieldBase}_links`] = links.join(', ');
-        }
-      }
-      // 4) Insert or replace SW_spec_tree (spec_ID column)
-      if (specId && (updateSpec || specIdOverride)) {
-        const { error: deleteErr } = await supabase
-          .from('SW_spec_tree')
-          .delete()
-          .eq('spec_ID', specId);
-        if (deleteErr) {
-          console.error('Error clearing existing spec tree:', deleteErr);
-          alert('Failed to replace existing talent tree');
-          setSavingSpec(false);
-          return;
-        }
-      }
-      const { error: treeErr } = await supabase
-        .from('SW_spec_tree')
-        .insert([{ ...treePayload, spec_ID: specId }]);
-      if (treeErr) {
-        console.error('Error saving spec tree:', treeErr);
-        alert('Saved specialization, but failed saving talent tree');
-        setSavingSpec(false);
-        return;
-      }
-      alert('Specialization and Talent Tree saved!');
-      // Reset form
-      setSpecName('');
-      setSpecCareer('');
-      setSpecDescription('');
-      setSpecSkills([]);
-      setSpecTalentTree({});
-      setSpecTalentDescriptions({});
-      setSpecTalentActivations({});
-      setSpecTalentLinks({});
-      setCustomTalentInputMode({});
-      setIsCustomTalent({});
-      setAbilityConflictAction(null);
-      setEditingSpecId(null);
-      setShowAddSpecializationForm(false);
-    } catch (err) {
-      console.error('Save specialization failed:', err);
-      if (err.message === 'ABILITY_CONFLICT') {
-        setAbilityConflicts(Array.from(new Set(Array.from(abilityConflictsFound))).map(name => ({ name })));
-        alert('Custom abilities already exist. Choose Add New or Update Existing.');
-      } else {
-        alert('Failed to save specialization');
-      }
-    } finally {
-      setSavingSpec(false);
-    }
-  };
+  // -----------------------------------------------------------------
+  // 4. Fetch Admin Status and Upload Pictures Setting
+  // -----------------------------------------------------------------
+  useEffect(() => {
+    console.log('Player ID:', playerId ?? '—');
 
-  // Fetch careers when Add Career form is shown
+    const fetchAdminStatus = async () => {
+      try {
+        if (!playerId) {
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('user')
+          .select('admin')
+          .eq('id', playerId)
+          .single();
+
+        if (error) throw error;
+
+        setIsAdmin(data?.admin === true);
+      } catch (err) {
+        console.error('Failed to fetch admin status:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminStatus();
+  }, [playerId]);
+
+  // Fetch Upload Pictures setting
+  useEffect(() => {
+    const fetchUploadPicturesSetting = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user')
+          .select('Upload_pictures')
+          .eq('id', 1)
+          .single();
+
+        if (error) throw error;
+
+        setUploadPicturesEnabled(data?.Upload_pictures === true);
+      } catch (err) {
+        console.error('Failed to fetch Upload Pictures setting:', err);
+      }
+    };
+
+    if (isAdmin) {
+      fetchUploadPicturesSetting();
+    }
+  }, [isAdmin]);
+
+  // Fetch skills when Add Species, Add Specialization, Add Career, or Add Equipment form is shown
+  useEffect(() => {
+    const fetchSkills = async () => {
+      if (!showAddSpeciesForm && !showAddSpecializationForm && !showAddCareerForm && !showAddEquipmentForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('skills')
+          .select('id, skill, type')
+          .order('skill');
+
+        if (error) throw error;
+
+        const skillNames = data?.map(s => s.skill) || [];
+        setAvailableSkills(skillNames);
+        setAvailableSkillsDetailed(data || []);
+      } catch (err) {
+        console.error('Failed to fetch skills:', err);
+      }
+    };
+
+    fetchSkills();
+  }, [showAddSpeciesForm, showAddSpecializationForm, showAddCareerForm, showAddEquipmentForm]);
+
+  // Fetch existing careers when Add Career form is shown
   useEffect(() => {
     const fetchCareers = async () => {
       if (!showAddCareerForm) return;
@@ -527,28 +397,6 @@ export default function Settings() {
 
     fetchTalentsForTree();
   }, [showAddSpecializationForm]);
-
-  // Fetch force talents when Add Force Tree form is shown
-  useEffect(() => {
-    const fetchForceAbilities = async () => {
-      if (!showAddForceTreeForm) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('SW_force_talents')
-          .select('talent_name')
-          .order('talent_name');
-
-        if (error) throw error;
-
-        setAvailableForceAbilities(data?.map(t => t.talent_name) || []);
-      } catch (err) {
-        console.error('Failed to fetch force talents:', err);
-      }
-    };
-
-    fetchForceAbilities();
-  }, [showAddForceTreeForm]);
 
   // Fetch existing specs and ability map for editing when form is shown
   useEffect(() => {
@@ -726,6 +574,33 @@ export default function Settings() {
     }
   }, [showAddPathfinderRaceForm, isAdmin]);
 
+  // Fetch Force Talents from SW_force_talents table
+  useEffect(() => {
+    const fetchForceTalents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('SW_force_talents')
+          .select('talent_name, description');
+        
+        if (error) {
+          console.error('Error fetching force talents:', error);
+          return;
+        }
+
+        if (data) {
+          const sortedTalents = data.sort((a, b) => a.talent_name.localeCompare(b.talent_name));
+          setForceTalentNames(sortedTalents);
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching force talents:', err);
+      }
+    };
+
+    if (showAddForceTreeForm && isAdmin) {
+      fetchForceTalents();
+    }
+  }, [showAddForceTreeForm, isAdmin]);
+
   // -----------------------------------------------------------------
   // 7. Handlers
   // -----------------------------------------------------------------
@@ -778,7 +653,7 @@ export default function Settings() {
     setSavingUploadPictures(true);
     try {
       const { error } = await supabase
-        .from('Admin_Control')
+        .from('user')
         .update({ Upload_pictures: !uploadPicturesEnabled })
         .eq('id', 1);
 
@@ -861,8 +736,20 @@ export default function Settings() {
     setShowCareerPictures(false);
   };
 
+
   const handleAddSpecialization = () => {
     setShowAddSpecializationForm(true);
+    setShowAddForceTreeForm(false);
+    setShowAddSpeciesForm(false);
+    setShowAddEquipmentForm(false);
+    setShowAddCareerForm(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+  };
+
+  const handleAddForceTree = () => {
+    setShowAddForceTreeForm(true);
+    setShowAddSpecializationForm(false);
     setShowAddSpeciesForm(false);
     setShowAddEquipmentForm(false);
     setShowAddCareerForm(false);
@@ -872,8 +759,9 @@ export default function Settings() {
 
   const handleAddCareer = () => {
     setShowAddCareerForm(true);
-    setShowAddSpeciesForm(false);
+    setShowAddForceTreeForm(false);
     setShowAddSpecializationForm(false);
+    setShowAddSpeciesForm(false);
     setShowAddEquipmentForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -881,28 +769,9 @@ export default function Settings() {
 
   const handleAddEquipment = () => {
     setShowAddEquipmentForm(true);
-    setShowAddSpeciesForm(false);
+    setShowAddForceTreeForm(false);
     setShowAddSpecializationForm(false);
-    setShowAddCareerForm(false);
-    setShowRacePictures(false);
-    setShowCareerPictures(false);
-  };
-
-  const handleAddForceTree = () => {
-    setShowAddForceTreeForm(true);
     setShowAddSpeciesForm(false);
-    setShowAddSpecializationForm(false);
-    setShowAddEquipmentForm(false);
-    setShowAddCareerForm(false);
-    setShowRacePictures(false);
-    setShowCareerPictures(false);
-  };
-
-  const handleAddAbilityTree = () => {
-    setShowAddAbilityTreeForm(true);
-    setShowAddSpeciesForm(false);
-    setShowAddSpecializationForm(false);
-    setShowAddEquipmentForm(false);
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -918,16 +787,6 @@ export default function Settings() {
     setSpeciesSkills(speciesSkills.filter(s => s !== skillToRemove));
   };
 
-  const handleAddTalent = (talent) => {
-    if (talent && !speciesTalents.includes(talent)) {
-      setSpeciesTalents([...speciesTalents, talent]);
-    }
-  };
-
-  const handleRemoveTalent = (talentToRemove) => {
-    setSpeciesTalents(speciesTalents.filter(t => t !== talentToRemove));
-  };
-
   const handleAddSpecSkill = (skill) => {
     if (skill && !specSkills.includes(skill)) {
       setSpecSkills([...specSkills, skill]);
@@ -936,49 +795,6 @@ export default function Settings() {
 
   const handleRemoveSpecSkill = (skillToRemove) => {
     setSpecSkills(specSkills.filter(s => s !== skillToRemove));
-  };
-
-  const handleTalentTreeChange = async (boxIndex, talentName) => {
-    if (talentName === '__ADD_NEW__') {
-      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: true }));
-      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
-      setSpecTalentTree(prev => ({ ...prev, [boxIndex]: '' }));
-      setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
-      setSpecTalentActivations(prev => ({ ...prev, [boxIndex]: 'Passive' }));
-    } else if (talentName) {
-      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: false }));
-      setSpecTalentTree(prev => ({
-        ...prev,
-        [boxIndex]: talentName
-      }));
-
-      // Fetch description from SW_abilities
-      try {
-        const { data, error } = await supabase
-          .from('SW_abilities')
-          .select('description')
-          .eq('ability', talentName)
-          .single();
-
-        if (error) {
-          console.error('Error fetching talent description:', error);
-          setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: 'Description not found' }));
-          setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
-        } else {
-          setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: data?.description || '' }));
-          setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
-        }
-      } catch (err) {
-        console.error('Failed to fetch description:', err);
-        setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
-        setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
-      }
-    } else {
-      setSpecTalentTree(prev => ({ ...prev, [boxIndex]: '' }));
-      setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
-      setSpecTalentActivations(prev => ({ ...prev, [boxIndex]: '' }));
-      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
-    }
   };
 
   const handleCustomTalentInput = (boxIndex, value) => {
@@ -1081,78 +897,52 @@ export default function Settings() {
     }));
   };
 
-  // Force Tree Ability Handlers
-  const handleForceAbilityChange = (boxIndex, value) => {
-    if (value === '__ADD_NEW__') {
-      setForceTreeCustomInputMode(prev => ({ ...prev, [boxIndex]: true }));
-    } else {
-      setForceTreeAbilities(prev => ({ ...prev, [boxIndex]: value }));
-      setForceTreeCustomInputMode(prev => ({ ...prev, [boxIndex]: false }));
-
-      // Check for vertically adjacent boxes with same name
-      checkForMergeableBoxes(boxIndex, value);
-    }
-  };
-
-  const handleForceCustomAbilityInput = (boxIndex, value) => {
-    setForceTreeAbilities(prev => ({ ...prev, [boxIndex]: value }));
-  };
-
-  const handleForceCustomAbilityBlur = (boxIndex) => {
-    const customAbility = forceTreeAbilities[boxIndex];
-    if (customAbility && customAbility.trim() && !availableForceAbilities.includes(customAbility)) {
-      setAvailableForceAbilities(prev => [...prev, customAbility].sort());
-    }
-    if (customAbility && customAbility.trim()) {
-      setForceTreeIsCustom(prev => ({ ...prev, [boxIndex]: true }));
-    }
-    setForceTreeCustomInputMode(prev => ({ ...prev, [boxIndex]: false }));
-
-    // Check for vertically adjacent boxes with same name
-    checkForMergeableBoxes(boxIndex, customAbility);
-  };
-
   const resetEquipmentForm = () => {
     setEquipmentName('');
     setEquipmentDescription('');
-    setEquipmentSkill('');
-    setEquipmentDamage('');
+    setEquipmentSkillId('');
     setEquipmentRange('');
     setEquipmentEncumbrance('');
     setEquipmentPrice('');
     setEquipmentRarity('');
+    setEquipmentDamage('');
+    setEquipmentCritical('');
+    setEquipmentHP('');
+    setEquipmentSpecial('');
+    setEquipmentSoak('');
+    setEquipmentDamageRange('');
     setEquipmentDamageMelee('');
     setEquipmentConsumable(false);
   };
 
   const handleSaveEquipment = async () => {
     if (!equipmentName.trim()) {
-      alert('Please enter equipment name');
+      alert('Name is required');
       return;
     }
 
     try {
       const payload = {
-        equipment_name: equipmentName.trim(),
+        name: equipmentName.trim(),
         description: equipmentDescription.trim(),
-        skill_id: equipmentSkillId || null,
-        range: equipmentRange || null,
+        skill: equipmentSkillId ? parseInt(equipmentSkillId, 10) : null,
+        range: equipmentRange.trim(),
         encumbrance: equipmentEncumbrance ? parseInt(equipmentEncumbrance, 10) : null,
         price: equipmentPrice ? parseInt(equipmentPrice, 10) : null,
         rarity: equipmentRarity ? parseInt(equipmentRarity, 10) : null,
-        damage: equipmentDamage || null,
-        critical: equipmentCritical || null,
-        hp: equipmentHP ? parseInt(equipmentHP, 10) : null,
-        special: equipmentSpecial || null,
+        damage: equipmentDamage ? parseInt(equipmentDamage, 10) : null,
+        critical: equipmentCritical ? parseInt(equipmentCritical, 10) : null,
+        HP: equipmentHP ? parseInt(equipmentHP, 10) : null,
+        special: equipmentSpecial.trim(),
         soak: equipmentSoak ? parseInt(equipmentSoak, 10) : null,
-        damage_range: equipmentDamageRange || null,
-        damage_melee: equipmentDamageMelee || null,
-        consumable: equipmentConsumable
+        defence_range: equipmentDamageRange !== '' ? parseInt(equipmentDamageRange, 10) : null,
+        defence_melee: equipmentDamageMelee !== '' ? parseInt(equipmentDamageMelee, 10) : null,
+        consumable: equipmentConsumable,
       };
 
       const { error } = await supabase
         .from('SW_equipment')
-        .insert([payload]);
+        .insert(payload);
 
       if (error) {
         console.error('Error saving equipment:', error);
@@ -1160,12 +950,228 @@ export default function Settings() {
         return;
       }
 
-      alert('Equipment saved successfully!');
+      alert('Equipment saved');
       resetEquipmentForm();
       setShowAddEquipmentForm(false);
     } catch (err) {
-      console.error('Error saving equipment:', err);
+      console.error('Unexpected error saving equipment:', err);
       alert('Failed to save equipment');
+    }
+  };
+
+  const handleSaveSpecialization = async ({ forceCreateSpec = false, updateSpec = false, abilityMode: abilityModeOverride = null, specIdOverride = null } = {}) => {
+    try {
+      setSpecConflict(null);
+      setAbilityConflicts([]);
+
+      if (!specName.trim()) {
+        alert('Specialization name is required');
+        return;
+      }
+      if (!specCareer) {
+        alert('Please select a career');
+        return;
+      }
+
+      setSavingSpec(true);
+
+      const abilityConflictsFound = new Set();
+      const abilityMode = abilityModeOverride || abilityConflictAction || null;
+
+      const skipSpecConflictCheck = updateSpec || !!specIdOverride;
+
+      // 0) Check for existing spec by name
+      const { data: existingSpec, error: existingSpecErr } = await supabase
+        .from('SW_spec')
+        .select('id')
+        .eq('spec_name', specName)
+        .maybeSingle();
+      if (existingSpecErr) {
+        console.error('Error checking existing spec:', existingSpecErr);
+      }
+
+      if (existingSpec?.id && !forceCreateSpec && !updateSpec && !skipSpecConflictCheck) {
+        setSpecConflict({ id: existingSpec.id, name: specName });
+        setSavingSpec(false);
+        return;
+      }
+
+      // 1) Resolve Career ID
+      const { data: careerRow, error: careerErr } = await supabase
+        .from('SW_career')
+        .select('id')
+        .eq('name', specCareer)
+        .single();
+      if (careerErr || !careerRow) {
+        console.error('Error resolving career:', careerErr);
+        alert('Failed to find career id');
+        setSavingSpec(false);
+        return;
+      }
+      const careerId = careerRow.id;
+
+      // 2) Insert or update SW_spec
+      let specId = specIdOverride || existingSpec?.id || null;
+      if (updateSpec) {
+        if (!specId) {
+          alert('No specialization selected to update');
+          setSavingSpec(false);
+          return;
+        }
+        const { error: updErr } = await supabase
+          .from('SW_spec')
+          .update({
+            spec_name: specName,
+            Career: careerId,
+            description: specDescription,
+            spec_skills: (specSkills || []).join(', ')
+          })
+          .eq('id', existingSpec.id);
+        if (updErr) {
+          console.error('Error updating specialization:', updErr);
+          alert('Failed to update specialization');
+          setSavingSpec(false);
+          return;
+        }
+        specId = specIdOverride || existingSpec?.id;
+      } else if (!existingSpec?.id || forceCreateSpec) {
+        const { data: specInsert, error: specErr } = await supabase
+          .from('SW_spec')
+          .insert([{
+            spec_name: specName,
+            Career: careerId,
+            description: specDescription,
+            spec_skills: (specSkills || []).join(', ')
+          }])
+          .select('id')
+          .single();
+        if (specErr || !specInsert) {
+          console.error('Error inserting specialization:', specErr);
+          alert('Failed to save specialization');
+          setSavingSpec(false);
+          return;
+        }
+        specId = specInsert.id;
+      }
+
+      // Helpers to resolve/insert abilities and get IDs
+      const getAbilityId = async (abilityName, description, activation, isCustom) => {
+        if (!abilityName) return null;
+        // Try fetch id from SW_abilities
+        let { data: abRow, error: abErr } = await supabase
+          .from('SW_abilities')
+          .select('id')
+          .eq('ability', abilityName)
+          .maybeSingle();
+        if (abErr) {
+          console.warn('Lookup SW_abilities failed:', abErr?.message);
+        }
+
+        // If found and custom
+        if (abRow?.id && isCustom) {
+          if (!abilityMode) {
+            abilityConflictsFound.add(abilityName);
+            throw new Error('ABILITY_CONFLICT');
+          }
+          if (abilityMode === 'update') {
+            // Update description/activation
+            await supabase
+              .from('SW_abilities')
+              .update({ description: description || '', activation: activation || 'Passive' })
+              .eq('id', abRow.id);
+            return abRow.id;
+          }
+          // abilityMode === 'addNew' -> fall through to insert
+        }
+
+        if (abRow?.id) return abRow.id;
+
+        // If custom, insert into abilities table
+        if (isCustom) {
+          // Prefer plural table; fallback to singular
+          let insertRes = await supabase
+            .from('SW_abilities')
+            .insert([{ ability: abilityName, description: description || '', activation: activation || 'Passive' }])
+            .select('id')
+            .single();
+          if (insertRes.error) return null;
+          return insertRes.data?.id || null;
+        }
+        return null;
+      };
+
+      // 3) Build spec tree payload
+      const rows = [5, 10, 15, 20, 25];
+      const treePayload = {}; // spec_ID added on insert
+      for (let r = 0; r < 5; r++) {
+        for (let c = 1; c <= 4; c++) {
+          const boxIndex = r * 4 + (c - 1);
+          const abilityName = specTalentTree[boxIndex] || '';
+          const isCustom = !!isCustomTalent[boxIndex];
+          const desc = specTalentDescriptions[boxIndex] || '';
+          const activation = specTalentActivations[boxIndex] || '';
+
+          const abilityId = await getAbilityId(abilityName, desc, activation, isCustom);
+          const fieldBase = `ability_${rows[r]}_${c}`;
+          treePayload[fieldBase] = abilityId;
+
+          const links = [];
+          if (specTalentLinks[`${r}_${c - 1}_right`]) links.push('Right');
+          if (specTalentLinks[`${r}_${c - 1}_down`]) links.push('Down');
+          treePayload[`${fieldBase}_links`] = links.join(', ');
+        }
+      }
+
+      // 4) Insert or replace SW_spec_tree (spec_ID column)
+      if (specId && (updateSpec || specIdOverride)) {
+        const { error: deleteErr } = await supabase
+          .from('SW_spec_tree')
+          .delete()
+          .eq('spec_ID', specId);
+        if (deleteErr) {
+          console.error('Error clearing existing spec tree:', deleteErr);
+          alert('Failed to replace existing talent tree');
+          setSavingSpec(false);
+          return;
+        }
+      }
+
+      const { error: treeErr } = await supabase
+        .from('SW_spec_tree')
+        .insert([{ ...treePayload, spec_ID: specId }]);
+      if (treeErr) {
+        console.error('Error saving spec tree:', treeErr);
+        alert('Saved specialization, but failed saving talent tree');
+        setSavingSpec(false);
+        return;
+      }
+
+      alert('Specialization and Talent Tree saved!');
+
+      // Reset form
+      setSpecName('');
+      setSpecCareer('');
+      setSpecDescription('');
+      setSpecSkills([]);
+      setSpecTalentTree({});
+      setSpecTalentDescriptions({});
+      setSpecTalentActivations({});
+      setSpecTalentLinks({});
+      setCustomTalentInputMode({});
+      setIsCustomTalent({});
+      setAbilityConflictAction(null);
+      setEditingSpecId(null);
+      setShowAddSpecializationForm(false);
+    } catch (err) {
+      console.error('Save specialization failed:', err);
+      if (err.message === 'ABILITY_CONFLICT') {
+        setAbilityConflicts(Array.from(new Set(Array.from(abilityConflictsFound))).map(name => ({ name })));
+        alert('Custom abilities already exist. Choose Add New or Update Existing.');
+      } else {
+        alert('Failed to save specialization');
+      }
+    } finally {
+      setSavingSpec(false);
     }
   };
 
@@ -1487,24 +1493,9 @@ export default function Settings() {
             .split(',')
             .map(l => l.trim())
             .filter(Boolean);
-
-          // Convert links back to checkbox positions
-          // "Right" link means checkbox to the right of this talent (at position r, c-1)
-          if (links.includes('Right') && c < 4) {
-            newLinks[`${r}_${c - 1}_right`] = true;
-          }
-          // "Down" link means checkbox below this talent (at position r, c-1)
-          if (links.includes('Down') && r < 4) {
-            newLinks[`${r}_${c - 1}_down`] = true;
-          }
-          // "Left" link means checkbox to the left of this talent (at position r, c-2)
-          if (links.includes('Left') && c > 1) {
-            newLinks[`${r}_${c - 2}_right`] = true;
-          }
-          // "Up" link means checkbox above this talent (at position r-1, c-1)
-          if (links.includes('Up') && r > 0) {
-            newLinks[`${r - 1}_${c - 1}_down`] = true;
-          }
+          const linkKeyBase = `${r}_${c - 1}`;
+          if (links.includes('Right')) newLinks[`${linkKeyBase}_right`] = true;
+          if (links.includes('Down')) newLinks[`${linkKeyBase}_down`] = true;
         }
       }
 
@@ -1826,7 +1817,7 @@ export default function Settings() {
       }
 
       // Insert into SW_pictures
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('SW_pictures')
         .insert([
           {
@@ -2353,29 +2344,8 @@ export default function Settings() {
     <div className="flex flex-col items-center min-h-screen bg-white py-10">
       <h1 className="text-3xl font-bold mb-2">Settings</h1>
 
-
-      {/* Admin Tabs */}
       {isAdmin && (
-        <div className="w-3/4 max-w-md flex gap-4 mb-8">
-          <button
-            className={`flex-1 px-6 py-2 rounded font-semibold transition border-b-4 ${showStarWarsSection ? 'bg-indigo-100 border-indigo-600 text-indigo-800' : 'bg-gray-100 border-transparent text-gray-600'}`}
-            onClick={() => {
-              setShowStarWarsSection(true);
-              setShowPathfinderSection(false);
-            }}
-          >
-            Star Wars
-          </button>
-          <button
-            className={`flex-1 px-6 py-2 rounded font-semibold transition border-b-4 ${showPathfinderSection ? 'bg-red-100 border-red-600 text-red-800' : 'bg-gray-100 border-transparent text-gray-600'}`}
-            onClick={() => {
-              setShowStarWarsSection(false);
-              setShowPathfinderSection(true);
-            }}
-          >
-            Pathfinder
-          </button>
-        </div>
+        <p className="text-lg font-semibold text-purple-700 mb-8">Admin</p>
       )}
 
       {!showPasswordForm && (
@@ -2667,6 +2637,7 @@ export default function Settings() {
                 </button>
               </div>
 
+
               <div className="flex space-x-3 mt-4">
                 <button
                   onClick={handleAddSpecies}
@@ -2675,32 +2646,270 @@ export default function Settings() {
                   Add Species
                 </button>
 
-
                 <button
                   onClick={handleAddCareer}
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm font-medium"
                 >
                   Add Career
                 </button>
+
                 <button
                   onClick={handleAddSpecialization}
-                  className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition text-sm font-medium"
+                  className={`flex-1 px-4 py-2 rounded transition text-sm font-medium ${showAddSpecializationForm ? 'bg-yellow-700 text-white' : 'bg-yellow-600 text-white hover:bg-yellow-700'}`}
                 >
                   Add Specialization
                 </button>
+
+                <button
+                  onClick={handleAddForceTree}
+                  className={`flex-1 px-4 py-2 rounded transition text-sm font-medium ${showAddForceTreeForm ? 'bg-cyan-700 text-white' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}
+                >
+                  Add Force Tree
+                </button>
+
                 <button
                   onClick={handleAddEquipment}
                   className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition text-sm font-medium"
                 >
                   Add Equipment
                 </button>
-                <button
-                  onClick={handleAddForceTree}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition text-sm font-medium"
-                >
-                  Add Force Tree
-                </button>
               </div>
+
+              {showAddForceTreeForm && (
+                <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add or Edit Force Power Tree</h3>
+                  {/* Tree Header Section - moved directly under main header */}
+                  <div className="mb-4 flex flex-col gap-2">
+                    <label className="text-2xl font-bold text-blue-700 flex items-center">
+                      Power Tree Name:
+                      <input
+                        type="text"
+                        value={powerTreeName}
+                        onChange={e => setPowerTreeName(e.target.value)}
+                        className="ml-2 px-2 py-1 border border-gray-400 rounded text-black text-lg font-normal"
+                        style={{ minWidth: '220px' }}
+                      />
+                    </label>
+                    <label className="text-lg font-semibold text-gray-800 flex items-center">
+                      Force Prerequisite:
+                      <input
+                        type="text"
+                        value={forcePrerequisite}
+                        onChange={e => setForcePrerequisite(e.target.value)}
+                        className="ml-2 px-2 py-1 border border-gray-400 rounded text-black text-base font-normal"
+                        style={{ minWidth: '180px' }}
+                      />
+                    </label>
+                  </div>
+                    <div className="overflow-y-auto border border-gray-300 rounded-lg p-4 bg-white" style={{ minHeight: '500px', maxHeight: '700px', width: 'fit-content' }}>
+                    <table className="border-separate text-center text-xs" style={{ borderSpacing: '0' }}>
+                      <tbody>
+                        {/* Top row: single merged ability box with Talent Name dropdown */}
+                        <tr className="bg-gray-50">
+                          <td colSpan={8} style={{
+                            border: '2px solid #1976d2',
+                            width: '1040px',
+                            height: '190px',
+                            textAlign: 'center',
+                            verticalAlign: 'middle',
+                            background: '#e3f2fd',
+                            padding: 0,
+                            position: 'relative'
+                          }}>
+                            <div
+                              className="talent-box"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                textAlign: 'left',
+                                padding: '24px',
+                                position: 'relative',
+                                boxSizing: 'border-box',
+                                backgroundColor: '#e3f2fd',
+                                border: '1px solid #90caf9',
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                justifyContent: 'flex-start',
+                                color: '#1976d2',
+                                fontWeight: 700,
+                                fontSize: '1.3rem',
+                                position: 'relative'
+                              }}
+                            >
+                              <div style={{ position: 'absolute', top: 12, left: 12, right: 12, zIndex: 2, display: 'flex', flexDirection: 'column', height: 'calc(100% - 24px)' }}>
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '8px', alignItems: 'flex-start' }}>
+                                  <div style={{ flex: 1 }}>
+                                    <label className="block font-bold text-blue-900 mb-1" style={{ fontSize: '1.3rem' }}>Talent Name</label>
+                                    <select
+                                      value={selectedForceTalentName}
+                                      onChange={e => {
+                                        const selected = forceTalentNames.find(t => t.talent_name === e.target.value);
+                                        setSelectedForceTalentName(e.target.value);
+                                        setSelectedForceTalentDescription(selected ? selected.description || '' : '');
+                                      }}
+                                      className="px-2 py-1 border border-blue-400 rounded text-blue-900 bg-white font-semibold"
+                                      style={{ fontSize: '1.3rem', width: '100%' }}
+                                    >
+                                      <option value="">-- Select Talent --</option>
+                                      {forceTalentNames.map(talent => (
+                                        <option key={talent.talent_name} value={talent.talent_name}>{talent.talent_name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div style={{ width: '80px' }}>
+                                    <label className="block font-bold text-blue-900 mb-1" style={{ fontSize: '1.3rem' }}>Cost</label>
+                                    <input
+                                      type="text"
+                                      value={forceTalentCost}
+                                      onChange={e => setForceTalentCost(e.target.value)}
+                                      placeholder="###"
+                                      className="px-2 py-1 border border-blue-400 rounded text-blue-900 bg-white font-semibold text-center"
+                                      style={{ fontSize: '1.3rem', width: '100%' }}
+                                    />
+                                  </div>
+                                </div>
+                                {selectedForceTalentDescription && (
+                                  <textarea
+                                    value={selectedForceTalentDescription}
+                                    readOnly
+                                    className="px-2 py-1 border border-blue-400 rounded text-blue-900 bg-blue-50 text-sm font-normal flex-1"
+                                    style={{ resize: 'none', width: '100%' }}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Remaining rows: 4 ability boxes per row, as before */}
+                        {(() => {
+                          // Hardcoded demo links array for 4x4 grid: each cell has an array of directions ("Up", "Down", "Left", "Right")
+                          // You can later replace this with dynamic data from your backend or user input
+                          const linksGrid = [
+                            [ ["Up", "Down", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left"] ],
+                            [ ["Up", "Down", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left"] ],
+                            [ ["Up", "Down", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left", "Right"], ["Up", "Down", "Left"] ],
+                            [ ["Up", "Right"], ["Up", "Left", "Right"], ["Up", "Left", "Right"], ["Up", "Left"] ]
+                          ];
+                          return Array.from({ length: 4 }, (_, rowIndex) => (
+                          <tr key={`force-row-${rowIndex}`} className="bg-gray-50">
+                            {Array.from({ length: 4 }, (_, colIndex) => {
+                              const boxIndex = (rowIndex) * 4 + colIndex;
+                              const links = linksGrid[rowIndex][colIndex];
+                              const talent = gridTalents[boxIndex];
+                              
+                              const handleTalentSelect = (talentName) => {
+                                const selected = forceTalentNames.find(t => t.talent_name === talentName);
+                                const newGridTalents = [...gridTalents];
+                                newGridTalents[boxIndex] = {
+                                  name: talentName,
+                                  cost: newGridTalents[boxIndex].cost,
+                                  description: selected ? selected.description || '' : ''
+                                };
+                                setGridTalents(newGridTalents);
+                              };
+                              
+                              const handleCostChange = (cost) => {
+                                const newGridTalents = [...gridTalents];
+                                newGridTalents[boxIndex] = {
+                                  ...newGridTalents[boxIndex],
+                                  cost: cost
+                                };
+                                setGridTalents(newGridTalents);
+                              };
+                              
+                              return (
+                                <>
+                                  <td key={`force-td-${colIndex}`} className="p-2 align-top" style={{
+                                    position: 'relative',
+                                    border: '2px solid #1976d2',
+                                    width: '260px',
+                                    height: '190px',
+                                    textAlign: 'center',
+                                    verticalAlign: 'middle',
+                                    background: '#e3f2fd'
+                                  }}>
+                                    <div
+                                      className="talent-box relative"
+                                      style={{
+                                        width: '260px',
+                                        height: '190px',
+                                        textAlign: 'left',
+                                        padding: '8px',
+                                        position: 'relative',
+                                        boxSizing: 'border-box',
+                                        backgroundColor: '#e3f2fd',
+                                        border: '1px solid #90caf9',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        color: '#1976d2',
+                                        fontWeight: 600
+                                      }}
+                                    >
+                                      {/* Render tick boxes only in directions specified by links */}
+                                      {links.includes('Up') && (
+                                        <input type="checkbox" style={{ position: 'absolute', top: '-18px', left: '50%', transform: 'translateX(-50%)', width: '22px', height: '22px' }} title="Up" />
+                                      )}
+                                      {links.includes('Down') && (
+                                        <input type="checkbox" style={{ position: 'absolute', bottom: '-18px', left: '50%', transform: 'translateX(-50%)', width: '22px', height: '22px' }} title="Down" />
+                                      )}
+                                      {links.includes('Left') && (
+                                        <input type="checkbox" style={{ position: 'absolute', left: '-18px', top: '50%', transform: 'translateY(-50%)', width: '22px', height: '22px' }} title="Left" />
+                                      )}
+                                      {links.includes('Right') && (
+                                        <input type="checkbox" style={{ position: 'absolute', right: '-18px', top: '50%', transform: 'translateY(-50%)', width: '22px', height: '22px' }} title="Right" />
+                                      )}
+                                      
+                                      {/* Talent Name and Cost */}
+                                      <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                                        <select
+                                          value={talent.name}
+                                          onChange={e => handleTalentSelect(e.target.value)}
+                                          className="flex-1 px-1 py-0 border border-blue-400 rounded text-blue-900 bg-white font-semibold text-xs"
+                                          style={{ minHeight: '24px' }}
+                                        >
+                                          <option value="">Select</option>
+                                          {forceTalentNames.map(t => (
+                                            <option key={t.talent_name} value={t.talent_name}>{t.talent_name}</option>
+                                          ))}
+                                        </select>
+                                        <input
+                                          type="text"
+                                          value={talent.cost}
+                                          onChange={e => handleCostChange(e.target.value)}
+                                          placeholder="Cost"
+                                          className="w-10 px-1 py-0 border border-blue-400 rounded text-blue-900 bg-white font-semibold text-xs text-center"
+                                          style={{ minHeight: '24px' }}
+                                        />
+                                      </div>
+                                      
+                                      {/* Description */}
+                                      {talent.description && (
+                                        <textarea
+                                          value={talent.description}
+                                          readOnly
+                                          className="flex-1 px-1 py-1 border border-blue-400 rounded text-blue-900 bg-blue-50 text-xs font-normal"
+                                          style={{ resize: 'none', minHeight: '130px', overflowY: 'auto' }}
+                                        />
+                                      )}
+                                    </div>
+                                  </td>
+                                  {colIndex < 3 && (
+                                    <td key={`force-hspacer-${colIndex}`} style={{ width: '24px', textAlign: 'center', background: 'transparent', border: 'none', padding: 0 }} />
+                                  )}
+                                </>
+                              );
+                            })}
+                          </tr>
+                        ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {showAddSpeciesForm && (
                 <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
@@ -2746,6 +2955,162 @@ export default function Settings() {
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={speciesDescription}
+                        onChange={(e) => setSpeciesDescription(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Brawn</label>
+                        <input
+                          type="number"
+                          value={speciesBrawn}
+                          onChange={(e) => setSpeciesBrawn(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Agility</label>
+                        <input
+                          type="number"
+                          value={speciesAgility}
+                          onChange={(e) => setSpeciesAgility(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Intellect</label>
+                        <input
+                          type="number"
+                          value={speciesIntellect}
+                          onChange={(e) => setSpeciesIntellect(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Cunning</label>
+                        <input
+                          type="number"
+                          value={speciesCunning}
+                          onChange={(e) => setSpeciesCunning(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Willpower</label>
+                        <input
+                          type="number"
+                          value={speciesWillpower}
+                          onChange={(e) => setSpeciesWillpower(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Presence</label>
+                        <input
+                          type="number"
+                          value={speciesPresence}
+                          onChange={(e) => setSpeciesPresence(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Wound</label>
+                        <input
+                          type="number"
+                          value={speciesWound}
+                          onChange={(e) => setSpeciesWound(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Strain</label>
+                        <input
+                          type="number"
+                          value={speciesStrain}
+                          onChange={(e) => setSpeciesStrain(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Race Attack</label>
+                        <input
+                          type="text"
+                          value={speciesRaceAttack}
+                          onChange={(e) => setSpeciesRaceAttack(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">EXP</label>
+                        <input
+                          type="number"
+                          value={speciesEXP}
+                          onChange={(e) => setSpeciesEXP(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Talents</label>
+                      <div className="space-y-2">
+                        {/* Selected talents as tags */}
+                        {speciesTalents.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {speciesTalents.map((talent, index) => (
+                              <div
+                                key={index}
+                                className="inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"
+                              >
+                                <span>{talent}</span>
+                                <button
+                                  onClick={() => handleRemoveTalent(talent)}
+                                  className="ml-2 text-green-600 hover:text-green-800 font-bold"
+                                  type="button"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Dropdown to add more talents */}
+                        <select
+                          onChange={(e) => {
+                            handleAddTalent(e.target.value);
+                            e.target.value = '';
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          value=""
+                        >
+                          <option value="">-- Select a talent to add --</option>
+                          {availableTalents
+                            .filter(talent => !speciesTalents.includes(talent))
+                            .map((talent, index) => (
+                              <option key={index} value={talent}>
+                                {talent}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div>
@@ -3148,7 +3513,6 @@ export default function Settings() {
                                             onChange={(e) => handleLinkChange(`${adjustedRowIndex}_${talentIndex}_right`, e.target.checked)}
                                             className="cursor-pointer"
                                             style={{ width: '16px', height: '16px' }}
-                                            title="Link to right talent"
                                           />
                                         )}
                                         {isVerticalSpace && (
@@ -3158,7 +3522,6 @@ export default function Settings() {
                                             onChange={(e) => handleLinkChange(`${adjustedRowIndex}_${talentIndex}_down`, e.target.checked)}
                                             className="cursor-pointer"
                                             style={{ width: '16px', height: '16px' }}
-                                            title="Link to talent below"
                                           />
                                         )}
                                       </td>
@@ -3255,8 +3618,8 @@ export default function Settings() {
                         {availableSkillsDetailed
                           .filter((s) => (s.type || '').toLowerCase() === 'combat')
                           .map((s) => (
-                            <option key={s.id} value={s.id}>{s.skill}</option>
-                          ))}
+                          <option key={s.id} value={s.id}>{s.skill}</option>
+                        ))}
                       </select>
                     </div>
                     <div className="md:col-span-2">
@@ -3403,249 +3766,6 @@ export default function Settings() {
                   </div>
                 </div>
               )}
-
-              {showAddForceTreeForm && (
-                <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
-                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add or Edit Force Tree</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Force Tree Name</label>
-                      <input
-                        type="text"
-                        value={forceTreeName}
-                        onChange={(e) => setForceTreeName(e.target.value)}
-                        placeholder="e.g., Jedi Consular"
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea
-                        value={forceTreeDescription}
-                        onChange={(e) => setForceTreeDescription(e.target.value)}
-                        placeholder="Enter description..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 resize-none"
-                        rows={3}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Force Prerequisite</label>
-                      <input
-                        type="text"
-                        value={forceTreeTopPrerequisite}
-                        onChange={(e) => setForceTreeTopPrerequisite(e.target.value)}
-                        placeholder="Enter prerequisite..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
-
-
-                    <div className="border-t pt-4">
-                      <h4 className="text-lg font-semibold text-gray-800 mb-3">Ability Tree</h4>
-                      {/* Top Ability Orange Box - now part of the table as a full-width row */}
-                      <div className="overflow-y-auto border border-gray-300 rounded-lg p-4 bg-white" style={{ minHeight: '500px', maxHeight: '700px', width: 'fit-content' }}>
-                        <table className="border-separate text-center text-xs" style={{ borderSpacing: '0' }}>
-                          <tbody>
-                            {/* Top Ability Row */}
-                            <tr>
-                              <td colSpan={8} style={{ padding: 0, border: 'none' }}>
-                                <div
-                                  className="talent-box"
-                                  style={{
-                                    width: '100%',
-                                    maxWidth: '1080px',
-                                    height: '190px',
-                                    textAlign: 'left',
-                                    padding: '8px',
-                                    position: 'relative',
-                                    boxSizing: 'border-box',
-                                    backgroundColor: '#ffedd5', // orange-100
-                                    border: '2px solid #fb923c', // orange-400
-                                    marginBottom: '12px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'flex-start',
-                                  }}
-                                >
-                                  <div className="border-b border-orange-400 pb-1 font-bold text-orange-700">
-                                    <input
-                                      type="text"
-                                      value={forceTreeTopAbility}
-                                      onChange={(e) => setForceTreeTopAbility(e.target.value)}
-                                      placeholder="Top Ability Name..."
-                                      className="w-full text-xs font-semibold border border-orange-300 rounded px-1 py-1 focus:outline-none focus:border-orange-500 bg-orange-50"
-                                    />
-                                  </div>
-                                  <div className="text-xs text-orange-800 mt-1" style={{ minHeight: '80px', maxHeight: '110px', overflowY: 'auto' }}>
-                                    <textarea
-                                      value={forceTreeTopDescription}
-                                      onChange={(e) => setForceTreeTopDescription(e.target.value)}
-                                      placeholder="Description..."
-                                      className="w-full text-xs border border-orange-300 rounded px-2 py-1 focus:outline-none focus:border-orange-500 resize-none bg-orange-50"
-                                      rows={2}
-                                    />
-                                    <input
-                                      type="text"
-                                      value={forceTreeTopCost}
-                                      onChange={(e) => setForceTreeTopCost(e.target.value)}
-                                      placeholder="Cost..."
-                                      className="w-full text-xs border border-orange-300 rounded px-2 py-1 mt-1 focus:outline-none focus:border-orange-500 bg-orange-50"
-                                    />
-                                  </div>
-                                  <div className="absolute bottom-2 right-2 text-right text-xs font-semibold text-orange-700">
-                                    {forceTreeTopCost ? `${forceTreeTopCost} EXP` : ''}
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                            {/* Ability Tree Rows */}
-                            {Array.from({ length: 8 }, (_, rowIndex) => {
-                              const isTalentRow = rowIndex % 2 === 0 && rowIndex < 8;
-                              const adjustedRowIndex = Math.floor(rowIndex / 2);
-
-                              return (
-                                <tr key={rowIndex} className="bg-gray-50" style={{ height: isTalentRow ? 'auto' : '16px' }}>
-                                  {Array.from({ length: 8 }, (_, colIndex) => {
-                                    const talentIndex = Math.floor(colIndex / 2);
-                                    const isTalentBox = colIndex % 2 === 0 && colIndex < 8 && isTalentRow;
-                                    const isHorizontalSpace = colIndex % 2 === 1 && colIndex < 7 && isTalentRow;
-                                    const isVerticalSpace = colIndex % 2 === 0 && !isTalentRow && rowIndex > 0 && rowIndex < 7;
-                                    const boxIndex = adjustedRowIndex * 4 + talentIndex;
-
-                                    return (
-                                      <td key={colIndex} className={isTalentBox ? 'p-2 align-top' : 'p-2'} style={{
-                                        position: 'relative',
-                                        border: isTalentBox ? '2px solid black' : 'none',
-                                        width: isTalentBox ? '260px' : '24px',
-                                        height: isTalentBox ? '190px' : '24px',
-                                        textAlign: 'center',
-                                        verticalAlign: 'middle'
-                                      }}>
-                                        {isTalentBox && (
-                                          <div
-                                            className="talent-box"
-                                            style={{
-                                              width: '260px',
-                                              height: '190px',
-                                              textAlign: 'left',
-                                              padding: '8px',
-                                              position: 'relative',
-                                              boxSizing: 'border-box',
-                                              backgroundColor: '#e0f7fa',
-                                              border: '1px solid #999'
-                                            }}
-                                          >
-                                            <div className="border-b border-gray-400 pb-1">
-                                              {forceTreeCustomInputMode[boxIndex] ? (
-                                                <input
-                                                  type="text"
-                                                  value={forceTreeAbilities[boxIndex] || ''}
-                                                  onChange={(e) => handleForceCustomAbilityInput(boxIndex, e.target.value)}
-                                                  onBlur={() => handleForceCustomAbilityBlur(boxIndex)}
-                                                  placeholder="Enter ability name..."
-                                                  className="w-full text-xs font-semibold border border-gray-300 rounded px-1 py-1 focus:outline-none focus:border-blue-500"
-                                                  autoFocus
-                                                />
-                                              ) : (
-                                                <select
-                                                  value={forceTreeAbilities[boxIndex] || ''}
-                                                  onChange={(e) => handleForceAbilityChange(boxIndex, e.target.value)}
-                                                  className="w-full text-xs font-semibold border border-gray-300 rounded px-1 py-1 focus:outline-none focus:border-blue-500"
-                                                >
-                                                  <option value="">-- Select Ability --</option>
-                                                  <option value="__ADD_NEW__">+ Add New Ability</option>
-                                                  {availableForceAbilities.map((ability, idx) => (
-                                                    <option key={idx} value={ability}>
-                                                      {ability}
-                                                    </option>
-                                                  ))}
-                                                </select>
-                                              )}
-                                            </div>
-                                            <div className="text-xs text-gray-700 mt-1" style={{ minHeight: '80px', maxHeight: '110px', overflowY: 'auto' }}>
-                                              <textarea
-                                                value={forceTreeDescriptions[boxIndex] || ''}
-                                                onChange={(e) => setForceTreeDescriptions(prev => ({ ...prev, [boxIndex]: e.target.value }))}
-                                                placeholder="Description..."
-                                                className="w-full text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 resize-none"
-                                                rows={2}
-                                              />
-                                              <input
-                                                type="text"
-                                                value={forceTreeCosts[boxIndex] || ''}
-                                                onChange={(e) => setForceTreeCosts(prev => ({ ...prev, [boxIndex]: e.target.value }))}
-                                                placeholder="Cost..."
-                                                className="w-full text-xs border border-gray-300 rounded px-2 py-1 mt-1 focus:outline-none focus:border-blue-500"
-                                              />
-                                            </div>
-                                          </div>
-                                        )}
-                                        {isHorizontalSpace && (
-                                          <input
-                                            type="checkbox"
-                                            className="cursor-pointer"
-                                            style={{ width: '16px', height: '16px' }}
-                                            title="Link boxes horizontally"
-                                          />
-                                        )}
-                                        {isVerticalSpace && (
-                                          <input
-                                            type="checkbox"
-                                            className="cursor-pointer"
-                                            style={{ width: '16px', height: '16px' }}
-                                            title="Link boxes vertically"
-                                          />
-                                        )}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 flex-wrap">
-                      <button
-                        onClick={() => {
-                          // TODO: Implement save force tree
-                          alert('Save Force Tree functionality coming soon');
-                        }}
-                        disabled={savingForceTree}
-                        className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-60 transition shadow-lg"
-                      >
-                        {savingForceTree ? 'Saving...' : 'Save Force Tree'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setForceTreeName('');
-                          setForceTreeDescription('');
-                          setForceTreeTopAbility('');
-                          setForceTreeTopCost('');
-                          setForceTreeTopDescription('');
-                          setForceTreeTopActivation('Passive');
-                          setForceTreeAbilities({});
-                          setForceTreeCosts({});
-                          setForceTreeDescriptions({});
-                          setForceTreeActivations({});
-                          setForceTreeLinks({});
-                          setForceTreeMerged({});
-                          setShowAddForceTreeForm(false);
-                        }}
-                        className="px-6 py-3 bg-gray-400 text-white font-bold rounded-lg hover:bg-gray-500 transition shadow-lg"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Ability Tree Form removed */}
             </>
           )}
         </div>
