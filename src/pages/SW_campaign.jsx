@@ -394,6 +394,12 @@ export default function SWCampaign() {
                         My Notes
                       </button>
                     )}
+                    <button
+                      onClick={() => navigate(`/SW_battles?campaignId=${campaign.id}&campaignName=${encodeURIComponent(campaign.Name)}`)}
+                      className="px-3 py-2 bg-purple-600 text-white text-sm font-bold rounded hover:bg-purple-700 transition whitespace-nowrap"
+                    >
+                      Battles
+                    </button>
                   </div>
                 </div>
                 

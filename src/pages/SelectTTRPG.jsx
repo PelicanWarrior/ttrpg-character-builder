@@ -19,6 +19,7 @@ export default function SelectTTRPG() {
   const [showSWCampaigns, setShowSWCampaigns] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTtrpgName, setNewTtrpgName] = useState('');
+  const [newTtrpgInitials, setNewTtrpgInitials] = useState('');
   const [newTtrpgDndMod, setNewTtrpgDndMod] = useState(false);
   const [newTtrpgCustomSystems, setNewTtrpgCustomSystems] = useState(false);
   const [pendingLogoFile, setPendingLogoFile] = useState(null);
@@ -41,7 +42,7 @@ export default function SelectTTRPG() {
       setIsAdmin(!!userData.admin);
 
       const [ttrpgQ, diceQ, swCharsQ, swCampsQ, adminCtrlQ] = await Promise.all([
-        supabase.from('TTRPGs').select('TTRPG_name, show, DND_Mod, Custom_System'),
+        supabase.from('TTRPGs').select('TTRPG_name, show, DND_Mod, Custom_System, Initials'),
         supabase.from('SW_dice').select('colour, name'),
         supabase
           .from('SW_player_characters')
@@ -56,6 +57,7 @@ export default function SelectTTRPG() {
         show: !!r.show,
         dndMod: !!r.DND_Mod,
         customSystems: !!r.Custom_System,
+        initials: r.Initials || '',
       }));
       setTtrpgRows(rows);
 
@@ -703,7 +705,7 @@ export default function SelectTTRPG() {
             return a.show ? -1 : 1;
           })
           .map(row => {
-          const initials = initialsFor(row.name);
+          const initials = row.initials || initialsFor(row.name);
           if (!shouldShow(row)) return null;
           const isSW = initials === 'SW' || row.name === 'Star Wars';
           return (
@@ -746,8 +748,10 @@ export default function SelectTTRPG() {
                     onClick={() => {
                       if (isSW) {
                         navigate('/sweote-character-creator', { state: { create_character: true } });
+                      } else if (row.dndMod) {
+                        navigate(`/dndmod_character_creator?mod=${encodeURIComponent(row.name)}`);
                       } else {
-                        navigate(`/ttrpg/${initials}/character_creator`);
+                        navigate(`/${initials}_character_creator`);
                       }
                     }}
                     className="px-10 py-4 bg-green-600 text-white font-bold text-lg rounded-xl hover:bg-green-700 shadow-lg transition"
@@ -923,7 +927,7 @@ export default function SelectTTRPG() {
               })
               .map(row => {
               if (!shouldShow(row)) return null;
-              const initials = initialsFor(row.name);
+              const initials = row.initials || initialsFor(row.name);
               return (
                 <div key={row.name} className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
                   {isAdmin && (
@@ -949,7 +953,13 @@ export default function SelectTTRPG() {
                         Your Characters
                       </button>
                       <button
-                        onClick={() => navigate(`/ttrpg/${initials}/character_creator`)}
+                        onClick={() => {
+                          if (row.dndMod) {
+                            navigate(`/dndmod_character_creator?mod=${encodeURIComponent(row.name)}`);
+                          } else {
+                            navigate(`/${initials}_character_creator`);
+                          }
+                        }}
                         className="px-10 py-4 bg-green-600 text-white font-bold text-lg rounded-xl hover:bg-green-700 shadow-lg transition"
                       >
                         Create Character
@@ -983,7 +993,7 @@ export default function SelectTTRPG() {
               })
               .map(row => {
               if (!shouldShow(row)) return null;
-              const initials = initialsFor(row.name);
+              const initials = row.initials || initialsFor(row.name);
               return (
                 <div key={row.name} className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
                   {isAdmin && (
@@ -1009,7 +1019,13 @@ export default function SelectTTRPG() {
                         Your Characters
                       </button>
                       <button
-                        onClick={() => navigate(`/ttrpg/${initials}/character_creator`)}
+                        onClick={() => {
+                          if (row.dndMod) {
+                            navigate(`/dndmod_character_creator?mod=${encodeURIComponent(row.name)}`);
+                          } else {
+                            navigate(`/${initials}_character_creator`);
+                          }
+                        }}
                         className="px-10 py-4 bg-green-600 text-white font-bold text-lg rounded-xl hover:bg-green-700 shadow-lg transition"
                       >
                         Create Character
@@ -1044,7 +1060,14 @@ export default function SelectTTRPG() {
               <div className="flex flex-col gap-4">
                 <label className="flex items-center gap-3">
                   <span className="w-32 font-semibold">TTRPG</span>
-                  <input value={newTtrpgName} onChange={(e) => setNewTtrpgName(e.target.value)} className="flex-1 border border-gray-400 rounded px-3 py-2" placeholder="Enter TTRPG name" />
+                  <input value={newTtrpgName} onChange={(e) => {
+                    setNewTtrpgName(e.target.value);
+                    setNewTtrpgInitials(initialsFor(e.target.value));
+                  }} className="flex-1 border border-gray-400 rounded px-3 py-2" placeholder="Enter TTRPG name" />
+                </label>
+                <label className="flex items-center gap-3">
+                  <span className="w-32 font-semibold">Initials</span>
+                  <input value={newTtrpgInitials} onChange={(e) => setNewTtrpgInitials(e.target.value)} className="flex-1 border border-gray-400 rounded px-3 py-2" placeholder="e.g., MM, SW, AA" />
                 </label>
                 <label className="flex items-center gap-3">
                   <span className="w-32 font-semibold">DND Mod</span>
@@ -1063,10 +1086,10 @@ export default function SelectTTRPG() {
                       try {
                         const { error } = await supabase
                           .from('TTRPGs')
-                          .insert({ TTRPG_name: name, show: false, DND_Mod: newTtrpgDndMod, Custom_System: newTtrpgCustomSystems });
+                          .insert({ TTRPG_name: name, Initials: newTtrpgInitials, show: false, DND_Mod: newTtrpgDndMod, Custom_System: newTtrpgCustomSystems });
                         if (error) { alert('Failed to save TTRPG'); console.error(error); return; }
 
-                        const row = { name, show: false, dndMod: newTtrpgDndMod, customSystems: newTtrpgCustomSystems };
+                        const row = { name, initials: newTtrpgInitials, show: false, dndMod: newTtrpgDndMod, customSystems: newTtrpgCustomSystems };
                         setTtrpgRows(prev => [...prev, row]);
 
                         const initials = initialsFor(name);
@@ -1077,6 +1100,7 @@ export default function SelectTTRPG() {
 
                         setShowAddForm(false);
                         setNewTtrpgName('');
+                        setNewTtrpgInitials('');
                         setNewTtrpgDndMod(false);
                         setNewTtrpgCustomSystems(false);
                       } catch (e) {
@@ -1089,7 +1113,7 @@ export default function SelectTTRPG() {
                     Save
                   </button>
                   <button
-                    onClick={() => { setShowAddForm(false); setNewTtrpgName(''); setNewTtrpgDndMod(false); setNewTtrpgCustomSystems(false); }}
+                    onClick={() => { setShowAddForm(false); setNewTtrpgName(''); setNewTtrpgInitials(''); setNewTtrpgDndMod(false); setNewTtrpgCustomSystems(false); }}
                     className="px-6 py-2 bg-gray-500 text-white rounded font-semibold hover:bg-gray-600"
                   >
                     Cancel

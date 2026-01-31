@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 
 // Parse roll results to compute net successes, failures, advantages, threats, triumphs, despairs
 function parseRollResults(poolResults, diffResults) {
@@ -56,40 +57,80 @@ const splitResultLines = (text) => {
   return [first, rest];
 };
 
-export default function DicePoolPopup({ dicePopup, setDicePopup }) {
+export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) {
   const [rollResults, setRollResults] = useState(null);
   const [boosts, setBoosts] = useState([]);
   const [setbacks, setSetbacks] = useState([]);
-  const [selectedDifficulty, setSelectedDifficulty] = useState(1);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(0);
+  const [diceTable, setDiceTable] = useState({});
 
-  // Simulate a dice roll (placeholder logic)
+  // Load dice data from SW_dice table
+  useEffect(() => {
+    const loadDiceData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('SW_dice')
+          .select('colour, name, side_1, side_2, side_3, side_4, side_5, side_6, side_7, side_8, side_9, side_10, side_11, side_12');
+        
+        if (error) throw error;
+
+        // Create a map of color -> die data
+        const diceMap = {};
+        if (data) {
+          data.forEach(die => {
+            diceMap[die.colour] = {
+              name: die.name,
+              sides: [die.side_1, die.side_2, die.side_3, die.side_4, die.side_5, die.side_6, die.side_7, die.side_8, die.side_9, die.side_10, die.side_11, die.side_12]
+            };
+          });
+          console.log('Loaded dice data:', diceMap);
+        }
+        setDiceTable(diceMap);
+      } catch (err) {
+        console.error('Failed to load dice data:', err);
+      }
+    };
+
+    loadDiceData();
+  }, []);
+
+  // Roll a single die based on color
+  const rollSingleDie = (colorLetter) => {
+    const die = diceTable[colorLetter];
+    
+    if (!die) {
+      console.warn(`Die not found for color: ${colorLetter}`, 'Available colors:', Object.keys(diceTable));
+      return 'Unknown'; // Fallback if die not found
+    }
+
+    // Get non-empty sides
+    const nonEmptySides = die.sides.filter(side => side && side.trim() !== '');
+    
+    if (nonEmptySides.length === 0) {
+      return 'Blank'; // If all sides are empty, return blank
+    }
+
+    // Randomly pick one of the non-empty sides
+    const randomResult = nonEmptySides[Math.floor(Math.random() * nonEmptySides.length)];
+    return randomResult || 'Blank';
+  };
+
+  // Simulate a dice roll
   const handleRoll = () => {
     // For demo: randomize results for all dice, including boosts and setbacks
     const poolDice = [
       ...dicePopup.pool.split('').map(color => ({ color })),
       ...boosts.map(() => ({ color: 'B' })),
     ];
-    const poolResults = poolDice.map(die => {
-      if (die.color === 'B') {
-        const opts = ['Advantage', 'Success', 'Blank'];
-        return opts[Math.floor(Math.random() * opts.length)];
-      }
-      const opts = ['Success', 'Advantage', 'Blank', 'Triumph'];
-      return opts[Math.floor(Math.random() * opts.length)];
-    });
+    const poolResults = poolDice.map(die => rollSingleDie(die.color));
+    
     // Difficulty and setbacks
     const diffDice = [
       ...Array(selectedDifficulty).fill({ color: 'P' }),
       ...setbacks.map(() => ({ color: 'K' })),
     ];
-    const diffResults = diffDice.map(die => {
-      if (die.color === 'K') {
-        const opts = ['Threat', 'Blank'];
-        return opts[Math.floor(Math.random() * opts.length)];
-      }
-      const opts = ['Failure', 'Threat', 'Blank', 'Despair'];
-      return opts[Math.floor(Math.random() * opts.length)];
-    });
+    const diffResults = diffDice.map(die => rollSingleDie(die.color));
+    
     setRollResults({ poolResults, diffResults });
   };
 
@@ -98,30 +139,15 @@ export default function DicePoolPopup({ dicePopup, setDicePopup }) {
     <>
       <div
         style={{
-          position: 'absolute',
-          left: `${dicePopup.x - 760 + 56}px`,
-          top: `${dicePopup.y}px`,
           backgroundColor: 'white',
-          border: '3px solid black',
-          padding: '18px',
           borderRadius: '10px',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-          zIndex: 9999,
-          minWidth: '760px',
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           pointerEvents: 'auto',
         }}
         onClick={e => e.stopPropagation()}
       >
-        <button
-          onClick={() => setDicePopup(null)}
-          style={{ position: 'absolute', top: 8, right: 8, zIndex: 10000 }}
-          className="text-2xl font-bold text-red-600 hover:text-red-800 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
-          aria-label="Close dice popup"
-        >
-          ×
-        </button>
         <h3 className="font-bold text-lg mb-4" style={{ color: '#000' }}>{dicePopup.label || 'Dice Pool'}</h3>
         <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
           {/* LEFT COLUMN: dice controls and dice display */}
@@ -252,8 +278,8 @@ export default function DicePoolPopup({ dicePopup, setDicePopup }) {
             </div>
             <hr className="my-2" />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="font-semibold" style={{ color: '#000' }}>Difficulty (1-5)</span>
-              {[1,2,3,4,5].map(n => (
+              <span className="font-semibold" style={{ color: '#000' }}>Difficulty (0-5)</span>
+              {[0,1,2,3,4,5].map(n => (
                 <button
                   key={n}
                   onClick={() => setSelectedDifficulty(n)}
@@ -352,6 +378,18 @@ export default function DicePoolPopup({ dicePopup, setDicePopup }) {
                   );
                 })()}
               </div>
+            )}
+            {rollResults && onUseResult && (
+              <button
+                onClick={() => {
+                  const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
+                  onUseResult(parsed.netSuccess, parsed.netAdvantage);
+                  setDicePopup({ show: false, pool: '' });
+                }}
+                className="w-full mt-4 px-4 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700 transition"
+              >
+                Use Result
+              </button>
             )}
           </div>
         </div>

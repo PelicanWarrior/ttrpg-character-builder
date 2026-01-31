@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { DragHandle } from '../assets/DragHandle';
 import DicePoolPopup from './DicePoolPopup';
+import AddNPCModal from './AddNPCModal';
 
 export default function SWNotes() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function SWNotes() {
   const [showAddPlaceForm, setShowAddPlaceForm] = useState(false);
   const [addPlaceButtonPos, setAddPlaceButtonPos] = useState({ top: 0, left: 0 });
   const [showAddNPCForm, setShowAddNPCForm] = useState(false);
+  const [showAddNPCModal, setShowAddNPCModal] = useState(false);
   const [placeName, setPlaceName] = useState('');
   const [description, setDescription] = useState('');
   const [partOfPlace, setPartOfPlace] = useState('');
@@ -63,6 +65,7 @@ export default function SWNotes() {
   const [selectedSkills, setSelectedSkills] = useState([]); // names
   const [selectedAbilities, setSelectedAbilities] = useState([]); // abilities strings
   const [selectedEquipment, setSelectedEquipment] = useState([]); // names
+  const [selectedNPCEquipment, setSelectedNPCEquipment] = useState([]); // Equipment details for selected NPC
 
 
   // Admin and permissions
@@ -213,7 +216,7 @@ export default function SWNotes() {
     try {
       const { data, error } = await supabase
         .from('SW_campaign_NPC')
-        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, races(name)')
+        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment, races(name)')
         .eq('CampaignID', campaignId);
       if (error) throw error;
 
@@ -259,7 +262,7 @@ export default function SWNotes() {
       // Step 3: Get all NPCs from SW_campaign_NPC where CampaignID matches any of the campaign IDs
       const { data: playerNPCs, error: npcError } = await supabase
         .from('SW_campaign_NPC')
-        .select('id, Name, Race, Description, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Part_of_Place, races(name)')
+        .select('id, Name, Race, Description, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment, Part_of_Place, races(name)')
         .in('CampaignID', campaignIds);
 
       if (npcError) throw npcError;
@@ -880,7 +883,7 @@ export default function SWNotes() {
       alert('NPC Name is required');
       return;
     }
-    setSaving(true);
+    setSavingNPC(true);
     try {
       const payload = {
         Name: npcName.trim(),
@@ -899,14 +902,49 @@ export default function SWNotes() {
         CampaignID: campaignId ? parseInt(campaignId, 10) : null,
       };
 
-      const { error } = await supabase
+      const { data: npcData, error } = await supabase
         .from('SW_campaign_NPC')
-        .insert([payload]);
+        .insert([payload])
+        .select();
 
       if (error) {
         console.error('Error saving NPC:', error);
         alert('Failed to save NPC: ' + error.message);
         return;
+      }
+
+      const npcId = npcData?.[0]?.id;
+
+      // Save equipment associations
+      if (npcId && selectedEquipment.length > 0) {
+        try {
+          // Get equipment IDs from names
+          const { data: equipmentData, error: equipError } = await supabase
+            .from('SW_equipment')
+            .select('id, name')
+            .in('name', selectedEquipment);
+
+          if (!equipError && equipmentData) {
+            const equipmentRecords = equipmentData.map(e => ({
+              npcID: npcId,
+              equipmentID: e.id,
+            }));
+
+            const { error: linkError } = await supabase
+              .from('SW_campaign_npc_equipment')
+              .insert(equipmentRecords);
+
+            if (linkError) {
+              console.error('Error saving equipment links:', linkError);
+              alert('NPC saved but failed to link equipment: ' + linkError.message);
+              return;
+            }
+          }
+        } catch (equipErr) {
+          console.error('Error linking equipment:', equipErr);
+          alert('NPC saved but failed to link equipment');
+          return;
+        }
       }
 
       alert('NPC saved successfully!');
@@ -929,6 +967,32 @@ export default function SWNotes() {
     populateNPCFormForEdit(npc);
     setEditingNPCId(npc.id);
     setShowNPCDropdown(null);
+    
+    // Load lookups for edit form
+    const loadLookups = async () => {
+      try {
+        const [racesRes, skillsRes, abilitiesRes, equipmentRes] = await Promise.all([
+          supabase.from('races').select('id, name').order('name', { ascending: true }),
+          supabase.from('skills').select('id, skill').order('skill'),
+          supabase.from('SW_abilities').select('id, ability').order('ability'),
+          supabase.from('SW_equipment').select('id, name').order('name'),
+        ]);
+
+        if (racesRes.error) throw racesRes.error;
+        if (skillsRes.error) throw skillsRes.error;
+        if (abilitiesRes.error) throw abilitiesRes.error;
+        if (equipmentRes.error) throw equipmentRes.error;
+
+        setRaceList(racesRes.data || []);
+        setSkillsList(skillsRes.data || []);
+        setAbilitiesList(abilitiesRes.data || []);
+        setEquipmentList(equipmentRes.data || []);
+      } catch (err) {
+        console.error('Failed to load NPC lookups:', err);
+      }
+    };
+    
+    loadLookups();
   };
 
   const handleSaveEditedNPC = async () => {
@@ -964,6 +1028,44 @@ export default function SWNotes() {
       if (error) {
         console.error('Error updating NPC:', error);
         alert('Failed to update NPC: ' + error.message);
+        return;
+      }
+
+      // Update equipment associations
+      try {
+        // Delete existing equipment associations
+        await supabase
+          .from('SW_campaign_npc_equipment')
+          .delete()
+          .eq('npcID', editingNPCId);
+
+        // Insert new equipment associations if any
+        if (selectedEquipment.length > 0) {
+          const { data: equipmentData, error: equipError } = await supabase
+            .from('SW_equipment')
+            .select('id, name')
+            .in('name', selectedEquipment);
+
+          if (!equipError && equipmentData) {
+            const equipmentRecords = equipmentData.map(e => ({
+              npcID: editingNPCId,
+              equipmentID: e.id,
+            }));
+
+            const { error: linkError } = await supabase
+              .from('SW_campaign_npc_equipment')
+              .insert(equipmentRecords);
+
+            if (linkError) {
+              console.error('Error updating equipment links:', linkError);
+              alert('NPC updated but failed to update equipment: ' + linkError.message);
+              return;
+            }
+          }
+        }
+      } catch (equipErr) {
+        console.error('Error updating equipment:', equipErr);
+        alert('NPC updated but failed to update equipment');
         return;
       }
 
@@ -1019,15 +1121,85 @@ export default function SWNotes() {
     }
   };
 
+  const loadNPCEquipment = async (npcId) => {
+    try {
+      console.log('Loading equipment for NPC ID:', npcId);
+      
+      // Get equipment IDs from SW_campaign_npc_equipment table
+      const { data: equipmentLinks, error: linkError } = await supabase
+        .from('SW_campaign_npc_equipment')
+        .select('equipmentID')
+        .eq('npcID', npcId);
+
+      if (linkError) throw linkError;
+
+      console.log('Equipment links found:', equipmentLinks);
+
+      if (!equipmentLinks || equipmentLinks.length === 0) {
+        console.log('No equipment links found for NPC');
+        setSelectedNPCEquipment([]);
+        return;
+      }
+
+      // Get equipment IDs
+      const equipmentIds = equipmentLinks.map(link => link.equipmentID);
+      console.log('Equipment IDs:', equipmentIds);
+
+      // Fetch equipment details from SW_equipment table with skill join
+      const { data: equipmentDetails, error: equipError } = await supabase
+        .from('SW_equipment')
+        .select('id, name, range, damage, critical, special, soak, defence_range, defence_melee, skill, skills(skill)')
+        .in('id', equipmentIds);
+
+      if (equipError) throw equipError;
+
+      console.log('Equipment details loaded:', equipmentDetails);
+      setSelectedNPCEquipment(equipmentDetails || []);
+    } catch (err) {
+      console.error('Failed to load NPC equipment:', err);
+      setSelectedNPCEquipment([]);
+    }
+  };
+
+  // Load equipment when selectedNPC changes
+  useEffect(() => {
+    if (selectedNPC && selectedNPC.id) {
+      loadNPCEquipment(selectedNPC.id);
+    } else {
+      setSelectedNPCEquipment([]);
+    }
+  }, [selectedNPC?.id]);
+
   // Load skills on mount and when campaignId changes
   useEffect(() => {
     if (campaignId) {
       loadSkills();
+      
+      // Load dice map
+      const loadDiceMap = async () => {
+        try {
+          const { data: diceData, error: diceError } = await supabase.from('SW_dice').select('colour, name');
+          if (diceError) {
+            console.error('Error fetching dice data:', diceError);
+          } else {
+            const map = diceData.reduce((acc, d) => {
+              acc[d.colour] = d.name;
+              return acc;
+            }, {});
+            setDiceMap(map);
+          }
+        } catch (err) {
+          console.error('Error loading dice map:', err);
+        }
+      };
+      
+      loadDiceMap();
     }
   }, [campaignId]);
 
   // Dice pool click-to-roll popup state
   const [dicePopup, setDicePopup] = useState(null);
+  const [diceMap, setDiceMap] = useState({});
 
   // Handler for dice pool click
   const handleDicePoolClick = (e, pool, label) => {
@@ -1036,7 +1208,13 @@ export default function SWNotes() {
     const rect = e.currentTarget.getBoundingClientRect();
     let x = rect.left + window.scrollX;
     let y = rect.bottom + window.scrollY + 8;
-    setDicePopup({ pool, x, y, label });
+    
+    const details = pool.split('').map(color => ({
+      color,
+      name: diceMap[color] || 'Unknown'
+    }));
+    
+    setDicePopup({ pool, details, x, y, label, boosts: [], setbacks: [] });
   };
 
   // Refs for scrolling notes and NPCs into view
@@ -1086,6 +1264,12 @@ export default function SWNotes() {
             className="px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold"
           >
             Add Note
+          </button>
+          <button
+            onClick={() => setShowAddNPCModal(true)}
+            className="px-6 py-3 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-bold"
+          >
+            Add NPC
           </button>
         </div>
       </div>
@@ -1155,192 +1339,13 @@ export default function SWNotes() {
       {showAddNPCForm && (
         <div className="p-6 bg-gray-100 border-b border-gray-300">
           <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg border border-gray-300">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">Add NPC (Legacy)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">NPC</label>
-                <input
-                  type="text"
-                  value={npcName}
-                  onChange={(e) => setNpcName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Race</label>
-                <select
-                  value={npcRaceId}
-                  onChange={(e) => setNpcRaceId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">-- Select Race --</option>
-                  {raceList.map((r) => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={npcDescription}
-                  onChange={(e) => setNpcDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                  rows={3}
-                />
-              </div>
-
-              {/* Attributes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Brawn</label>
-                <input type="number" value={npcBrawn} onChange={(e) => setNpcBrawn(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cunning</label>
-                <input type="number" value={npcCunning} onChange={(e) => setNpcCunning(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Presence</label>
-                <input type="number" value={npcPresence} onChange={(e) => setNpcPresence(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Agility</label>
-                <input type="number" value={npcAgility} onChange={(e) => setNpcAgility(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Intellect</label>
-                <input type="number" value={npcIntellect} onChange={(e) => setNpcIntellect(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Willpower</label>
-                <input type="number" value={npcWillpower} onChange={(e) => setNpcWillpower(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500" />
-              </div>
-
-              {/* Skills multi-select */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
-                <div className="flex gap-2">
-                  <select id="npc-skill-select" className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500">
-                    <option value="">-- Select Skill --</option>
-                    {skillsList.map((s) => (
-                      <option key={s.id} value={s.skill}>{s.skill}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('npc-skill-select');
-                      addToList(el.value, selectedSkills, setSelectedSkills);
-                    }}
-                    className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >Add</button>
-                </div>
-                {selectedSkills.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
-                    {selectedSkills.map((s, idx) => (
-                      <span key={`skill-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded flex-shrink-0">
-                        {s}
-                        <button onClick={() => removeFromList(s, selectedSkills, setSelectedSkills)} className="text-blue-700 hover:text-blue-900">×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Abilities multi-select */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Abilities</label>
-                <div className="flex gap-2">
-                  <select id="npc-ability-select" className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500">
-                    <option value="">-- Select Ability --</option>
-                    {abilitiesList.map((a) => (
-                      <option key={a.id} value={a.ability}>{a.ability}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('npc-ability-select');
-                      addToList(el.value, selectedAbilities, setSelectedAbilities);
-                    }}
-                    className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >Add</button>
-                </div>
-                {selectedAbilities.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
-                    {selectedAbilities.map((a, idx) => (
-                      <span key={`ability-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded flex-shrink-0">
-                        {a}
-                        <button onClick={() => removeFromList(a, selectedAbilities, setSelectedAbilities)} className="text-green-700 hover:text-green-900">×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Equipment multi-select */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Equipment</label>
-                <div className="flex gap-2">
-                  <select id="npc-equipment-select" className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500">
-                    <option value="">-- Select Equipment --</option>
-                    {equipmentList.map((e) => (
-                      <option key={e.id} value={e.name}>{e.name}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('npc-equipment-select');
-                      addToList(el.value, selectedEquipment, setSelectedEquipment);
-                    }}
-                    className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >Add</button>
-                </div>
-                {selectedEquipment.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
-                    {selectedEquipment.map((e, idx) => (
-                      <span key={`equipment-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded flex-shrink-0">
-                        {e}
-                        <button onClick={() => removeFromList(e, selectedEquipment, setSelectedEquipment)} className="text-purple-700 hover:text-purple-900">×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Part of Place */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Part of Place</label>
-                <select
-                  value={npcPlaceId}
-                  onChange={(e) => setNpcPlaceId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">-- None --</option>
-                  {existingPlaces.map((p) => (
-                    <option key={p.id} value={p.id}>{p.Place_Name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={handleSaveNPC}
-                disabled={saving}
-                className="flex-1 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-bold disabled:opacity-60"
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                onClick={() => { resetNPCForm(); setShowAddNPCForm(false); }}
-                className="flex-1 px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
-              >
-                Cancel
-              </button>
-            </div>
+            <h3 className="text-xl font-bold mb-4 text-gray-800">Add NPC (Legacy - Use Modal Above)</h3>
+            <button
+              onClick={() => setShowAddNPCForm(false)}
+              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-bold"
+            >
+              Close and Use New Modal
+            </button>
           </div>
         </div>
       )}
@@ -1843,6 +1848,9 @@ export default function SWNotes() {
                       </div>
                       <div>
                         <label className="block font-medium text-gray-700 mb-1">Presence</label>
+                        <input type="number" value={npcPresence} onChange={(e) => setNpcPresence(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
                         <label className="block font-medium text-gray-700 mb-1">Agility</label>
                         <input type="number" value={npcAgility} onChange={(e) => setNpcAgility(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
                       </div>
@@ -1875,7 +1883,7 @@ export default function SWNotes() {
                         <select id="edit-npc-skill-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
                           <option value="">-- Select Skill --</option>
                           {skillsList.map((skill) => (
-                            <option key={skill.id} value={skill.name}>{skill.name}</option>
+                            <option key={skill.id} value={skill.skill}>{skill.skill}</option>
                           ))}
                         </select>
                         <button
@@ -1932,6 +1940,38 @@ export default function SWNotes() {
                       )}
                     </div>
 
+                    {/* Equipment in Edit Mode */}
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-1">Equipment</label>
+                      <div className="flex gap-2">
+                        <select id="edit-npc-equipment-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
+                          <option value="">-- Select Equipment --</option>
+                          {equipmentList.map((e) => (
+                            <option key={e.id} value={e.name}>{e.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById('edit-npc-equipment-select');
+                            addToList(el.value, selectedEquipment, setSelectedEquipment);
+                            el.value = '';
+                          }}
+                          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                        >Add</button>
+                      </div>
+                      {selectedEquipment.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
+                          {selectedEquipment.map((e, idx) => (
+                            <span key={`edit-equipment-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded flex-shrink-0">
+                              {e}
+                              <button onClick={() => removeFromList(e, selectedEquipment, setSelectedEquipment)} className="text-purple-700 hover:text-purple-900">×</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={handleSaveEditedNPC}
@@ -1977,6 +2017,19 @@ export default function SWNotes() {
                     {selectedNPC.Description && (
                       <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{selectedNPC.Description}</p>
                     )}
+                    
+                    {/* Soak, Wound, Willpower */}
+                    <div className="mt-3 space-y-1">
+                      {selectedNPC.Soak !== null && selectedNPC.Soak !== undefined && (
+                        <p className="text-xs text-gray-700"><span className="font-semibold">Soak:</span> {selectedNPC.Soak}</p>
+                      )}
+                      {selectedNPC.Wound !== null && selectedNPC.Wound !== undefined && (
+                        <p className="text-xs text-gray-700"><span className="font-semibold">Wound:</span> {selectedNPC.Wound}</p>
+                      )}
+                      {selectedNPC.Willpower !== null && selectedNPC.Willpower !== undefined && (
+                        <p className="text-xs text-gray-700"><span className="font-semibold">Willpower:</span> {selectedNPC.Willpower}</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Attributes section hidden */}
@@ -2001,6 +2054,78 @@ export default function SWNotes() {
                             );
                           })}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Equipment section */}
+                  {selectedNPCEquipment.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Equipment</h4>
+                      <div className="space-y-3">
+                        {selectedNPCEquipment.map((eq, idx) => {
+                          // Get skill name from skills relationship
+                          const skillName = eq.skills?.skill || '';
+                          
+                          // Calculate dice pool for this skill
+                          const skillStatMap = {
+                            Astrogation: 'Intellect', Athletics: 'Brawn', Brawl: 'Brawn', Charm: 'Presence', Coercion: 'Willpower', Computers: 'Intellect', Cool: 'Presence', Coordination: 'Agility', 'Core Worlds': 'Intellect', Deception: 'Cunning', Discipline: 'Willpower', Education: 'Intellect', Gunnery: 'Agility', Leadership: 'Presence', Lightsaber: 'Brawn', Lore: 'Intellect', Mechanics: 'Intellect', Medicine: 'Intellect', Melee: 'Brawn', Negotiation: 'Presence', 'Outer Rim': 'Intellect', Perception: 'Cunning', 'Piloting-Planetary': 'Agility', 'Piloting-Space': 'Agility', 'Ranged-Heavy': 'Agility', 'Ranged-Light': 'Agility', Resilience: 'Brawn', Skulduggery: 'Cunning', Stealth: 'Agility', Streetwise: 'Cunning', Survival: 'Cunning', Underworld: 'Intellect', Vigilance: 'Willpower', Warfare: 'Intellect', Xenology: 'Intellect',
+                          };
+                          const statName = skillStatMap[skillName] || '';
+                          const statValue = parseInt(selectedNPC[statName], 10) || 0;
+                          
+                          // Count skill rank from NPC's Skills string
+                          let rank = 0;
+                          if (selectedNPC.Skills) {
+                            const skillsArr = selectedNPC.Skills.split(',').map(s => s.trim());
+                            rank = skillsArr.filter(s => s === skillName).length;
+                          }
+                          
+                          // Calculate dice pool
+                          let dicePool = 'G'.repeat(statValue);
+                          if (rank > 0) {
+                            const yCount = Math.min(rank, dicePool.length);
+                            dicePool = dicePool.split('');
+                            for (let i = 0; i < yCount; i++) {
+                              dicePool[i] = 'Y';
+                            }
+                            dicePool = dicePool.join('');
+                          }
+                          
+                          return (
+                            <div key={idx} className="text-xs border border-gray-300 rounded p-2 bg-gray-50">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="font-semibold text-gray-800 border-b border-gray-800 pb-0.5">{eq.name}</div>
+                                {skillName && (
+                                  <button
+                                    className="px-2 py-1 bg-blue-200 rounded hover:bg-blue-300 transition font-mono text-xs font-semibold flex-shrink-0"
+                                    onClick={e => handleDicePoolClick(e, dicePool, skillName)}
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    {skillName}: {dicePool || '-'}
+                                  </button>
+                                )}
+                              </div>
+                              <div className="space-y-1 text-gray-700">
+                                {eq.range && <div><span className="font-semibold">Range:</span> {eq.range}</div>}
+                                {eq.damage && <div><span className="font-semibold">Damage:</span> {eq.damage}</div>}
+                                {eq.critical && <div><span className="font-semibold">Critical:</span> {eq.critical}</div>}
+                                {eq.special && <div><span className="font-semibold">Special:</span> {eq.special}</div>}
+                                {eq.soak && <div><span className="font-semibold">Soak:</span> {eq.soak}</div>}
+                                {eq.defence_range && <div><span className="font-semibold">Defence (Ranged):</span> {eq.defence_range}</div>}
+                                {eq.defence_melee && <div><span className="font-semibold">Defence (Melee):</span> {eq.defence_melee}</div>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Debug: Show if NPC has Equipment field in DB but no links */}
+                  {selectedNPCEquipment.length === 0 && selectedNPC.Equipment && selectedNPC.Equipment.trim() && (
+                    <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                      <p className="text-xs text-yellow-800">Equipment field exists in NPC record but no detailed equipment loaded from SW_campaign_npc_equipment table.</p>
+                      <p className="text-xs text-yellow-700 mt-1">Equipment value: {selectedNPC.Equipment}</p>
                     </div>
                   )}
                 </>
@@ -2325,6 +2450,37 @@ export default function SWNotes() {
                 )}
               </div>
 
+              {/* Equipment multi-select */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Equipment</label>
+                <div className="flex gap-2">
+                  <select id="inline-npc-equipment-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500">
+                    <option value="">-- Select Equipment --</option>
+                    {equipmentList.map((e) => (
+                      <option key={e.id} value={e.name}>{e.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('inline-npc-equipment-select');
+                      addToList(el.value, selectedEquipment, setSelectedEquipment);
+                    }}
+                    className="px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                  >Add</button>
+                </div>
+                {selectedEquipment.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1 overflow-hidden">
+                    {selectedEquipment.map((e, idx) => (
+                      <span key={`equipment-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded flex-shrink-0">
+                        {e}
+                        <button onClick={() => removeFromList(e, selectedEquipment, setSelectedEquipment)} className="text-purple-700 hover:text-purple-900">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
@@ -2349,15 +2505,51 @@ export default function SWNotes() {
                         Strain: npcStrain ? parseInt(npcStrain, 10) : null,
                         Skills: selectedSkills.join(','),
                         Abilities: selectedAbilities.join(','),
+                        Equipment: selectedEquipment.join(','),
                         Part_of_Place: showInlineAddNPC,
                         CampaignID: parseInt(campaignId, 10),
                       };
 
-                      const { error } = await supabase
+                      const { data: npcData, error } = await supabase
                         .from('SW_campaign_NPC')
-                        .insert([payload]);
+                        .insert([payload])
+                        .select();
 
                       if (error) throw error;
+
+                      const npcId = npcData?.[0]?.id;
+
+                      // Save equipment associations
+                      if (npcId && selectedEquipment.length > 0) {
+                        try {
+                          // Get equipment IDs from names
+                          const { data: equipmentData, error: equipError } = await supabase
+                            .from('SW_equipment')
+                            .select('id, name')
+                            .in('name', selectedEquipment);
+
+                          if (!equipError && equipmentData) {
+                            const equipmentRecords = equipmentData.map(e => ({
+                              npcID: npcId,
+                              equipmentID: e.id,
+                            }));
+
+                            const { error: linkError } = await supabase
+                              .from('SW_campaign_npc_equipment')
+                              .insert(equipmentRecords);
+
+                            if (linkError) {
+                              console.error('Error saving equipment links:', linkError);
+                              alert('NPC saved but failed to link equipment: ' + linkError.message);
+                              return;
+                            }
+                          }
+                        } catch (equipErr) {
+                          console.error('Error linking equipment:', equipErr);
+                          alert('NPC saved but failed to link equipment');
+                          return;
+                        }
+                      }
 
                       setShowInlineAddNPC(null);
                       resetNPCForm();
@@ -2814,12 +3006,47 @@ export default function SWNotes() {
       )}
       {/* Dice Pool Popup - MATCH SWCharacterOverview */}
       {dicePopup && (
-        <DicePoolPopup
-          dicePopup={dicePopup}
-          setDicePopup={setDicePopup}
-          selectedNPC={selectedNPC}
-        />
+        <div
+          style={{
+            position: 'absolute',
+            left: `${dicePopup.x}px`,
+            top: `${dicePopup.y}px`,
+            backgroundColor: 'white',
+            border: '3px solid black',
+            padding: '18px',
+            borderRadius: '10px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            zIndex: 9999,
+            minWidth: '760px',
+            display: 'flex',
+            flexDirection: 'column',
+            pointerEvents: 'auto',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => setDicePopup(null)}
+            style={{ position: 'absolute', top: 8, right: 8, zIndex: 10000 }}
+            className="text-2xl font-bold text-red-600 hover:text-red-800 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
+            aria-label="Close dice popup"
+          >
+            ×
+          </button>
+          <DicePoolPopup
+            dicePopup={dicePopup}
+            setDicePopup={setDicePopup}
+            selectedNPC={selectedNPC}
+          />
+        </div>
       )}
+
+      {/* Add NPC Modal */}
+      <AddNPCModal
+        isOpen={showAddNPCModal}
+        onClose={() => setShowAddNPCModal(false)}
+        onSave={() => loadNPCs()}
+        campaignId={campaignId}
+      />
 
     // DicePoolPopup component (copied and adapted from SWCharacterOverview)
     </div>

@@ -83,7 +83,26 @@ export default function Settings() {
   const [savingPRace, setSavingPRace] = useState(false);
 
   // -----------------------------------------------------------------
-  // 2b. Add Species Form State
+  // 2b. DND Section State
+  // -----------------------------------------------------------------
+  const [showDndSection, setShowDndSection] = useState(false);
+  const [showAddDndClassForm, setShowAddDndClassForm] = useState(false);
+  const [existingDndClasses, setExistingDndClasses] = useState([]); // All existing DND classes
+  const [selectedDndClassId, setSelectedDndClassId] = useState('__new__');
+  const [availableDndTTRPGs, setAvailableDndTTRPGs] = useState([]); // TTRPGs with DND_Mod = true
+  const [selectedDndTTRPGs, setSelectedDndTTRPGs] = useState([]); // Selected TTRPG IDs
+  const [dndClassName, setDndClassName] = useState('');
+  const [dndClassDescription, setDndClassDescription] = useState('');
+  const [dndHitDice, setDndHitDice] = useState('');
+  const [dndProfArmour, setDndProfArmour] = useState('');
+  const [dndProfWeapons, setDndProfWeapons] = useState('');
+  const [dndProfSavingThrows, setDndProfSavingThrows] = useState('');
+  const [dndProfSkills, setDndProfSkills] = useState('');
+  const [dndMod, setDndMod] = useState('');
+  const [savingDndClass, setSavingDndClass] = useState(false);
+
+  // -----------------------------------------------------------------
+  // 2c. Add Species Form State
   // -----------------------------------------------------------------
   const [speciesName, setSpeciesName] = useState('');
   const [speciesSourceBook, setSpeciesSourceBook] = useState('');
@@ -699,6 +718,7 @@ export default function Settings() {
     // Collapse Pathfinder section and its forms
     setShowPathfinderSection(false);
     setShowAddPathfinderRaceForm(false);
+    setShowDndSection(false);
   };
 
   const handlePathfinderStats = () => {
@@ -711,6 +731,22 @@ export default function Settings() {
     setShowAddSpecializationForm(false);
     setShowAddEquipmentForm(false);
     setShowAddCareerForm(false);
+    setShowAddPathfinderRaceForm(false);
+    setShowDndSection(false);
+  };
+
+  const handleDndStats = () => {
+    setShowDndSection(!showDndSection);
+    // Collapse other sections when toggling DND
+    setShowStarWarsSection(false);
+    setShowPathfinderSection(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+    setShowAddSpeciesForm(false);
+    setShowAddSpecializationForm(false);
+    setShowAddEquipmentForm(false);
+    setShowAddCareerForm(false);
+    setShowAddForceTreeForm(false);
     setShowAddPathfinderRaceForm(false);
   };
 
@@ -943,6 +979,174 @@ export default function Settings() {
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
+  };
+
+  const handleAddDndClass = () => {
+    setShowAddDndClassForm(true);
+    resetDndClassForm();
+    loadDndTTRPGs();
+    loadDndClasses();
+  };
+
+  const loadDndTTRPGs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('TTRPGs')
+        .select('id, TTRPG_name')
+        .eq('DND_Mod', true)
+        .order('TTRPG_name');
+
+      if (error) throw error;
+
+      setAvailableDndTTRPGs(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND TTRPGs:', err);
+      setError('Failed to load DND TTRPGs');
+    }
+  };
+
+  const loadDndClasses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Classes')
+        .select('id, ClassName')
+        .order('ClassName');
+
+      if (error) throw error;
+
+      setExistingDndClasses(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Classes:', err);
+      setError('Failed to load DND Classes');
+    }
+  };
+
+  const loadDndClassData = async (classId) => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Classes')
+        .select('*')
+        .eq('id', classId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDndClassName(data.ClassName || '');
+        setDndClassDescription(data.Description || '');
+        setDndHitDice(data.HitDice || '');
+        setDndProfArmour(data.Prof_Armour || '');
+        setDndProfWeapons(data.Prof_Weapons || '');
+        setDndProfSavingThrows(data.Prof_SavingThrows || '');
+        setDndProfSkills(data.Prof_Skills || '');
+
+        // Parse DNDMod to get TTRPG IDs
+        if (data.DNDMod) {
+          const ttrpgNames = data.DNDMod.split(',').map(name => name.trim());
+          const ttrpgIds = ttrpgNames
+            .map(name => {
+              const ttrpg = availableDndTTRPGs.find(t => t.TTRPG_name === name);
+              return ttrpg ? ttrpg.id : null;
+            })
+            .filter(id => id !== null);
+          setSelectedDndTTRPGs(ttrpgIds);
+        } else {
+          setSelectedDndTTRPGs([]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch DND Class data:', err);
+      setError('Failed to load class data');
+    }
+  };
+
+  const resetDndClassForm = () => {
+    setSelectedDndClassId('__new__');
+    setDndClassName('');
+    setDndClassDescription('');
+    setDndHitDice('');
+    setDndProfArmour('');
+    setDndProfWeapons('');
+    setDndProfSavingThrows('');
+    setDndProfSkills('');
+    setDndMod('');
+    setSelectedDndTTRPGs([]);
+  };
+
+  const handleSaveDndClass = async () => {
+    setSavingDndClass(true);
+    try {
+      if (!dndClassName.trim()) {
+        setError('Class name is required');
+        setSavingDndClass(false);
+        return;
+      }
+
+      // Convert selected TTRPG IDs to names
+      const dndModValue = selectedDndTTRPGs.length > 0 
+        ? selectedDndTTRPGs
+            .map(id => {
+              const ttrpg = availableDndTTRPGs.find(t => t.id === id);
+              return ttrpg ? ttrpg.TTRPG_name : '';
+            })
+            .filter(name => name)
+            .join(',')
+        : '';
+
+      if (selectedDndClassId === '__new__') {
+        // Insert new class
+        const { error } = await supabase
+          .from('DND_Classes')
+          .insert([
+            {
+              ClassName: dndClassName,
+              Description: dndClassDescription,
+              HitDice: dndHitDice,
+              Prof_Armour: dndProfArmour,
+              Prof_Weapons: dndProfWeapons,
+              Prof_SavingThrows: dndProfSavingThrows,
+              Prof_Skills: dndProfSkills,
+              DNDMod: dndModValue
+            }
+          ]);
+
+        if (error) throw error;
+      } else {
+        // Update existing class
+        const { error } = await supabase
+          .from('DND_Classes')
+          .update({
+            ClassName: dndClassName,
+            Description: dndClassDescription,
+            HitDice: dndHitDice,
+            Prof_Armour: dndProfArmour,
+            Prof_Weapons: dndProfWeapons,
+            Prof_SavingThrows: dndProfSavingThrows,
+            Prof_Skills: dndProfSkills,
+            DNDMod: dndModValue
+          })
+          .eq('id', selectedDndClassId);
+
+        if (error) throw error;
+      }
+
+      setSuccess('DND Class saved successfully');
+      resetDndClassForm();
+      setShowAddDndClassForm(false);
+    } catch (err) {
+      console.error('Failed to save DND Class:', err);
+      setError('Failed to save DND Class. Please try again.');
+    } finally {
+      setSavingDndClass(false);
+    }
+  };
+
+  const handleToggleDndTTRPG = (ttrpgId) => {
+    setSelectedDndTTRPGs((prev) =>
+      prev.includes(ttrpgId)
+        ? prev.filter((id) => id !== ttrpgId)
+        : [...prev, ttrpgId]
+    );
   };
 
   const handleAddSkill = (skill) => {
@@ -2604,6 +2808,12 @@ export default function Settings() {
             >
               Star Wars Stats
             </button>
+            <button
+              onClick={handleDndStats}
+              className="flex-1 px-6 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition font-medium"
+            >
+              DND Stats
+            </button>
           </div>
 
           {/* Upload Pictures Setting */}
@@ -2781,6 +2991,183 @@ export default function Settings() {
                     </button>
                     <button
                       onClick={() => { resetPRaceForm(); setShowAddPathfinderRaceForm(false); }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <hr className="border-gray-300" />
+
+          {showDndSection && (
+            <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+              <button
+                onClick={handleAddDndClass}
+                className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-medium"
+              >
+                DND Classes
+              </button>
+
+              {showAddDndClassForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Class</h3>
+                  
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Class Name</label>
+                    <select
+                      value={selectedDndClassId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '__new__') {
+                          resetDndClassForm();
+                          setSelectedDndClassId('__new__');
+                        } else {
+                          setSelectedDndClassId(val);
+                          loadDndClassData(parseInt(val));
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Class --</option>
+                      {existingDndClasses.map((cls) => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.ClassName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select TTRPGs</label>
+                    <select
+                      multiple
+                      value={selectedDndTTRPGs.map(String)}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, (option) => parseInt(option.value));
+                        setSelectedDndTTRPGs(selected);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      size={Math.min(availableDndTTRPGs.length || 3, 6)}
+                    >
+                      {availableDndTTRPGs.length > 0 ? (
+                        availableDndTTRPGs.map((ttrpg) => (
+                          <option key={ttrpg.id} value={ttrpg.id}>
+                            {ttrpg.TTRPG_name}
+                          </option>
+                        ))
+                      ) : null}
+                    </select>
+                    {availableDndTTRPGs.length === 0 && (
+                      <p className="text-sm text-gray-500 italic mt-2">No DND-enabled TTRPGs available</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Class Name</label>
+                      <input
+                        type="text"
+                        value={dndClassName}
+                        onChange={(e) => setDndClassName(e.target.value)}
+                        placeholder="Enter class name"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Hit Dice</label>
+                      <input
+                        type="text"
+                        value={dndHitDice}
+                        onChange={(e) => setDndHitDice(e.target.value)}
+                        placeholder="e.g., d8, d10, d12"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={dndClassDescription}
+                        onChange={(e) => setDndClassDescription(e.target.value)}
+                        placeholder="Enter class description"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Armor</label>
+                      <textarea
+                        value={dndProfArmour}
+                        onChange={(e) => setDndProfArmour(e.target.value)}
+                        placeholder="Enter armor proficiencies"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={2}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Weapons</label>
+                      <textarea
+                        value={dndProfWeapons}
+                        onChange={(e) => setDndProfWeapons(e.target.value)}
+                        placeholder="Enter weapon proficiencies"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={2}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Saving Throws</label>
+                      <select
+                        multiple
+                        value={dndProfSavingThrows.split(',').filter(s => s.trim())}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, (option) => option.value);
+                          setDndProfSavingThrows(selected.join(','));
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        size={6}
+                      >
+                        <option value="Strength">Strength</option>
+                        <option value="Dexterity">Dexterity</option>
+                        <option value="Constitution">Constitution</option>
+                        <option value="Intelligence">Intelligence</option>
+                        <option value="Wisdom">Wisdom</option>
+                        <option value="Charisma">Charisma</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Skills</label>
+                      <textarea
+                        value={dndProfSkills}
+                        onChange={(e) => setDndProfSkills(e.target.value)}
+                        placeholder="Enter skill proficiencies"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      onClick={handleSaveDndClass}
+                      disabled={savingDndClass}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                    >
+                      {savingDndClass ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        resetDndClassForm();
+                        setShowAddDndClassForm(false);
+                      }}
                       className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
                     >
                       Cancel
