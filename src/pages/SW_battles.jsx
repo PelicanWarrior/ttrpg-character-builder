@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import DicePoolPopup from './DicePoolPopup';
 import AddNPCModal from './AddNPCModal';
@@ -24,18 +24,43 @@ export default function SWBattles() {
   const [availableNpc, setAvailableNpc] = useState('');
   const [showBattleModal, setShowBattleModal] = useState(false);
   const [campaignCharacters, setCampaignCharacters] = useState([]);
-  const [dicePopup, setDicePopup] = useState({ show: false, pool: '' });
+  const [dicePopup, setDicePopup] = useState(null);
   const [battleStats, setBattleStats] = useState({}); // {npcId/playerId: {success: '', advantage: ''}}
   const [currentDiceTarget, setCurrentDiceTarget] = useState(null); // {type: 'npc'|'player', id: number}
   const [showAddNPCModal, setShowAddNPCModal] = useState(false);
+  const [showInitiativeOrder, setShowInitiativeOrder] = useState(false);
+  const [initiativeOrder, setInitiativeOrder] = useState([]); // [{ type, id, isPC, name }]
+  const [selectedCombatantDetails, setSelectedCombatantDetails] = useState(null); // { type, id }
+  const [skillsList, setSkillsList] = useState([]);
+  const [dicePopupPosition, setDicePopupPosition] = useState({ top: 0, left: 0 });
+  const [selectedNPCEquipment, setSelectedNPCEquipment] = useState([]);
+  const [localNpcStats, setLocalNpcStats] = useState({}); // {battleNpcId: {wound, strain}}
+  const npcStatClickLockRef = useRef({}); // {"battleNpcId:field": timestamp}
+  const npcStatApplyTokenRef = useRef({}); // {"battleNpcId:field": token}
 
   useEffect(() => {
     if (campaignId) {
       fetchBattles();
       fetchCampaignNpcs();
       fetchCampaignCharacters();
+      fetchSkills();
     }
   }, [campaignId]);
+
+  // Load equipment when selectedCombatantDetails changes
+  useEffect(() => {
+    if (selectedCombatantDetails && selectedCombatantDetails.type === 'npc') {
+      // Get the NPC details to get the actual NPC id
+      const npcDetail = getNpcDetailsByBattleNpcId(selectedCombatantDetails.id);
+      if (npcDetail && npcDetail.id) {
+        loadNPCEquipment(npcDetail.id);
+      } else {
+        setSelectedNPCEquipment([]);
+      }
+    } else {
+      setSelectedNPCEquipment([]);
+    }
+  }, [selectedCombatantDetails]);
 
   const fetchBattles = async () => {
     const { data, error } = await supabase
@@ -85,23 +110,135 @@ export default function SWBattles() {
     }
   };
 
+  const fetchSkills = async () => {
+    const { data, error } = await supabase
+      .from('skills')
+      .select('skill, stat');
+
+    if (error) {
+      console.error('Error fetching skills:', error);
+    } else {
+      setSkillsList(data || []);
+    }
+  };
+
+  const calculateDicePopupPosition = (buttonRect, popupWidth = 760) => {
+    const padding = 10;
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Default: show below the button
+    let top = buttonRect.bottom + padding;
+    let left = buttonRect.left;
+    
+    // If popup would go off bottom, show above instead
+    if (top + 400 > viewportHeight) {
+      top = buttonRect.top - 400 - padding;
+    }
+    
+    // If popup would go off right, shift it left
+    if (left + popupWidth > viewportWidth) {
+      left = viewportWidth - popupWidth - padding;
+    }
+    
+    // If popup would go off left, shift it right
+    if (left < padding) {
+      left = padding;
+    }
+    
+    return { top: Math.max(padding, top), left };
+  };
+
+  const loadNPCEquipment = async (npcId) => {
+    try {
+      // Get equipment IDs from SW_campaign_npc_equipment table
+      const { data: equipmentLinks, error: linkError } = await supabase
+        .from('SW_campaign_npc_equipment')
+        .select('equipmentID')
+        .eq('npcID', npcId);
+
+      if (linkError) throw linkError;
+
+      if (!equipmentLinks || equipmentLinks.length === 0) {
+        setSelectedNPCEquipment([]);
+        return;
+      }
+
+      // Get equipment IDs
+      const equipmentIds = equipmentLinks.map(link => link.equipmentID);
+
+      // Fetch equipment details from SW_equipment table with skill join
+      const { data: equipmentDetails, error: equipError } = await supabase
+        .from('SW_equipment')
+        .select('id, name, range, damage, critical, special, soak, defence_range, defence_melee, skill, skills(skill)')
+        .in('id', equipmentIds);
+
+      if (equipError) throw equipError;
+
+      setSelectedNPCEquipment(equipmentDetails || []);
+    } catch (err) {
+      console.error('Failed to load NPC equipment:', err);
+      setSelectedNPCEquipment([]);
+    }
+  };
+
+  const adjustNpcStat = useCallback((battleNpcId, field, delta, event) => {
+    // Only update local state, not the database
+    if (!battleNpcId || !field) return;
+
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const key = `${battleNpcId}:${field}`;
+    const now = Date.now();
+    const last = npcStatClickLockRef.current[key] || 0;
+    if (now - last < 300) return;
+    npcStatClickLockRef.current[key] = now;
+
+    const token = `${now}-${Math.random()}`;
+    npcStatApplyTokenRef.current[key] = token;
+
+    setLocalNpcStats(prev => {
+      if (npcStatApplyTokenRef.current[key] !== token) {
+        return prev;
+      }
+      npcStatApplyTokenRef.current[key] = `applied-${token}`;
+
+      const updated = { ...prev };
+      const existingStats = updated[battleNpcId] || { wound: 0, strain: 0 };
+      const currentValue = parseInt(existingStats[field], 10) || 0;
+      const nextValue = Math.max(0, currentValue + delta);
+      updated[battleNpcId] = { ...existingStats, [field]: nextValue };
+      return updated;
+    });
+  }, []);
+
   const fetchBattleNpcs = async (battleIds) => {
     const { data, error } = await supabase
       .from('SW_campaign_battles_npc')
-      .select('id, NPC, BattleID, BattleOrder, SW_campaign_NPC(id, Name, Description, PictureID, Race, races(id, name), Presence, Willpower, Skills)')
+      .select('id, NPC, BattleID, BattleOrder, SW_campaign_NPC(id, Name, Description, PictureID, Race, races(id, name), Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment)')
       .in('BattleID', battleIds);
 
     if (error) {
       console.error('Error fetching battle NPCs:', error);
     } else {
       const npcsByBattle = {};
+      const stats = {};
       (data || []).forEach(item => {
         if (!npcsByBattle[item.BattleID]) {
           npcsByBattle[item.BattleID] = [];
         }
         npcsByBattle[item.BattleID].push(item);
+        // Store local copies of wound and strain for each battle NPC instance
+        stats[item.id] = {
+          wound: item.SW_campaign_NPC?.Wound || 0,
+          strain: item.SW_campaign_NPC?.Strain || 0,
+        };
       });
       setBattleNpcs(npcsByBattle);
+      setLocalNpcStats(stats); // Initialize local stats
     }
   };
 
@@ -180,8 +317,18 @@ export default function SWBattles() {
   const openBattleModal = (battleId) => {
     setCurrentBattleId(battleId);
     setShowBattleModal(true);
+    setShowInitiativeOrder(false);
+    setInitiativeOrder([]);
+    setSelectedCombatantDetails(null);
   };
 
+  const getNpcDetailsByBattleNpcId = (battleNpcId) => {
+    return (battleNpcs[currentBattleId] || []).find(n => n.id === battleNpcId)?.SW_campaign_NPC || null;
+  };
+
+  const getPlayerDetailsById = (playerId) => {
+    return campaignCharacters.find(c => c.id === playerId) || null;
+  };
   const calculateCoolDicePool = (npc) => {
     const presence = npc.Presence || 0;
     const skills = npc.Skills || '';
@@ -293,6 +440,29 @@ export default function SWBattles() {
       return 0;
     });
 
+    const npcNameTotals = combatants.reduce((acc, c) => {
+      if (c.type === 'npc') {
+        acc[c.name] = (acc[c.name] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    const npcNameCounters = {};
+
+    setInitiativeOrder(combatants.map(c => {
+      let displayName = c.name;
+      if (c.type === 'npc' && npcNameTotals[c.name] > 1) {
+        npcNameCounters[c.name] = (npcNameCounters[c.name] || 0) + 1;
+        displayName = `${c.name} #${npcNameCounters[c.name]}`;
+      }
+      return {
+        type: c.type,
+        id: c.id,
+        isPC: c.isPC,
+        name: displayName,
+      };
+    }));
+
     // Log initiative order to console
     console.log('Initiative Order:');
     combatants.forEach((combatant, index) => {
@@ -331,7 +501,7 @@ export default function SWBattles() {
       // Refresh the battle NPCs and battles to show updated order
       await fetchBattleNpcs([currentBattleId]);
       await fetchBattles();
-      
+      setShowInitiativeOrder(true);
       alert('Initiative order set!');
     } catch (error) {
       console.error('Error setting initiative order:', error);
@@ -474,6 +644,13 @@ export default function SWBattles() {
     }
   };
 
+  const selectedNpcDetails = selectedCombatantDetails?.type === 'npc'
+    ? getNpcDetailsByBattleNpcId(selectedCombatantDetails.id)
+    : null;
+  const selectedPlayerDetails = selectedCombatantDetails?.type === 'player'
+    ? getPlayerDetailsById(selectedCombatantDetails.id)
+    : null;
+
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-7xl mx-auto">
@@ -602,7 +779,7 @@ export default function SWBattles() {
           <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50 p-4">
             <div style={{ backgroundColor: '#1a1a1a' }} className="rounded-xl p-8 max-w-4xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border-2 border-gray-600">
               <div className="flex justify-between items-center mb-6">
-                <h2 style={{ color: '#ffffff' }} className="text-3xl font-bold">ROLL FOR INITIATIVE</h2>
+                <h2 style={{ color: '#ffffff' }} className="text-3xl font-bold">INITIATIVE ORDER</h2>
                 <div className="flex gap-3">
                   <button
                     onClick={handleBattle}
@@ -625,151 +802,450 @@ export default function SWBattles() {
               {/* Initiative Order - Combined NPCs and Players in Order */}
               <div className="mb-8">
                 <h3 style={{ color: '#ffffff' }} className="text-2xl font-bold mb-4">Initiative</h3>
-                <div className="space-y-3">
-                  {getSortedCombatants().map((combatant) => {
-                    if (combatant.type === 'npc') {
-                      const item = combatant.data;
-                      return (
-                        <div key={`npc-${item.id}`} className="bg-gray-800 p-4 rounded-lg border-2 border-yellow-400">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <p style={{ color: '#ffffff' }} className="text-xl font-bold">
-                                {item.SW_campaign_NPC?.Name || 'Unknown NPC'}
-                                {item.SW_campaign_NPC?.races?.name && ` - ${item.SW_campaign_NPC.races.name}`}
-                              </p>
-                            </div>
-                            {item.SW_campaign_NPC && (
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={(e) => {
-                                    const npc = item.SW_campaign_NPC;
-                                    const pool = calculateCoolDicePool(npc);
-                                    const details = pool.split('').map(color => ({
-                                      color,
-                                      name: {'G': 'Ability', 'Y': 'Proficiency', 'B': 'Boost', 'P': 'Challenge', 'R': 'Threat', 'K': 'Setback', 'W': 'Force'}[color] || 'Unknown'
-                                    }));
-                                    setCurrentDiceTarget({ type: 'npc', id: item.id });
-                                    setDicePopup({
-                                      pool,
-                                      details,
-                                      x: e.clientX,
-                                      y: e.clientY,
-                                      label: `${npc.name || 'NPC'} - Cool`,
-                                      boosts: [],
-                                      setbacks: []
-                                    });
-                                  }}
-                                  className="px-4 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition"
-                                >
-                                  Cool: {calculateCoolDicePool(item.SW_campaign_NPC)}
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    const npc = item.SW_campaign_NPC;
-                                    const pool = calculateVigilanceDicePool(npc);
-                                    const details = pool.split('').map(color => ({
-                                      color,
-                                      name: {'G': 'Ability', 'Y': 'Proficiency', 'B': 'Boost', 'P': 'Challenge', 'R': 'Threat', 'K': 'Setback', 'W': 'Force'}[color] || 'Unknown'
-                                    }));
-                                    setCurrentDiceTarget({ type: 'npc', id: item.id });
-                                    setDicePopup({
-                                      pool,
-                                      details,
-                                      x: e.clientX,
-                                      y: e.clientY,
-                                      label: `${npc.name || 'NPC'} - Vigilance`,
-                                      boosts: [],
-                                      setbacks: []
-                                    });
-                                  }}
-                                  className="px-4 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition"
-                                >
-                                  Vigilance: {calculateVigilanceDicePool(item.SW_campaign_NPC)}
-                                </button>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    {showInitiativeOrder ? (
+                      <div className="space-y-2">
+                        {initiativeOrder.map((combatant, index) => {
+                          if (combatant.type === 'npc') {
+                            return (
+                              <div
+                                key={`npc-order-${combatant.id}`}
+                                className="bg-gray-800 p-3 rounded-lg border border-yellow-400 cursor-pointer hover:border-yellow-300 transition"
+                                onClick={() => setSelectedCombatantDetails({ type: 'npc', id: combatant.id })}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <p style={{ color: '#ffffff' }} className="text-lg font-bold">
+                                    {index + 1}. {combatant.name || 'Unknown NPC'}
+                                  </p>
+                                  <span className="text-xs text-gray-300">NPC slot</span>
+                                </div>
                               </div>
+                            );
+                          }
+                          return (
+                            <div
+                              key={`player-order-${combatant.id}`}
+                              className="bg-gray-800 p-3 rounded-lg border border-blue-400 cursor-pointer hover:border-blue-300 transition"
+                              onClick={() => setSelectedCombatantDetails({ type: 'player', id: combatant.id })}
+                            >
+                              <div className="flex items-center justify-between">
+                                <p style={{ color: '#ffffff' }} className="text-lg font-bold">
+                                  {index + 1}. {combatant.name}
+                                </p>
+                                <span className="text-xs text-gray-300">PC slot</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {getSortedCombatants().map((combatant) => {
+                          if (combatant.type === 'npc') {
+                            const item = combatant.data;
+                            return (
+                              <div key={`npc-${item.id}`} className="bg-gray-800 p-4 rounded-lg border-2 border-yellow-400">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-3">
+                                    <p style={{ color: '#ffffff' }} className="text-xl font-bold">
+                                      {item.SW_campaign_NPC?.Name || 'Unknown NPC'}
+                                      {item.SW_campaign_NPC?.races?.name && ` - ${item.SW_campaign_NPC.races.name}`}
+                                    </p>
+                                  </div>
+                                  {item.SW_campaign_NPC && (
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const npc = item.SW_campaign_NPC;
+                                          const pool = calculateCoolDicePool(npc);
+                                          const details = pool.split('').map(color => ({
+                                            color,
+                                            name: {'G': 'Ability', 'Y': 'Proficiency', 'B': 'Boost', 'P': 'Challenge', 'R': 'Threat', 'K': 'Setback', 'W': 'Force'}[color] || 'Unknown'
+                                          }));
+                                          setCurrentDiceTarget({ type: 'npc', id: item.id });
+                                          setDicePopup({
+                                            pool,
+                                            details,
+                                            x: e.clientX,
+                                            y: e.clientY,
+                                            label: `${npc.name || 'NPC'} - Cool`,
+                                            boosts: [],
+                                            setbacks: []
+                                          });
+                                        }}
+                                        className="px-4 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition"
+                                      >
+                                        Cool: {calculateCoolDicePool(item.SW_campaign_NPC)}
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const npc = item.SW_campaign_NPC;
+                                          const pool = calculateVigilanceDicePool(npc);
+                                          const details = pool.split('').map(color => ({
+                                            color,
+                                            name: {'G': 'Ability', 'Y': 'Proficiency', 'B': 'Boost', 'P': 'Challenge', 'R': 'Threat', 'K': 'Setback', 'W': 'Force'}[color] || 'Unknown'
+                                          }));
+                                          setCurrentDiceTarget({ type: 'npc', id: item.id });
+                                          setDicePopup({
+                                            pool,
+                                            details,
+                                            x: e.clientX,
+                                            y: e.clientY,
+                                            label: `${npc.name || 'NPC'} - Vigilance`,
+                                            boosts: [],
+                                            setbacks: []
+                                          });
+                                        }}
+                                        className="px-4 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition"
+                                      >
+                                        Vigilance: {calculateVigilanceDicePool(item.SW_campaign_NPC)}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <label style={{ color: '#ffffff' }} className="font-semibold">Success:</label>
+                                    <input
+                                      type="text"
+                                      value={battleStats[`npc-${item.id}`]?.success || ''}
+                                      onChange={(e) => {
+                                        const key = `npc-${item.id}`;
+                                        setBattleStats(prev => ({
+                                          ...prev,
+                                          [key]: { ...prev[key], success: e.target.value }
+                                        }));
+                                      }}
+                                      className="w-20 px-2 py-1 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <label style={{ color: '#ffffff' }} className="font-semibold">Advantage:</label>
+                                    <input
+                                      type="text"
+                                      value={battleStats[`npc-${item.id}`]?.advantage || ''}
+                                      onChange={(e) => {
+                                        const key = `npc-${item.id}`;
+                                        setBattleStats(prev => ({
+                                          ...prev,
+                                          [key]: { ...prev[key], advantage: e.target.value }
+                                        }));
+                                      }}
+                                      className="w-20 px-2 py-1 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            const character = combatant.data;
+                            return (
+                              <div key={`player-${character.id}`} className="bg-gray-800 p-4 rounded-lg border-2 border-blue-400">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <p style={{ color: '#ffffff' }} className="text-xl font-bold">{character.name}</p>
+                                </div>
+                                <p style={{ color: '#ffffff' }} className="text-sm mb-2">
+                                  {character.race} | {character.career}{character.spec ? ` - ${character.spec}` : ''}
+                                </p>
+                                <p style={{ color: '#ffffff' }} className="text-sm mb-3">Player: {character.user?.username || 'Unknown'}</p>
+                                <div className="flex gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <label style={{ color: '#ffffff' }} className="font-semibold">Success:</label>
+                                    <input
+                                      type="text"
+                                      value={battleStats[`player-${character.id}`]?.success || ''}
+                                      onChange={(e) => {
+                                        const key = `player-${character.id}`;
+                                        setBattleStats(prev => ({
+                                          ...prev,
+                                          [key]: { ...prev[key], success: e.target.value }
+                                        }));
+                                      }}
+                                      className="w-20 px-2 py-1 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <label style={{ color: '#ffffff' }} className="font-semibold">Advantage:</label>
+                                    <input
+                                      type="text"
+                                      value={battleStats[`player-${character.id}`]?.advantage || ''}
+                                      onChange={(e) => {
+                                        const key = `player-${character.id}`;
+                                        setBattleStats(prev => ({
+                                          ...prev,
+                                          [key]: { ...prev[key], advantage: e.target.value }
+                                        }));
+                                      }}
+                                      className="w-20 px-2 py-1 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {selectedCombatantDetails && (
+                    <div className="w-[28rem] bg-gray-800 border border-gray-600 p-4 rounded-lg overflow-y-auto max-h-[60vh] flex">
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-bold" style={{ color: '#ffffff' }}>
+                            {selectedCombatantDetails?.type === 'npc' 
+                              ? initiativeOrder.find(c => c.type === 'npc' && c.id === selectedCombatantDetails.id)?.name || selectedNpcDetails?.Name || 'NPC'
+                              : selectedPlayerDetails?.name || 'Details'}
+                          </h4>
+                          <button
+                            onClick={() => setSelectedCombatantDetails(null)}
+                            className="px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+                          >
+                            ✕ Close
+                          </button>
+                        </div>
+                        {selectedNpcDetails ? (
+                          <>
+                            <div className="mb-4" style={{ overflow: 'hidden' }}>
+                              {selectedNpcDetails.PictureID && (
+                                <img
+                                  src={`/SW_Pictures/Picture ${selectedNpcDetails.PictureID}.png`}
+                                  alt={selectedNpcDetails.Name}
+                                  className="rounded"
+                                  style={{ width: '200px', height: '240px', float: 'right', marginLeft: '1rem', marginBottom: '1rem', objectFit: 'contain', display: 'block' }}
+                                  onError={e => { e.target.style.display = 'none'; }}
+                                />
+                              )}
+                              <div className="mt-3 space-y-2 text-xs font-semibold" style={{ color: '#ffffff' }}>
+                                <p><span className="font-bold">Soak:</span> {selectedNpcDetails.Soak ?? '-'}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold">Wound:</span>
+                                  <span>{localNpcStats[selectedCombatantDetails.id]?.wound ?? selectedNpcDetails.Wound ?? '-'}</span>
+                                  <div className="flex gap-1">
+                                    <button
+                                      type="button"
+                                      onPointerDown={(e) => adjustNpcStat(selectedCombatantDetails.id, 'wound', -1, e)}
+                                      className="px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                                      aria-label="Decrease wound"
+                                    >
+                                      −
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onPointerDown={(e) => adjustNpcStat(selectedCombatantDetails.id, 'wound', 1, e)}
+                                      className="px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                                      aria-label="Increase wound"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold">Strain:</span>
+                                  <span>{localNpcStats[selectedCombatantDetails.id]?.strain ?? selectedNpcDetails.Strain ?? '-'}</span>
+                                  <div className="flex gap-1">
+                                    <button
+                                      type="button"
+                                      onPointerDown={(e) => adjustNpcStat(selectedCombatantDetails.id, 'strain', -1, e)}
+                                      className="px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                                      aria-label="Decrease strain"
+                                    >
+                                      −
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onPointerDown={(e) => adjustNpcStat(selectedCombatantDetails.id, 'strain', 1, e)}
+                                      className="px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                                      aria-label="Increase strain"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {selectedNPCEquipment.length > 0 && (
+                                <div className="mt-4 pt-3 border-t border-gray-600">
+                                  <h5 className="text-xs font-bold mb-2" style={{ color: '#ffffff' }}>Equipment</h5>
+                                  <div className="space-y-2">
+                                    {selectedNPCEquipment.map((eq, idx) => {
+                                      // Get skill name from the equipment's skill relationship
+                                      const skillName = eq.skills?.skill || '';
+                                      let dicePool = '';
+                                      
+                                      // Calculate dice pool if there's a skill
+                                      if (skillName && selectedNpcDetails) {
+                                        // Find the skill in skillsList to get the stat
+                                        const skillObj = skillsList.find(s => s.skill === skillName);
+                                        const statName = skillObj?.stat || '';
+                                        const statValue = parseInt(selectedNpcDetails[statName], 10) || 0;
+                                        
+                                        // Count skill rank from NPC's Skills string
+                                        let rank = 0;
+                                        if (selectedNpcDetails.Skills) {
+                                          const skillsArr = selectedNpcDetails.Skills.split(',').map(s => s.trim());
+                                          rank = skillsArr.filter(s => s === skillName).length;
+                                        }
+                                        
+                                        // Create dice pool
+                                        const yCount = Math.min(rank, statValue);
+                                        dicePool += 'Y'.repeat(yCount);
+                                        dicePool += 'G'.repeat(statValue - yCount);
+                                      }
+                                      
+                                      return (
+                                        <div key={idx} className="text-xs p-2 bg-gray-700 rounded border border-gray-600">
+                                          <div className="flex items-start justify-between gap-2 mb-1">
+                                            <div className="font-bold" style={{ color: '#ffffff' }}>{eq.name}</div>
+                                            {skillName && dicePool && (
+                                              <button
+                                                onClick={(e) => {
+                                                  const rect = e.currentTarget.getBoundingClientRect();
+                                                  setDicePopupPosition(calculateDicePopupPosition(rect));
+                                                  
+                                                  // Convert dice pool string to details array
+                                                  const details = (dicePool || '').split('').map(letter => {
+                                                    const colorMap = {
+                                                      'G': { color: 'G', name: 'Ability' },
+                                                      'Y': { color: 'Y', name: 'Proficiency' },
+                                                      'B': { color: 'B', name: 'Boost' },
+                                                      'R': { color: 'R', name: 'Difficulty' },
+                                                      'P': { color: 'P', name: 'Challenge' },
+                                                      'K': { color: 'K', name: 'Setback' }
+                                                    };
+                                                    return colorMap[letter] || { color: letter, name: 'Unknown' };
+                                                  });
+                                                  
+                                                  setDicePopup({
+                                                    type: 'npc',
+                                                    npcId: selectedNpcDetails.id,
+                                                    dicePool: dicePool,
+                                                    skillName: skillName,
+                                                    details: details,
+                                                    label: `${skillName} (${selectedNpcDetails.Name})`
+                                                  });
+                                                }}
+                                                className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 rounded text-white font-mono text-xs font-semibold flex-shrink-0 transition"
+                                              >
+                                                {dicePool || '-'}
+                                              </button>
+                                            )}
+                                          </div>
+                                          <div className="space-y-0.5" style={{ color: '#ffffff' }}>
+                                            {eq.range && <div><span className="font-semibold">Range:</span> {eq.range}</div>}
+                                            {eq.damage && <div><span className="font-semibold">Damage:</span> {eq.damage}</div>}
+                                            {eq.critical && <div><span className="font-semibold">Critical:</span> {eq.critical}</div>}
+                                            {eq.special && <div><span className="font-semibold">Special:</span> {eq.special}</div>}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        ) : selectedPlayerDetails ? (
+                          <>
+                            {selectedPlayerDetails.picture && (
+                              <img
+                                src={selectedPlayerDetails.picture}
+                                alt={selectedPlayerDetails.name}
+                                className="rounded mb-3"
+                                style={{ width: '200px', height: '240px', objectFit: 'contain' }}
+                                onError={e => { e.target.style.display = 'none'; }}
+                              />
                             )}
-                          </div>
-                          <div className="flex gap-4">
-                            <div className="flex items-center gap-2">
-                              <label style={{ color: '#ffffff' }} className="font-semibold">Success:</label>
-                              <input
-                                type="text"
-                                value={battleStats[`npc-${item.id}`]?.success || ''}
-                                onChange={(e) => {
-                                  const key = `npc-${item.id}`;
-                                  setBattleStats(prev => ({
-                                    ...prev,
-                                    [key]: { ...prev[key], success: e.target.value }
-                                  }));
-                                }}
-                                className="w-20 px-2 py-1 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <label style={{ color: '#ffffff' }} className="font-semibold">Advantage:</label>
-                              <input
-                                type="text"
-                                value={battleStats[`npc-${item.id}`]?.advantage || ''}
-                                onChange={(e) => {
-                                  const key = `npc-${item.id}`;
-                                  setBattleStats(prev => ({
-                                    ...prev,
-                                    [key]: { ...prev[key], advantage: e.target.value }
-                                  }));
-                                }}
-                                className="w-20 px-2 py-1 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                              />
-                            </div>
-                          </div>
+                            <p className="text-sm font-semibold mb-1" style={{ color: '#ffffff' }}>Race: {selectedPlayerDetails.race || '-'}</p>
+                            <p className="text-sm font-semibold mb-1" style={{ color: '#ffffff' }}>Career: {selectedPlayerDetails.career || '-'}</p>
+                            {selectedPlayerDetails.spec && (
+                              <p className="text-sm font-semibold mb-1" style={{ color: '#ffffff' }}>Spec: {selectedPlayerDetails.spec}</p>
+                            )}
+                            <p className="text-sm font-semibold mb-1" style={{ color: '#ffffff' }}>Player: {selectedPlayerDetails.user?.username || 'Unknown'}</p>
+                          </>
+                        ) : (
+                          <div className="text-sm text-gray-600">Details not available.</div>
+                        )}
+                      </div>
+                      {selectedNpcDetails && (
+                        <div className="w-[20rem] bg-gray-50 border-l border-gray-300 p-3 overflow-y-auto">
+                          <h5 className="font-bold text-sm" style={{ color: '#ffffff' }}>Skills & Dice Pool</h5>
+                          <table className="w-full text-xs border border-gray-300 rounded">
+                            <thead>
+                              <tr className="bg-gray-200">
+                                <th className="px-2 py-1 border font-bold" style={{ color: '#ffffff' }}>Skill</th>
+                                <th className="px-2 py-1 border font-bold" style={{ color: '#ffffff' }}>Pool</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {skillsList.sort((a, b) => a.skill.localeCompare(b.skill)).map((skillObj, idx) => {
+                                const skillName = skillObj.skill;
+                                const statName = skillObj.stat; // e.g., 'Intellect', 'Brawn', etc.
+                                const statValue = parseInt(selectedNpcDetails[statName], 10) || 0;
+                                
+                                // Count how many times this skill appears in the NPC's Skills field
+                                let rank = 0;
+                                if (selectedNpcDetails.Skills) {
+                                  const skillsArr = selectedNpcDetails.Skills.split(',').map(s => s.trim());
+                                  rank = skillsArr.filter(s => s === skillName).length;
+                                }
+                                
+                                // Create dice pool: stat value = G's, plus rank = Y's
+                                let dicePool = '';
+                                // Add Y's first (up to rank, but not more than stat value)
+                                const yCount = Math.min(rank, statValue);
+                                dicePool += 'Y'.repeat(yCount);
+                                // Add remaining G's
+                                dicePool += 'G'.repeat(statValue - yCount);
+                                
+                                return (
+                                  <tr key={idx} className="border-t">
+                                    <td className="px-2 py-1 border font-mono font-semibold text-center" style={{ color: '#ffffff' }}>{skillName}</td>
+                                    <td className="px-2 py-1 border font-mono font-semibold text-center">
+                                      <button
+                                        onClick={(e) => {
+                                          const rect = e.currentTarget.getBoundingClientRect();
+                                          setDicePopupPosition(calculateDicePopupPosition(rect));
+                                          
+                                          // Convert dice pool string to details array
+                                          const details = (dicePool || '').split('').map(letter => {
+                                            const colorMap = {
+                                              'G': { color: 'G', name: 'Ability' },
+                                              'Y': { color: 'Y', name: 'Proficiency' },
+                                              'B': { color: 'B', name: 'Boost' },
+                                              'R': { color: 'R', name: 'Difficulty' },
+                                              'P': { color: 'P', name: 'Challenge' },
+                                              'K': { color: 'K', name: 'Setback' }
+                                            };
+                                            return colorMap[letter] || { color: letter, name: 'Unknown' };
+                                          });
+                                          
+                                          setDicePopup({
+                                            type: 'npc',
+                                            npcId: selectedNpcDetails.id,
+                                            dicePool: dicePool,
+                                            skillName: skillName,
+                                            details: details,
+                                            label: `${skillName} (${selectedNpcDetails.Name})`
+                                          });
+                                        }}
+                                        className="text-center font-mono font-semibold hover:bg-gray-700 px-1 py-0.5 rounded transition text-black"
+                                        style={{ color: '#000000' }}
+                                      >
+                                        {dicePool || '-'}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
-                      );
-                    } else {
-                      const character = combatant.data;
-                      return (
-                        <div key={`player-${character.id}`} className="bg-gray-800 p-4 rounded-lg border-2 border-blue-400">
-                          <div className="flex items-center gap-3 mb-2">
-                            <p style={{ color: '#ffffff' }} className="text-xl font-bold">{character.name}</p>
-                          </div>
-                          <p style={{ color: '#ffffff' }} className="text-sm mb-2">
-                            {character.race} | {character.career}{character.spec ? ` - ${character.spec}` : ''}
-                          </p>
-                          <p style={{ color: '#ffffff' }} className="text-sm mb-3">Player: {character.user?.username || 'Unknown'}</p>
-                          <div className="flex gap-4">
-                            <div className="flex items-center gap-2">
-                              <label style={{ color: '#ffffff' }} className="font-semibold">Success:</label>
-                              <input
-                                type="text"
-                                value={battleStats[`player-${character.id}`]?.success || ''}
-                                onChange={(e) => {
-                                  const key = `player-${character.id}`;
-                                  setBattleStats(prev => ({
-                                    ...prev,
-                                    [key]: { ...prev[key], success: e.target.value }
-                                  }));
-                                }}
-                                className="w-20 px-2 py-1 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <label style={{ color: '#ffffff' }} className="font-semibold">Advantage:</label>
-                              <input
-                                type="text"
-                                value={battleStats[`player-${character.id}`]?.advantage || ''}
-                                onChange={(e) => {
-                                  const key = `player-${character.id}`;
-                                  setBattleStats(prev => ({
-                                    ...prev,
-                                    [key]: { ...prev[key], advantage: e.target.value }
-                                  }));
-                                }}
-                                className="w-20 px-2 py-1 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                  })}
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -924,12 +1400,12 @@ export default function SWBattles() {
             <p className="text-gray-400 text-center italic col-span-full">No battles created yet</p>
           )}
         </div>
-        {dicePopup.pool && (
+        {dicePopup && (
           <div
             style={{
-              position: 'absolute',
-              left: `${dicePopup.x}px`,
-              top: `${dicePopup.y}px`,
+              position: 'fixed',
+              left: `${dicePopupPosition.left}px`,
+              top: `${dicePopupPosition.top}px`,
               backgroundColor: 'white',
               border: '3px solid black',
               padding: '18px',
@@ -944,7 +1420,7 @@ export default function SWBattles() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setDicePopup({ show: false, pool: '' })}
+              onClick={() => setDicePopup(null)}
               style={{ position: 'absolute', top: 8, right: 8, zIndex: 10000 }}
               className="text-2xl font-bold text-red-600 hover:text-red-800 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
               aria-label="Close dice popup"
@@ -954,7 +1430,7 @@ export default function SWBattles() {
             <DicePoolPopup
               dicePopup={dicePopup}
               setDicePopup={setDicePopup}
-              onUseResult={handleUseResult}
+              onUseResult={!showInitiativeOrder ? handleUseResult : null}
             />
           </div>
         )}

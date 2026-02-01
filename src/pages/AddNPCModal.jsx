@@ -173,47 +173,89 @@ export default function AddNPCModal({ isOpen, onClose, onSave, campaignId }) {
         transform: 'translate(-50%, -50%)',
         backgroundColor: 'white',
         border: '3px solid black',
-        padding: '24px',
         borderRadius: '10px',
         boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
         zIndex: 9999,
         maxWidth: '600px',
         width: '90vw',
         maxHeight: '90vh',
-        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
         pointerEvents: 'auto',
       }}
       onClick={e => e.stopPropagation()}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#000' }}>Add NPC</h2>
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            zIndex: 10000,
-            fontSize: '24px',
-            fontWeight: 'bold',
-            color: '#dc2626',
-            backgroundColor: 'white',
-            border: 'none',
-            borderRadius: '50%',
-            width: '32px',
-            height: '32px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          ×
-        </button>
+      <div style={{ padding: '24px', paddingBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: '#000' }}>Add NPC</h2>
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              zIndex: 10000,
+              fontSize: '24px',
+              fontWeight: 'bold',
+              color: '#dc2626',
+              backgroundColor: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              backgroundColor: '#a855f7',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          <button
+            onClick={() => {
+              resetForm();
+              onClose();
+            }}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              backgroundColor: '#9ca3af',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '12px',
+            }}
+          >
+            Cancel
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px', paddingRight: '16px', minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px', marginTop: '16px' }}>
         <div>
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>NPC Name</label>
           <input
@@ -378,43 +420,6 @@ export default function AddNPCModal({ isOpen, onClose, onSave, campaignId }) {
           </select>
         </div>
       </div>
-
-      <div style={{ display: 'flex', gap: '8px', marginTop: '24px' }}>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            flex: 1,
-            padding: '12px',
-            backgroundColor: '#a855f7',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            opacity: saving ? 0.6 : 1,
-          }}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-        <button
-          onClick={() => {
-            resetForm();
-            onClose();
-          }}
-          style={{
-            flex: 1,
-            padding: '12px',
-            backgroundColor: '#9ca3af',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );

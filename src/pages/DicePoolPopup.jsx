@@ -3,9 +3,14 @@ import { supabase } from '../supabaseClient';
 
 // Parse roll results to compute net successes, failures, advantages, threats, triumphs, despairs
 function parseRollResults(poolResults, diffResults) {
-  // Helper to count occurrences in an array of result strings
+  // Helper to count occurrences of a word in an array of result strings
   function countAll(arr, word) {
-    return arr.reduce((acc, val) => acc + (String(val).toLowerCase().includes(word) ? 1 : 0), 0);
+    return arr.reduce((acc, val) => {
+      const str = String(val).toLowerCase();
+      // Count actual occurrences of the word, not just presence
+      const matches = str.match(new RegExp(word, 'g'));
+      return acc + (matches ? matches.length : 0);
+    }, 0);
   }
   const all = [
     ...(poolResults || []),
@@ -35,13 +40,14 @@ function parseRollResults(poolResults, diffResults) {
 }
 
 // Helper for getting die background color
-const getDieBackgroundColor = (color) => {
-  switch (color) {
-    case 'G': return { backgroundColor: '#6bbf59' };
-    case 'B': return { backgroundColor: '#6fb7ff' };
-    case 'R': return { backgroundColor: '#ff6b6b' };
-    case 'P': return { backgroundColor: '#b36bff' };
-    case 'K': return { backgroundColor: '#333333' };
+const getDiceColorStyle = (letter) => {
+  switch ((letter || '').toUpperCase()) {
+    case 'G': return { backgroundColor: '#6bbf59' }; // Ability
+    case 'Y': return { backgroundColor: '#ffd24d' }; // Proficiency
+    case 'B': return { backgroundColor: '#6fb7ff' }; // Boost
+    case 'R': return { backgroundColor: '#ff6b6b' }; // Difficulty
+    case 'P': return { backgroundColor: '#b36bff' }; // Challenge
+    case 'K': return { backgroundColor: '#333333' }; // Setback
     default: return { backgroundColor: '#e5e7eb' };
   }
 };
@@ -59,10 +65,35 @@ const splitResultLines = (text) => {
 
 export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) {
   const [rollResults, setRollResults] = useState(null);
-  const [boosts, setBoosts] = useState([]);
-  const [setbacks, setSetbacks] = useState([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [diceTable, setDiceTable] = useState({});
+  const fallbackDiceNames = {
+    G: 'Ability',
+    Y: 'Proficiency',
+    B: 'Boost',
+    P: 'Challenge',
+    R: 'Difficulty',
+    K: 'Setback',
+    W: 'Force',
+  };
+  const diceMap = Object.fromEntries(
+    Object.entries(diceTable).map(([key, value]) => [key, value?.name || fallbackDiceNames[key] || 'Unknown'])
+  );
+
+  const collectSides = (row) => {
+    const available = [];
+    if (!row) return available;
+    for (let s = 1; s <= 12; s++) {
+      const variants = [`side_${s}`, `side${s}`, `Side${s}`, `Side ${s}`, `side ${s}`];
+      for (const key of variants) {
+        if (Object.prototype.hasOwnProperty.call(row, key) && row[key] != null) {
+          available.push(row[key]);
+          break;
+        }
+      }
+    }
+    return available.filter(v => v && String(v).trim() !== '');
+  };
 
   // Load dice data from SW_dice table
   useEffect(() => {
@@ -70,7 +101,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
       try {
         const { data, error } = await supabase
           .from('SW_dice')
-          .select('colour, name, side_1, side_2, side_3, side_4, side_5, side_6, side_7, side_8, side_9, side_10, side_11, side_12');
+          .select('*');
         
         if (error) throw error;
 
@@ -78,9 +109,11 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
         const diceMap = {};
         if (data) {
           data.forEach(die => {
-            diceMap[die.colour] = {
+            const key = String(die.colour || '').toUpperCase();
+            if (!key) return;
+            diceMap[key] = {
               name: die.name,
-              sides: [die.side_1, die.side_2, die.side_3, die.side_4, die.side_5, die.side_6, die.side_7, die.side_8, die.side_9, die.side_10, die.side_11, die.side_12]
+              sides: collectSides(die)
             };
           });
           console.log('Loaded dice data:', diceMap);
@@ -94,47 +127,110 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
     loadDiceData();
   }, []);
 
-  // Roll a single die based on color
-  const rollSingleDie = (colorLetter) => {
-    const die = diceTable[colorLetter];
-    
-    if (!die) {
-      console.warn(`Die not found for color: ${colorLetter}`, 'Available colors:', Object.keys(diceTable));
-      return 'Unknown'; // Fallback if die not found
+  useEffect(() => {
+    if (!dicePopup) return;
+    const hasDetails = Array.isArray(dicePopup.details);
+    const hasBoosts = Array.isArray(dicePopup.boosts);
+    const hasSetbacks = Array.isArray(dicePopup.setbacks);
+    if (!hasDetails) {
+      const pool = dicePopup.pool || '';
+      const details = pool.split('').map(color => ({
+        color,
+        name: diceMap[color] || fallbackDiceNames[color] || 'Unknown'
+      }));
+      setDicePopup(prev => ({
+        ...(prev || {}),
+        details,
+        boosts: hasBoosts ? prev.boosts : [],
+        setbacks: hasSetbacks ? prev.setbacks : []
+      }));
+      return;
     }
 
-    // Get non-empty sides
-    const nonEmptySides = die.sides.filter(side => side && side.trim() !== '');
-    
-    if (nonEmptySides.length === 0) {
-      return 'Blank'; // If all sides are empty, return blank
+    if (Object.keys(diceMap).length > 0) {
+      const updated = dicePopup.details.map(d => {
+        const resolved = diceMap[d.color] || d.name || fallbackDiceNames[d.color] || 'Unknown';
+        return d.name === resolved ? d : { ...d, name: resolved };
+      });
+      const needsUpdate = updated.some((d, i) => d.name !== dicePopup.details[i].name);
+      if (needsUpdate) {
+        setDicePopup(prev => ({ ...(prev || {}), details: updated }));
+      }
     }
 
-    // Randomly pick one of the non-empty sides
-    const randomResult = nonEmptySides[Math.floor(Math.random() * nonEmptySides.length)];
-    return randomResult || 'Blank';
+    if (!hasBoosts || !hasSetbacks) {
+      setDicePopup(prev => ({
+        ...(prev || {}),
+        boosts: hasBoosts ? prev.boosts : [],
+        setbacks: hasSetbacks ? prev.setbacks : []
+      }));
+    }
+  }, [dicePopup, diceMap, setDicePopup]);
+
+  const rollSingleDieAsync = async (colorLetter) => {
+    const key = String(colorLetter || '').toUpperCase();
+    const cached = diceTable[key];
+    if (cached?.sides?.length) {
+      const nonEmptySides = cached.sides.filter(side => side && String(side).trim() !== '');
+      if (nonEmptySides.length > 0) {
+        return nonEmptySides[Math.floor(Math.random() * nonEmptySides.length)] || 'Blank';
+      }
+    }
+
+    try {
+      const { data: singleRow, error: singleErr } = await supabase
+        .from('SW_dice')
+        .select('*')
+        .eq('colour', key)
+        .single();
+
+      let available = !singleErr ? collectSides(singleRow) : [];
+
+      if (available.length === 0) {
+        const { data: rows } = await supabase
+          .from('SW_dice')
+          .select('side, result')
+          .eq('colour', key);
+        if (rows && rows.length) {
+          available = rows.map(r => r.result).filter(Boolean);
+        }
+      }
+
+      if (available.length === 0) return 'Blank';
+      return available[Math.floor(Math.random() * available.length)] || 'Blank';
+    } catch (err) {
+      console.error('Failed to roll die:', err);
+      return 'Blank';
+    }
   };
 
   // Simulate a dice roll
-  const handleRoll = () => {
-    // For demo: randomize results for all dice, including boosts and setbacks
-    const poolDice = [
-      ...dicePopup.pool.split('').map(color => ({ color })),
-      ...boosts.map(() => ({ color: 'B' })),
-    ];
-    const poolResults = poolDice.map(die => rollSingleDie(die.color));
-    
-    // Difficulty and setbacks
-    const diffDice = [
-      ...Array(selectedDifficulty).fill({ color: 'P' }),
-      ...setbacks.map(() => ({ color: 'K' })),
-    ];
-    const diffResults = diffDice.map(die => rollSingleDie(die.color));
-    
+  const handleRoll = async () => {
+    if (!dicePopup) return;
+    const poolDetails = dicePopup.details || [];
+    const boostsArr = dicePopup.boosts || [];
+    const setbacksArr = dicePopup.setbacks || [];
+
+    const poolResults = await Promise.all(
+      [...poolDetails, ...boostsArr].map(die => rollSingleDieAsync(die.color))
+    );
+    const diffResults = await Promise.all(
+      [
+        ...Array(selectedDifficulty).fill({ color: 'P' }),
+        ...setbacksArr
+      ].map(die => rollSingleDieAsync(die.color))
+    );
+
     setRollResults({ poolResults, diffResults });
   };
 
   // --- RETURN THE POPUP JSX ---
+  if (!dicePopup) return null;
+
+  const poolDetails = dicePopup.details || [];
+  const boostsArr = dicePopup.boosts || [];
+  const setbacksArr = dicePopup.setbacks || [];
+
   return (
     <>
       <div
@@ -149,251 +245,339 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
         onClick={e => e.stopPropagation()}
       >
         <h3 className="font-bold text-lg mb-4" style={{ color: '#000' }}>{dicePopup.label || 'Dice Pool'}</h3>
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-          {/* LEFT COLUMN: dice controls and dice display */}
-          <div style={{ flex: '0 0 480px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Ability/Boost controls row and dice */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {/* Ability and Boost dice in a single row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 0, marginBottom: 8 }}>
-                {/* Ability dice */}
-                {/* Table layout for buttons and dice */}
-                <table style={{ borderCollapse: 'separate', borderSpacing: '12px 0', marginBottom: 8 }}>
-                  <tbody>
-                    <tr>
-                      {/* Remove/Upgrade buttons for each green die */}
-                      {(() => {
-                        const poolArr = (dicePopup.pool || '').split('');
-                        // Find all green and yellow dice indexes
-                        const abilityIndexes = [];
-                        poolArr.forEach((d, idx) => { if (d === 'G' || d === 'Y') abilityIndexes.push(idx); });
-                        return abilityIndexes.map((poolIdx, i) => {
-                          const isYellow = poolArr[poolIdx] === 'Y';
-                          return (
-                            <td key={'btn'+i} style={{ textAlign: 'center', paddingBottom: 4 }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                                <button style={{ minWidth: 60, marginBottom: 2 }} onClick={() => {
-                                  setDicePopup(p => {
-                                    const arr = (p.pool || '').split('');
-                                    arr.splice(poolIdx, 1);
-                                    return { ...p, pool: arr.join('') };
-                                  });
-                                }}>Remove</button>
-                                {isYellow ? (
-                                  <button style={{ minWidth: 60 }} onClick={() => {
-                                    setDicePopup(p => {
-                                      const arr = (p.pool || '').split('');
-                                      arr[poolIdx] = 'G';
-                                      return { ...p, pool: arr.join('') };
-                                    });
-                                  }}>Downgrade</button>
-                                ) : (
-                                  <button style={{ minWidth: 60 }} onClick={() => {
-                                    setDicePopup(p => {
-                                      const arr = (p.pool || '').split('');
-                                      arr[poolIdx] = 'Y';
-                                      return { ...p, pool: arr.join('') };
-                                    });
-                                  }}>Upgrade</button>
-                                )}
-                              </div>
-                            </td>
-                          );
-                        });
-                      })()}
-                      {/* Remove button for each boost die */}
-                      {boosts.map((_, i) => (
-                        <td key={'boost-btn'+i} style={{ textAlign: 'center', paddingBottom: 4 }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                            <button style={{ minWidth: 60, marginBottom: 2 }} onClick={() => setBoosts(b => b.filter((_, j) => j !== i))}>Remove</button>
-                          </div>
-                        </td>
-                      ))}
-                      {/* Single set of +Boost/+Ability buttons to the right of boost dice */}
-                      <td key="add-controls" style={{ textAlign: 'center', paddingBottom: 4, verticalAlign: 'top' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginLeft: 12 }}>
-                          <button className="px-2 py-1 bg-gray-100 rounded text-xs mb-1" style={{ minWidth: 60 }} onClick={() => setBoosts(b => [...b, { color: 'B', name: 'Boost' }])}>+ Boost</button>
-                          <button className="px-2 py-1 bg-gray-100 rounded text-xs" style={{ minWidth: 60 }} onClick={() => {
-                            setDicePopup(p => {
-                              const poolArr = (p.pool || '').split('');
-                              // Insert 'G' before first boost die, or at end if no boost dice
-                              const firstBoostIdx = poolArr.findIndex(d => d === 'B');
-                              if (firstBoostIdx === -1) {
-                                poolArr.push('G');
-                              } else {
-                                poolArr.splice(firstBoostIdx, 0, 'G');
-                              }
-                              return { ...p, pool: poolArr.join('') };
+
+        {/* MAIN FLEX: left column + outcome panel */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+
+        {/* LEFT COLUMN: pool, boosts, setbacks, difficulty, roll */}
+        <div style={{ flex: '0 0 420px' }}>
+
+        <div className="flex items-end mb-1" style={{ gap: 8, alignItems: 'flex-end' }}>
+                  {poolDetails.map((d, i) => (
+                    <div key={i} className="flex flex-col items-center" style={{ minWidth: 56 }}>
+                      <button
+                        onClick={() => {
+                          setDicePopup(prev => {
+                            const updated = { ...(prev || {}) };
+                            updated.details = [...(prev?.details || [])];
+                            updated.details.splice(i, 1);
+                            return updated;
+                          });
+                          setRollResults(null);
+                        }}
+                        className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs font-bold mb-1"
+                      >
+                        Remove
+                      </button>
+                      {d.color === 'Y' ? (
+                        <button
+                          onClick={() => {
+                            setDicePopup(prev => {
+                              const updated = { ...(prev || {}) };
+                              updated.details = [...(prev?.details || [])];
+                              updated.details[i] = { ...updated.details[i], color: 'G', name: diceMap['G'] || 'Ability' };
+                              return updated;
                             });
-                          }}>+ Ability</button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      {/* Green dice */}
-                      {(() => {
-                        const poolArr = (dicePopup.pool || '').split('');
-                        // Find all green and yellow dice indexes
-                        const abilityIndexes = [];
-                        poolArr.forEach((d, idx) => { if (d === 'G' || d === 'Y') abilityIndexes.push(idx); });
-                        return abilityIndexes.map((poolIdx, i) => {
-                          const dieColor = poolArr[poolIdx];
-                          const text = rollResults && rollResults.poolResults && rollResults.poolResults[i] ? rollResults.poolResults[i] : '';
-                          const baseFontSize = 16;
-                          const minFontSize = 10;
-                          const fontSize = Math.max(minFontSize, Math.min(baseFontSize, Math.floor(44 / (text.length || 1))));
-                          let bg = '#6bbf59';
-                          let border = '#222';
-                          let color = '#000';
-                          if (dieColor === 'Y') { bg = '#ffe066'; border = '#bfa600'; color = '#000'; }
-                          return (
-                            <td key={'die'+i} style={{ textAlign: 'center', verticalAlign: 'top' }}>
-                              <div style={{ width: 56, height: 56, background: bg, border: `2px solid ${border}`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color, padding: 2, margin: '0 auto' }}>
-                                <span style={{ width: '100%', height: '100%', textAlign: 'center', fontSize, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{text}</span>
+                            setRollResults(null);
+                          }}
+                          className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-bold mb-1"
+                        >
+                          Downgrade
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setDicePopup(prev => {
+                              const updated = { ...(prev || {}) };
+                              updated.details = [...(prev?.details || [])];
+                              updated.details[i] = { ...updated.details[i], color: 'Y', name: diceMap['Y'] || 'Proficiency' };
+                              return updated;
+                            });
+                            setRollResults(null);
+                          }}
+                          className="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs font-bold mb-1"
+                        >
+                          Upgrade
+                        </button>
+                      )}
+                      <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{d.name || diceMap[d.color] || fallbackDiceNames[d.color] || 'Unknown'}</div>
+                      <div
+                        aria-hidden
+                        style={{
+                          width: 48,
+                          height: 48,
+                          border: '3px solid black',
+                          borderRadius: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 4,
+                          ...getDiceColorStyle(d.color),
+                        }}
+                      >
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+                            {splitResultLines(rollResults?.poolResults?.[i] || '').map((ln, idx) => (
+                              <div key={idx} style={{ fontSize: 12, lineHeight: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 72, color: '#000' }}>
+                                {ln}
                               </div>
-                            </td>
-                          );
-                        });
-                      })()}
-                      {/* Boost dice */}
-                      {boosts.map((_, i) => {
-                        const text = rollResults && rollResults.poolResults && rollResults.poolResults[dicePopup.pool.length + i] ? rollResults.poolResults[dicePopup.pool.length + i] : '';
-                        const baseFontSize = 16;
-                        const minFontSize = 10;
-                        const fontSize = Math.max(minFontSize, Math.min(baseFontSize, Math.floor(44 / (text.length || 1))));
-                        return (
-                          <td key={'boost-die'+i} style={{ textAlign: 'center', verticalAlign: 'top' }}>
-                            <div style={{ width: 56, height: 56, background: '#6fb7ff', border: '2px solid #222', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#000', padding: 2, margin: '0 auto' }}>
-                              <span style={{ width: '100%', height: '100%', textAlign: 'center', fontSize, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{text}</span>
+                            ))}
+                          </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Boost and Threat (setback) controls to the right of top dice */}
+                  <div style={{ display: 'flex', gap: 8, marginLeft: 6 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      <button
+                        onClick={() => {
+                          setDicePopup(prev => ({ ...(prev || {}), boosts: (prev?.boosts || []).slice(0, -1) }));
+                          setRollResults(null);
+                        }}
+                        className="px-2 py-1 bg-gray-200 text-xs rounded"
+                        disabled={boostsArr.length === 0}
+                      >
+                        - Boost
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDicePopup(prev => ({ ...(prev || {}), boosts: [...(prev?.boosts || []), { color: 'B', name: diceMap['B'] || 'Boost' }] }));
+                          setRollResults(null);
+                        }}
+                        className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
+                      >
+                        + Boost
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      <button
+                        onClick={() => {
+                          setDicePopup(prev => ({ ...(prev || {}), setbacks: (prev?.setbacks || []).slice(0, -1) }));
+                          setRollResults(null);
+                        }}
+                        className="px-2 py-1 bg-gray-200 text-xs rounded"
+                        disabled={setbacksArr.length === 0}
+                      >
+                        - Setback
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDicePopup(prev => ({ ...(prev || {}), setbacks: [...(prev?.setbacks || []), { color: 'K', name: diceMap['K'] || 'Setback' }] }));
+                          setRollResults(null);
+                        }}
+                        className="px-2 py-1 bg-black text-white text-xs rounded"
+                      >
+                        + Setback
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Render any boost dice underneath */}
+                {boostsArr.length > 0 && (
+                  <div className="flex items-end gap-2 mt-2">
+                    {boostsArr.map((b, bi) => {
+                      const idx = poolDetails.length + bi;
+                      return (
+                        <div key={bi} className="flex flex-col items-center" style={{ minWidth: 56 }}>
+                          <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{b.name || diceMap[b.color] || fallbackDiceNames[b.color] || 'Boost'}</div>
+                          <div
+                            style={{
+                              width: 48,
+                              height: 48,
+                              border: '3px solid black',
+                              borderRadius: 8,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: 4,
+                              ...getDiceColorStyle(b.color),
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+                              {splitResultLines(rollResults?.poolResults?.[idx] || '').map((ln, idx2) => (
+                                <div key={idx2} style={{ fontSize: 12, lineHeight: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 72, color: '#000' }}>
+                                  {ln}
+                                </div>
+                              ))}
                             </div>
-                          </td>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="mt-6 pt-4 border-t border-gray-300">
+                  <label className="text-xs font-medium mb-2 block" style={{ color: '#000' }}>Difficulty (1-5)</label>
+                  <div className="flex gap-2 mb-3 items-center">
+                    {[1, 2, 3, 4, 5].map(num => (
+                      <button
+                        key={num}
+                        onClick={() => setSelectedDifficulty(num)}
+                        className={`w-8 h-8 rounded font-bold text-sm ${
+                          selectedDifficulty === num ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setSelectedDifficulty(0)}
+                      className={`w-8 h-8 rounded font-bold text-sm ${
+                        selectedDifficulty === 0 ? 'bg-gray-500 text-white' : 'bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      0
+                    </button>
+                  </div>
+
+                  {/* Render any difficulty dice */}
+                  {selectedDifficulty > 0 && (
+                    <div className="flex items-end gap-2 mt-2">
+                      {Array.from({ length: selectedDifficulty }).map((_, di) => {
+                        return (
+                          <div key={di} className="flex flex-col items-center" style={{ minWidth: 56 }}>
+                            <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>Difficulty</div>
+                            <div
+                              style={{
+                                width: 48,
+                                height: 48,
+                                border: '3px solid black',
+                                borderRadius: 8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: 4,
+                                ...getDiceColorStyle('P'),
+                              }}
+                            >
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+                                {splitResultLines(rollResults?.diffResults?.[di] || '').map((ln, idx2) => (
+                                  <div key={idx2} style={{ fontSize: 12, lineHeight: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 72, color: '#000' }}>
+                                    {ln}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
                         );
                       })}
-                    </tr>
-                  </tbody>
-                </table>
-                {/* Boost dice are now only rendered in the table above */}
+                    </div>
+                  )}
+
+                  {/* Render any setback dice underneath difficulty */}
+                  {setbacksArr.length > 0 && (
+                    <div className="flex items-end gap-2 mt-2">
+                      {setbacksArr.map((s, si) => {
+                        const idx = (selectedDifficulty || 0) + si;
+                        return (
+                          <div key={si} className="flex flex-col items-center" style={{ minWidth: 56 }}>
+                            <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{s.name || diceMap[s.color] || fallbackDiceNames[s.color] || 'Setback'}</div>
+                            <div
+                              style={{
+                                width: 48,
+                                height: 48,
+                                border: '3px solid black',
+                                borderRadius: 8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: 4,
+                                ...getDiceColorStyle(s.color),
+                              }}
+                            >
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+                                {splitResultLines(rollResults?.diffResults?.[idx] || '').map((ln, idx2) => (
+                                  <div key={idx2} style={{ fontSize: 12, lineHeight: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 72, color: '#000' }}>
+                                    {ln}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Roll button */}
+                <div className="mt-6">
+                  <button
+                    onClick={handleRoll}
+                    className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+                  >
+                    Roll
+                  </button>
+                </div>
+                </div>
+
+                {/* Outcome panel to the right */}
+                <div style={{ flex: '0 0 260px', borderLeft: '1px solid #e5e7eb', paddingLeft: 12 }}>
+                  <h4 className="font-bold text-lg mb-2" style={{ color: '#000' }}>Outcome</h4>
+                  {!rollResults && (
+                    <div className="text-sm text-gray-500">No roll yet. Press <strong>Roll</strong> to show outcome.</div>
+                  )}
+                  {rollResults && (
+                    <div className="text-sm" style={{ color: '#000' }}>
+                      {(() => {
+                        const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
+                        return (
+                          <>
+                            {parsed.netSuccess > 0 && (
+                              <div className="mb-2">
+                                {parsed.netSuccess} Success
+                                {parsed.counts.triumph > 0 && (
+                                  <span className="text-xs text-gray-600"> (includes {parsed.counts.triumph} Triumph)</span>
+                                )}
+                              </div>
+                            )}
+                            {parsed.netFailure > 0 && (
+                              <div className="mb-2">
+                                {parsed.netFailure} Failure
+                                {parsed.counts.despair > 0 && (
+                                  <span className="text-xs text-gray-600"> (includes {parsed.counts.despair} Despair)</span>
+                                )}
+                              </div>
+                            )}
+                            {parsed.netSuccess === 0 && parsed.netFailure === 0 && (
+                              <div className="mb-2 text-gray-500">No net success/failure</div>
+                            )}
+                            {parsed.netAdvantage > 0 && (
+                              <div className="mb-2">
+                                {parsed.netAdvantage} Advantage
+                              </div>
+                            )}
+                            {parsed.netThreat > 0 && (
+                              <div className="mb-2">
+                                {parsed.netThreat} Threat
+                              </div>
+                            )}
+                            {parsed.netAdvantage === 0 && parsed.netThreat === 0 && (
+                              <div className="mb-2 text-gray-500">No net advantage/threat</div>
+                            )}
+                          </>
+                        );
+                      })()}
+                      {onUseResult && (
+                        <button
+                          className="mt-3 px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                          onClick={() => {
+                            if (!rollResults) return;
+                            const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
+                            onUseResult(parsed.netSuccess, parsed.netAdvantage);
+                            setDicePopup(null);
+                          }}
+                        >
+                          Use Result
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              {/* Controls for adding/removing ability/boost dice moved to above each die */}
-            </div>
-            <hr className="my-2" />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="font-semibold" style={{ color: '#000' }}>Difficulty (0-5)</span>
-              {[0,1,2,3,4,5].map(n => (
-                <button
-                  key={n}
-                  onClick={() => setSelectedDifficulty(n)}
-                  className={
-                    'px-3 py-1 rounded border ' +
-                    (selectedDifficulty === n ? 'border-black bg-white font-bold' : 'border-gray-200 bg-gray-100')
-                  }
-                  style={{ minWidth: 32 }}
-                >
-                  {n}
-                </button>
-              ))}
-              <button className="px-2 py-1 bg-gray-100 rounded ml-4" onClick={() => setSetbacks(s => s.slice(0, -1))} disabled={setbacks.length === 0}>- Setback</button>
-              <button className="px-2 py-1 bg-gray-100 rounded" onClick={() => setSetbacks(s => [...s, { color: 'K', name: 'Setback' }])}>+ Setback</button>
-            </div>
-            {/* Difficulty and setback dice display */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-              {[...Array(selectedDifficulty)].map((_, i) => {
-                const text = rollResults && rollResults.diffResults && rollResults.diffResults[i] ? rollResults.diffResults[i] : '';
-                const baseFontSize = 16;
-                const minFontSize = 10;
-                const fontSize = Math.max(minFontSize, Math.min(baseFontSize, Math.floor(44 / (text.length || 1))));
-                return (
-                  <div key={i} style={{ width: 56, height: 56, background: '#b36bff', border: '2px solid #222', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#000', padding: 2 }}>
-                    <span style={{ width: '100%', height: '100%', textAlign: 'center', fontSize, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{text}</span>
-                  </div>
-                );
-              })}
-              {setbacks.map((_, i) => {
-                const text = rollResults && rollResults.diffResults && rollResults.diffResults[selectedDifficulty + i] ? rollResults.diffResults[selectedDifficulty + i] : '';
-                const baseFontSize = 16;
-                const minFontSize = 10;
-                const fontSize = Math.max(minFontSize, Math.min(baseFontSize, Math.floor(44 / (text.length || 1))));
-                return (
-                  <div key={i} style={{ width: 56, height: 56, background: '#333', border: '2px solid #222', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#fff', padding: 2 }}>
-                    <span style={{ width: '100%', height: '100%', textAlign: 'center', fontSize, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{text}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Roll button */}
-            <div className="mt-6">
-              <button
-                onClick={handleRoll}
-                className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
-              >
-                Roll
-              </button>
-            </div>
-          </div>
-          {/* Outcome panel to the right */}
-          <div style={{ flex: '0 0 260px', borderLeft: '1px solid #e5e7eb', paddingLeft: 12 }}>
-            <h4 className="font-bold text-lg mb-2" style={{ color: '#000' }}>Outcome</h4>
-            {!rollResults && (
-              <div className="text-sm text-gray-500">No roll yet. Press <strong>Roll</strong> to show outcome.</div>
-            )}
-            {rollResults && (
-              <div className="text-sm" style={{ color: '#000' }}>
-                {(() => {
-                  const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
-                  return (
-                    <>
-                      {parsed.netSuccess > 0 && (
-                        <div className="mb-2">
-                          {parsed.netSuccess} Success
-                          {parsed.counts.triumph > 0 && (
-                            <span className="text-xs text-gray-600"> (includes {parsed.counts.triumph} Triumph)</span>
-                          )}
-                        </div>
-                      )}
-                      {parsed.netFailure > 0 && (
-                        <div className="mb-2">
-                          {parsed.netFailure} Failure
-                          {parsed.counts.despair > 0 && (
-                            <span className="text-xs text-gray-600"> (includes {parsed.counts.despair} Despair)</span>
-                          )}
-                        </div>
-                      )}
-                      {parsed.netSuccess === 0 && parsed.netFailure === 0 && (
-                        <div className="mb-2 text-gray-500">No net success/failure</div>
-                      )}
-                      {parsed.netAdvantage > 0 && (
-                        <div className="mb-2">
-                          {parsed.netAdvantage} Advantage (Positive Side Effect)
-                        </div>
-                      )}
-                      {parsed.netThreat > 0 && (
-                        <div className="mb-2">
-                          {parsed.netThreat} Threat (Negative Side Effect)
-                        </div>
-                      )}
-                      {parsed.netAdvantage === 0 && parsed.netThreat === 0 && (
-                        <div className="mb-2 text-gray-500">No net advantage/threat</div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-            {rollResults && onUseResult && (
-              <button
-                onClick={() => {
-                  const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
-                  onUseResult(parsed.netSuccess, parsed.netAdvantage);
-                  setDicePopup({ show: false, pool: '' });
-                }}
-                className="w-full mt-4 px-4 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700 transition"
-              >
-                Use Result
-              </button>
-            )}
-          </div>
         </div>
-      </div>
     </>
   );
 }

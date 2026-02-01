@@ -1463,7 +1463,7 @@ export default function SWNotes() {
                         <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
                         <textarea
                           value={inlineDescription}
-                          onChange={(e) => setInlinePlaceName(e.target.value)}
+                          onChange={(e) => setInlineDescription(e.target.value)}
                           className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
                           rows={3}
                           placeholder="Enter description"
@@ -1891,7 +1891,6 @@ export default function SWNotes() {
                           onClick={() => {
                             const el = document.getElementById('edit-npc-skill-select');
                             addToList(el.value, selectedSkills, setSelectedSkills);
-                            el.value = '';
                           }}
                           className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                         >Add</button>
@@ -1923,7 +1922,6 @@ export default function SWNotes() {
                           onClick={() => {
                             const el = document.getElementById('edit-npc-ability-select');
                             addToList(el.value, selectedAbilities, setSelectedAbilities);
-                            el.value = '';
                           }}
                           className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                         >Add</button>
@@ -1955,7 +1953,6 @@ export default function SWNotes() {
                           onClick={() => {
                             const el = document.getElementById('edit-npc-equipment-select');
                             addToList(el.value, selectedEquipment, setSelectedEquipment);
-                            el.value = '';
                           }}
                           className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                         >Add</button>
@@ -2018,7 +2015,7 @@ export default function SWNotes() {
                       <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{selectedNPC.Description}</p>
                     )}
                     
-                    {/* Soak, Wound, Willpower */}
+                    {/* Soak, Wound, Strain */}
                     <div className="mt-3 space-y-1">
                       {selectedNPC.Soak !== null && selectedNPC.Soak !== undefined && (
                         <p className="text-xs text-gray-700"><span className="font-semibold">Soak:</span> {selectedNPC.Soak}</p>
@@ -2026,8 +2023,8 @@ export default function SWNotes() {
                       {selectedNPC.Wound !== null && selectedNPC.Wound !== undefined && (
                         <p className="text-xs text-gray-700"><span className="font-semibold">Wound:</span> {selectedNPC.Wound}</p>
                       )}
-                      {selectedNPC.Willpower !== null && selectedNPC.Willpower !== undefined && (
-                        <p className="text-xs text-gray-700"><span className="font-semibold">Willpower:</span> {selectedNPC.Willpower}</p>
+                      {selectedNPC.Strain !== null && selectedNPC.Strain !== undefined && (
+                        <p className="text-xs text-gray-700"><span className="font-semibold">Strain:</span> {selectedNPC.Strain}</p>
                       )}
                     </div>
                   </div>
@@ -2253,7 +2250,99 @@ export default function SWNotes() {
         >
           <div className="bg-white rounded-lg p-4">
             <h4 className="font-bold text-gray-800 mb-3 text-sm">Add NPC to {selectedHierarchy.find(p => p.id === showInlineAddNPC)?.Place_Name || 'Place'}</h4>
-            <div className="space-y-3">
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={async () => {
+                  if (!npcName.trim()) {
+                    alert('NPC Name is required');
+                    return;
+                  }
+
+                  try {
+                    const payload = {
+                      Name: npcName.trim(),
+                      Race: npcRaceId ? parseInt(npcRaceId, 10) : null,
+                      Description: npcDescription.trim(),
+                      Brawn: npcBrawn ? parseInt(npcBrawn, 10) : null,
+                      Cunning: npcCunning ? parseInt(npcCunning, 10) : null,
+                      Presence: npcPresence ? parseInt(npcPresence, 10) : null,
+                      Agility: npcAgility ? parseInt(npcAgility, 10) : null,
+                      Intellect: npcIntellect ? parseInt(npcIntellect, 10) : null,
+                      Willpower: npcWillpower ? parseInt(npcWillpower, 10) : null,
+                      Soak: npcSoak ? parseInt(npcSoak, 10) : null,
+                      Wound: npcWound ? parseInt(npcWound, 10) : null,
+                      Strain: npcStrain ? parseInt(npcStrain, 10) : null,
+                      Skills: selectedSkills.join(','),
+                      Abilities: selectedAbilities.join(','),
+                      Equipment: selectedEquipment.join(','),
+                      Part_of_Place: showInlineAddNPC,
+                      CampaignID: parseInt(campaignId, 10),
+                    };
+
+                    const { data: npcData, error } = await supabase
+                      .from('SW_campaign_NPC')
+                      .insert([payload])
+                      .select();
+
+                    if (error) throw error;
+
+                    const npcId = npcData?.[0]?.id;
+
+                    // Save equipment associations
+                    if (npcId && selectedEquipment.length > 0) {
+                      try {
+                        // Get equipment IDs from names
+                        const { data: equipmentData, error: equipError } = await supabase
+                          .from('SW_equipment')
+                          .select('id, name')
+                          .in('name', selectedEquipment);
+
+                        if (!equipError && equipmentData) {
+                          const equipmentRecords = equipmentData.map(e => ({
+                            npcID: npcId,
+                            equipmentID: e.id,
+                          }));
+
+                          const { error: linkError } = await supabase
+                            .from('SW_campaign_npc_equipment')
+                            .insert(equipmentRecords);
+
+                          if (linkError) {
+                            console.error('Error saving equipment links:', linkError);
+                            alert('NPC saved but failed to link equipment: ' + linkError.message);
+                            return;
+                          }
+                        }
+                      } catch (equipErr) {
+                        console.error('Error linking equipment:', equipErr);
+                        alert('NPC saved but failed to link equipment');
+                        return;
+                      }
+                    }
+
+                    setShowInlineAddNPC(null);
+                    resetNPCForm();
+                    alert('NPC added successfully!');
+                    await loadNPCs();
+                  } catch (err) {
+                    alert('Error saving NPC: ' + err.message);
+                  }
+                }}
+                className="flex-1 px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition font-bold"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setShowInlineAddNPC(null);
+                  resetNPCForm();
+                }}
+                className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="space-y-3" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">NPC Name</label>
                 <input
@@ -2479,99 +2568,6 @@ export default function SWNotes() {
                     ))}
                   </div>
                 )}
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    if (!npcName.trim()) {
-                      alert('NPC Name is required');
-                      return;
-                    }
-
-                    try {
-                      const payload = {
-                        Name: npcName.trim(),
-                        Race: npcRaceId ? parseInt(npcRaceId, 10) : null,
-                        Description: npcDescription.trim(),
-                        Brawn: npcBrawn ? parseInt(npcBrawn, 10) : null,
-                        Cunning: npcCunning ? parseInt(npcCunning, 10) : null,
-                        Presence: npcPresence ? parseInt(npcPresence, 10) : null,
-                        Agility: npcAgility ? parseInt(npcAgility, 10) : null,
-                        Intellect: npcIntellect ? parseInt(npcIntellect, 10) : null,
-                        Willpower: npcWillpower ? parseInt(npcWillpower, 10) : null,
-                        Soak: npcSoak ? parseInt(npcSoak, 10) : null,
-                        Wound: npcWound ? parseInt(npcWound, 10) : null,
-                        Strain: npcStrain ? parseInt(npcStrain, 10) : null,
-                        Skills: selectedSkills.join(','),
-                        Abilities: selectedAbilities.join(','),
-                        Equipment: selectedEquipment.join(','),
-                        Part_of_Place: showInlineAddNPC,
-                        CampaignID: parseInt(campaignId, 10),
-                      };
-
-                      const { data: npcData, error } = await supabase
-                        .from('SW_campaign_NPC')
-                        .insert([payload])
-                        .select();
-
-                      if (error) throw error;
-
-                      const npcId = npcData?.[0]?.id;
-
-                      // Save equipment associations
-                      if (npcId && selectedEquipment.length > 0) {
-                        try {
-                          // Get equipment IDs from names
-                          const { data: equipmentData, error: equipError } = await supabase
-                            .from('SW_equipment')
-                            .select('id, name')
-                            .in('name', selectedEquipment);
-
-                          if (!equipError && equipmentData) {
-                            const equipmentRecords = equipmentData.map(e => ({
-                              npcID: npcId,
-                              equipmentID: e.id,
-                            }));
-
-                            const { error: linkError } = await supabase
-                              .from('SW_campaign_npc_equipment')
-                              .insert(equipmentRecords);
-
-                            if (linkError) {
-                              console.error('Error saving equipment links:', linkError);
-                              alert('NPC saved but failed to link equipment: ' + linkError.message);
-                              return;
-                            }
-                          }
-                        } catch (equipErr) {
-                          console.error('Error linking equipment:', equipErr);
-                          alert('NPC saved but failed to link equipment');
-                          return;
-                        }
-                      }
-
-                      setShowInlineAddNPC(null);
-                      resetNPCForm();
-                      alert('NPC added successfully!');
-                      await loadNPCs();
-                    } catch (err) {
-                      alert('Error saving NPC: ' + err.message);
-                    }
-                  }}
-                  className="flex-1 px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition font-bold"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setShowInlineAddNPC(null);
-                    resetNPCForm();
-                  }}
-                  className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
-                >
-                  Cancel
-                </button>
               </div>
             </div>
           </div>
