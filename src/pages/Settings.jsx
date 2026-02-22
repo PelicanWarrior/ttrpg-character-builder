@@ -1,6 +1,6 @@
 
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { supabase } from '../supabaseClient';
 
 // Force Power Tree Talent Name dropdown state
@@ -98,8 +98,25 @@ export default function Settings() {
   const [dndProfWeapons, setDndProfWeapons] = useState('');
   const [dndProfSavingThrows, setDndProfSavingThrows] = useState('');
   const [dndProfSkills, setDndProfSkills] = useState('');
+  const [dndPointsName, setDndPointsName] = useState('');
   const [dndMod, setDndMod] = useState('');
   const [savingDndClass, setSavingDndClass] = useState(false);
+  const createDndClassLevels = () => Array.from({ length: 20 }, () => ({
+    proficiencyBonus: '',
+    features: [],
+    cantrips: '',
+    spells: '',
+    points: ''
+  }));
+  const [dndClassLevels, setDndClassLevels] = useState(createDndClassLevels);
+  const [dndClassFeatures, setDndClassFeatures] = useState([]);
+  const [loadingDndClassFeatures, setLoadingDndClassFeatures] = useState(false);
+  const [showAddFeatureForm, setShowAddFeatureForm] = useState(false);
+  const [newFeatureName, setNewFeatureName] = useState('');
+  const [newFeatureText, setNewFeatureText] = useState('');
+  const [savingDndFeature, setSavingDndFeature] = useState(false);
+  const [activeFeaturePickerIndex, setActiveFeaturePickerIndex] = useState(null);
+  const [featureTargetLevelIndex, setFeatureTargetLevelIndex] = useState(null);
 
   // -----------------------------------------------------------------
   // 2c. Add Species Form State
@@ -169,19 +186,6 @@ export default function Settings() {
   const [equipmentDamageMelee, setEquipmentDamageMelee] = useState('');
   const [equipmentConsumable, setEquipmentConsumable] = useState(false);
   const [availableSkillsDetailed, setAvailableSkillsDetailed] = useState([]); // [{ id, skill }]
-
-  // -----------------------------------------------------------------
-  // 2d. Add Career Form State
-  // -----------------------------------------------------------------
-  const [careerName, setCareerName] = useState('');
-  const [careerDescription, setCareerDescription] = useState('');
-  const [careerSkills, setCareerSkills] = useState([]);
-  const [careerSourceBook, setCareerSourceBook] = useState('');
-  const [careerForceSensitive, setCareerForceSensitive] = useState(false);
-  const [existingCareers, setExistingCareers] = useState([]); // full rows for editing
-  const [editingCareerId, setEditingCareerId] = useState(null);
-  const [careerBooks, setCareerBooks] = useState([]); // [{ id, Book_name }]
-  const [savingCareer, setSavingCareer] = useState(false);
 
   // -----------------------------------------------------------------
   // 3. Data
@@ -986,6 +990,7 @@ export default function Settings() {
     resetDndClassForm();
     loadDndTTRPGs();
     loadDndClasses();
+    loadDndClassFeatures();
   };
 
   const loadDndTTRPGs = async () => {
@@ -1021,6 +1026,25 @@ export default function Settings() {
     }
   };
 
+  const loadDndClassFeatures = async () => {
+    setLoadingDndClassFeatures(true);
+    try {
+      const { data, error } = await supabase
+        .from('DND_ClassFeatures')
+        .select('id, FeatureName, FeatureText')
+        .order('FeatureName');
+
+      if (error) throw error;
+
+      setDndClassFeatures(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Class Features:', err);
+      setError('Failed to load DND Class Features');
+    } finally {
+      setLoadingDndClassFeatures(false);
+    }
+  };
+
   const loadDndClassData = async (classId) => {
     try {
       const { data, error } = await supabase
@@ -1039,6 +1063,7 @@ export default function Settings() {
         setDndProfWeapons(data.Prof_Weapons || '');
         setDndProfSavingThrows(data.Prof_SavingThrows || '');
         setDndProfSkills(data.Prof_Skills || '');
+        setDndPointsName(data.PointsName || '');
 
         // Parse DNDMod to get TTRPG IDs
         if (data.DNDMod) {
@@ -1052,6 +1077,54 @@ export default function Settings() {
           setSelectedDndTTRPGs(ttrpgIds);
         } else {
           setSelectedDndTTRPGs([]);
+        }
+
+        let featureSource = dndClassFeatures;
+        if (featureSource.length === 0) {
+          const { data: featureData, error: featureError } = await supabase
+            .from('DND_ClassFeatures')
+            .select('id, FeatureName, FeatureText')
+            .order('FeatureName');
+
+          if (featureError) throw featureError;
+          featureSource = featureData || [];
+          setDndClassFeatures(featureSource);
+        }
+
+        const featureById = new Map(featureSource.map((feature) => [feature.id, feature.FeatureName]));
+
+        const { data: levelData, error: levelError } = await supabase
+          .from('DND_Class_Levels')
+          .select('Level, ProfBonus, Features, Cantrips, SpellsKnown, Points')
+          .eq('Class', classId)
+          .order('Level', { ascending: true });
+
+        if (levelError) throw levelError;
+
+        if (levelData && levelData.length > 0) {
+          const baseLevels = createDndClassLevels();
+          levelData.forEach((row) => {
+            const index = Math.max(0, Math.min(19, (row.Level || 1) - 1));
+            const featureIds = String(row.Features || '')
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean)
+              .map((value) => Number(value))
+              .filter((value) => !Number.isNaN(value));
+            const featureList = featureIds
+              .map((id) => featureById.get(id))
+              .filter(Boolean);
+            baseLevels[index] = {
+              proficiencyBonus: row.ProfBonus != null ? String(row.ProfBonus) : '',
+              features: featureList,
+              cantrips: row.Cantrips != null ? String(row.Cantrips) : '',
+              spells: row.SpellsKnown != null ? String(row.SpellsKnown) : '',
+              points: row.Points != null ? String(row.Points) : ''
+            };
+          });
+          setDndClassLevels(baseLevels);
+        } else {
+          setDndClassLevels(createDndClassLevels());
         }
       }
     } catch (err) {
@@ -1069,8 +1142,77 @@ export default function Settings() {
     setDndProfWeapons('');
     setDndProfSavingThrows('');
     setDndProfSkills('');
+    setDndPointsName('');
     setDndMod('');
     setSelectedDndTTRPGs([]);
+    setDndClassLevels(createDndClassLevels());
+    setActiveFeaturePickerIndex(null);
+    setShowAddFeatureForm(false);
+    setNewFeatureName('');
+    setNewFeatureText('');
+    setFeatureTargetLevelIndex(null);
+  };
+
+  const updateDndClassLevel = (index, field, value) => {
+    setDndClassLevels((prev) => prev.map((row, rowIndex) => (
+      rowIndex === index ? { ...row, [field]: value } : row
+    )));
+  };
+
+  const addFeatureToLevel = (index, featureName) => {
+    if (!featureName) return;
+    setDndClassLevels((prev) => prev.map((row, rowIndex) => {
+      if (rowIndex !== index) return row;
+      if (row.features.includes(featureName)) return row;
+      return { ...row, features: [...row.features, featureName] };
+    }));
+  };
+
+  const removeFeatureFromLevel = (index, featureName) => {
+    setDndClassLevels((prev) => prev.map((row, rowIndex) => (
+      rowIndex === index
+        ? { ...row, features: row.features.filter((item) => item !== featureName) }
+        : row
+    )));
+  };
+
+  const handleSaveDndFeature = async () => {
+    if (!newFeatureName.trim()) {
+      setError('Feature name is required');
+      return;
+    }
+    setSavingDndFeature(true);
+    try {
+      const { data, error } = await supabase
+        .from('DND_ClassFeatures')
+        .insert([
+          {
+            FeatureName: newFeatureName.trim(),
+            FeatureText: newFeatureText.trim()
+          }
+        ])
+        .select('id, FeatureName, FeatureText')
+        .single();
+
+      if (error) throw error;
+
+      const created = data || { FeatureName: newFeatureName.trim(), FeatureText: newFeatureText.trim() };
+      setDndClassFeatures((prev) => [...prev, created].sort((a, b) => a.FeatureName.localeCompare(b.FeatureName)));
+
+      if (featureTargetLevelIndex != null) {
+        addFeatureToLevel(featureTargetLevelIndex, created.FeatureName);
+      }
+
+      setShowAddFeatureForm(false);
+      setNewFeatureName('');
+      setNewFeatureText('');
+      setFeatureTargetLevelIndex(null);
+    } catch (err) {
+      console.error('Failed to save DND Feature:', err);
+      setError('Failed to save DND Feature. Please try again.');
+    } finally {
+      setSavingDndFeature(false);
+    }
   };
 
   const handleSaveDndClass = async () => {
@@ -1093,9 +1235,11 @@ export default function Settings() {
             .join(',')
         : '';
 
+      let classIdToUse = selectedDndClassId;
+
       if (selectedDndClassId === '__new__') {
         // Insert new class
-        const { error } = await supabase
+        const { data: insertData, error } = await supabase
           .from('DND_Classes')
           .insert([
             {
@@ -1106,11 +1250,15 @@ export default function Settings() {
               Prof_Weapons: dndProfWeapons,
               Prof_SavingThrows: dndProfSavingThrows,
               Prof_Skills: dndProfSkills,
+              PointsName: dndPointsName,
               DNDMod: dndModValue
             }
-          ]);
+          ])
+          .select('id')
+          .single();
 
         if (error) throw error;
+        classIdToUse = insertData?.id;
       } else {
         // Update existing class
         const { error } = await supabase
@@ -1123,12 +1271,54 @@ export default function Settings() {
             Prof_Weapons: dndProfWeapons,
             Prof_SavingThrows: dndProfSavingThrows,
             Prof_Skills: dndProfSkills,
+            PointsName: dndPointsName,
             DNDMod: dndModValue
           })
           .eq('id', selectedDndClassId);
 
         if (error) throw error;
       }
+
+      if (!classIdToUse) {
+        throw new Error('Failed to resolve Class ID for level save');
+      }
+
+      const parseNumberOrNull = (value) => {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) return null;
+        const parsed = Number(trimmed);
+        return Number.isNaN(parsed) ? null : parsed;
+      };
+
+      const featureNameToId = new Map(dndClassFeatures.map((feature) => [feature.FeatureName, feature.id]));
+
+      const levelRows = dndClassLevels.map((row, index) => ({
+        Class: classIdToUse,
+        Level: index + 1,
+        ProfBonus: parseNumberOrNull(row.proficiencyBonus),
+        Features: row.features.length
+          ? row.features
+            .map((name) => featureNameToId.get(name))
+            .filter((id) => id != null)
+            .join(', ')
+          : null,
+        Cantrips: parseNumberOrNull(row.cantrips),
+        SpellsKnown: parseNumberOrNull(row.spells),
+        Points: parseNumberOrNull(row.points)
+      }));
+
+      const { error: deleteError } = await supabase
+        .from('DND_Class_Levels')
+        .delete()
+        .eq('Class', classIdToUse);
+
+      if (deleteError) throw deleteError;
+
+      const { error: levelInsertError } = await supabase
+        .from('DND_Class_Levels')
+        .insert(levelRows);
+
+      if (levelInsertError) throw levelInsertError;
 
       setSuccess('DND Class saved successfully');
       resetDndClassForm();
@@ -2477,6 +2667,56 @@ export default function Settings() {
                           )}
                         </div>
 
+                        {showAddFeatureForm && (
+                          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 py-10">
+                            <div className="w-full max-w-lg bg-white border border-gray-300 rounded-lg shadow-xl p-4">
+                              <h5 className="text-sm font-semibold text-gray-800 mb-3">Add Feature</h5>
+                              <div className="grid grid-cols-1 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Feature Name</label>
+                                  <input
+                                    type="text"
+                                    value={newFeatureName}
+                                    onChange={(e) => setNewFeatureName(e.target.value)}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Feature Text</label>
+                                  <textarea
+                                    value={newFeatureText}
+                                    onChange={(e) => setNewFeatureText(e.target.value)}
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                    rows={4}
+                                  />
+                                </div>
+                              </div>
+                              <div className="mt-4 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleSaveDndFeature}
+                                  disabled={savingDndFeature}
+                                  className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-60"
+                                >
+                                  {savingDndFeature ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setShowAddFeatureForm(false);
+                                    setNewFeatureName('');
+                                    setNewFeatureText('');
+                                    setFeatureTargetLevelIndex(null);
+                                  }}
+                                  className="px-3 py-1 bg-gray-400 text-white rounded text-xs hover:bg-gray-500"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Generate Prompt Box */}
                         {availableSpecsPerRace[race.id] && availableSpecsPerRace[race.id].length > 0 && (
                           <div className="border border-blue-400 rounded p-4 bg-blue-50">
@@ -3015,163 +3255,357 @@ export default function Settings() {
               {showAddDndClassForm && (
                 <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
                   <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Class</h3>
-                  
-                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Class Name</label>
-                    <select
-                      value={selectedDndClassId}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '__new__') {
-                          resetDndClassForm();
-                          setSelectedDndClassId('__new__');
-                        } else {
-                          setSelectedDndClassId(val);
-                          loadDndClassData(parseInt(val));
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="__new__">-- Create New Class --</option>
-                      {existingDndClasses.map((cls) => (
-                        <option key={cls.id} value={cls.id}>
-                          {cls.ClassName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select TTRPGs</label>
-                    <select
-                      multiple
-                      value={selectedDndTTRPGs.map(String)}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, (option) => parseInt(option.value));
-                        setSelectedDndTTRPGs(selected);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                      size={Math.min(availableDndTTRPGs.length || 3, 6)}
-                    >
-                      {availableDndTTRPGs.length > 0 ? (
-                        availableDndTTRPGs.map((ttrpg) => (
-                          <option key={ttrpg.id} value={ttrpg.id}>
-                            {ttrpg.TTRPG_name}
-                          </option>
-                        ))
-                      ) : null}
-                    </select>
-                    {availableDndTTRPGs.length === 0 && (
-                      <p className="text-sm text-gray-500 italic mt-2">No DND-enabled TTRPGs available</p>
-                    )}
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Class Name</label>
-                      <input
-                        type="text"
-                        value={dndClassName}
-                        onChange={(e) => setDndClassName(e.target.value)}
-                        placeholder="Enter class name"
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                      />
+                  <div className="flex flex-row gap-6 items-start overflow-x-auto">
+                    <div className="flex-1 min-w-[360px]">
+                      <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Class Name</label>
+                        <select
+                          value={selectedDndClassId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '__new__') {
+                              resetDndClassForm();
+                              setSelectedDndClassId('__new__');
+                            } else {
+                              setSelectedDndClassId(val);
+                              loadDndClassData(parseInt(val));
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="__new__">-- Create New Class --</option>
+                          {existingDndClasses.map((cls) => (
+                            <option key={cls.id} value={cls.id}>
+                              {cls.ClassName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Select TTRPGs</label>
+                        <select
+                          multiple
+                          value={selectedDndTTRPGs.map(String)}
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions, (option) => parseInt(option.value));
+                            setSelectedDndTTRPGs(selected);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          size={Math.min(availableDndTTRPGs.length || 3, 6)}
+                        >
+                          {availableDndTTRPGs.length > 0 ? (
+                            availableDndTTRPGs.map((ttrpg) => (
+                              <option key={ttrpg.id} value={ttrpg.id}>
+                                {ttrpg.TTRPG_name}
+                              </option>
+                            ))
+                          ) : null}
+                        </select>
+                        {availableDndTTRPGs.length === 0 && (
+                          <p className="text-sm text-gray-500 italic mt-2">No DND-enabled TTRPGs available</p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Class Name</label>
+                          <input
+                            type="text"
+                            value={dndClassName}
+                            onChange={(e) => setDndClassName(e.target.value)}
+                            placeholder="Enter class name"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Hit Dice</label>
+                          <input
+                            type="text"
+                            value={dndHitDice}
+                            onChange={(e) => setDndHitDice(e.target.value)}
+                            placeholder="e.g., d8, d10, d12"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                          <textarea
+                            value={dndClassDescription}
+                            onChange={(e) => setDndClassDescription(e.target.value)}
+                            placeholder="Enter class description"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            rows={3}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Armor</label>
+                          <textarea
+                            value={dndProfArmour}
+                            onChange={(e) => setDndProfArmour(e.target.value)}
+                            placeholder="Enter armor proficiencies"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            rows={2}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Weapons</label>
+                          <textarea
+                            value={dndProfWeapons}
+                            onChange={(e) => setDndProfWeapons(e.target.value)}
+                            placeholder="Enter weapon proficiencies"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            rows={2}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Saving Throws</label>
+                          <select
+                            multiple
+                            value={dndProfSavingThrows.split(',').filter(s => s.trim())}
+                            onChange={(e) => {
+                              const selected = Array.from(e.target.selectedOptions, (option) => option.value);
+                              setDndProfSavingThrows(selected.join(','));
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            size={6}
+                          >
+                            <option value="Strength">Strength</option>
+                            <option value="Dexterity">Dexterity</option>
+                            <option value="Constitution">Constitution</option>
+                            <option value="Intelligence">Intelligence</option>
+                            <option value="Wisdom">Wisdom</option>
+                            <option value="Charisma">Charisma</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Skills</label>
+                          <textarea
+                            value={dndProfSkills}
+                            onChange={(e) => setDndProfSkills(e.target.value)}
+                            placeholder="Enter skill proficiencies"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            rows={2}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Points Name</label>
+                          <input
+                            type="text"
+                            value={dndPointsName}
+                            onChange={(e) => setDndPointsName(e.target.value)}
+                            placeholder="Enter points name"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex gap-3">
+                        <button
+                          onClick={handleSaveDndClass}
+                          disabled={savingDndClass}
+                          className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                        >
+                          {savingDndClass ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            resetDndClassForm();
+                            setShowAddDndClassForm(false);
+                          }}
+                          className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Hit Dice</label>
-                      <input
-                        type="text"
-                        value={dndHitDice}
-                        onChange={(e) => setDndHitDice(e.target.value)}
-                        placeholder="e.g., d8, d10, d12"
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                      />
-                    </div>
+                    <div className="w-full min-w-[360px] lg:w-1/2">
+                      <div className="p-3 bg-gray-50 rounded border border-gray-300">
+                        <h4 className="text-lg font-semibold text-gray-800 mb-3">Class Levels</h4>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-xs text-gray-800 border border-gray-300">
+                            <thead className="bg-gray-200">
+                              <tr>
+                                <th className="border border-gray-300 px-2 py-1 text-left">Level</th>
+                                <th className="border border-gray-300 px-2 py-1 text-left">Proficiency Bonus</th>
+                                <th className="border border-gray-300 px-2 py-1 text-left">Features</th>
+                                <th className="border border-gray-300 px-2 py-1 text-left">Cantrips</th>
+                                <th className="border border-gray-300 px-2 py-1 text-left">Spells</th>
+                                {dndPointsName.trim() && (
+                                  <th className="border border-gray-300 px-2 py-1 text-left">{dndPointsName} Points</th>
+                                )}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dndClassLevels.map((row, index) => (
+                                <Fragment key={`level-${index + 1}`}>
+                                  <tr className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                    <td className="border border-gray-300 px-2 py-1">{index + 1}</td>
+                                    <td className="border border-gray-300 px-2 py-1">
+                                      <input
+                                        type="text"
+                                        value={row.proficiencyBonus}
+                                        onChange={(e) => updateDndClassLevel(index, 'proficiencyBonus', e.target.value)}
+                                        className="w-full bg-transparent outline-none"
+                                      />
+                                    </td>
+                                    <td className="border border-gray-300 px-2 py-1 align-top">
+                                      <div className="flex flex-col gap-2">
+                                        <div className="flex items-start gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setActiveFeaturePickerIndex(index)}
+                                            className="px-2 py-0.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                                          >
+                                            +
+                                          </button>
+                                          <div className="flex flex-wrap gap-1">
+                                            {row.features.length === 0 && (
+                                              <span className="text-gray-400 text-xs">No features</span>
+                                            )}
+                                            {row.features.map((feature) => (
+                                              <span key={`${feature}-${index}`} className="inline-flex items-center gap-1 bg-gray-200 text-gray-800 px-2 py-0.5 rounded text-xs">
+                                                {feature}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => removeFeatureFromLevel(index, feature)}
+                                                  className="text-gray-600 hover:text-gray-900"
+                                                >
+                                                  x
+                                                </button>
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
 
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea
-                        value={dndClassDescription}
-                        onChange={(e) => setDndClassDescription(e.target.value)}
-                        placeholder="Enter class description"
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                        rows={3}
-                      />
+                                        {activeFeaturePickerIndex === index && (
+                                          <select
+                                            value=""
+                                            onChange={(e) => {
+                                              const value = e.target.value;
+                                              if (!value) return;
+                                              if (value === '__add__') {
+                                                setShowAddFeatureForm(true);
+                                                setFeatureTargetLevelIndex(index);
+                                                setActiveFeaturePickerIndex(null);
+                                                return;
+                                              }
+                                              addFeatureToLevel(index, value);
+                                              setActiveFeaturePickerIndex(null);
+                                            }}
+                                            className="w-full rounded border-gray-300 text-xs"
+                                          >
+                                            <option value="">Select feature</option>
+                                            <option value="__add__">Add Feature</option>
+                                            {loadingDndClassFeatures && (
+                                              <option disabled>Loading...</option>
+                                            )}
+                                            {!loadingDndClassFeatures && dndClassFeatures.map((feature) => (
+                                              <option key={feature.id} value={feature.FeatureName}>
+                                                {feature.FeatureName}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="border border-gray-300 px-2 py-1">
+                                      <input
+                                        type="text"
+                                        value={row.cantrips}
+                                        onChange={(e) => updateDndClassLevel(index, 'cantrips', e.target.value)}
+                                        className="w-full bg-transparent outline-none"
+                                      />
+                                    </td>
+                                    <td className="border border-gray-300 px-2 py-1">
+                                      <input
+                                        type="text"
+                                        value={row.spells}
+                                        onChange={(e) => updateDndClassLevel(index, 'spells', e.target.value)}
+                                        className="w-full bg-transparent outline-none"
+                                      />
+                                    </td>
+                                    {dndPointsName.trim() && (
+                                      <td className="border border-gray-300 px-2 py-1">
+                                        <input
+                                          type="text"
+                                          value={row.points}
+                                          onChange={(e) => updateDndClassLevel(index, 'points', e.target.value)}
+                                          className="w-full bg-transparent outline-none"
+                                        />
+                                      </td>
+                                    )}
+                                  </tr>
+                                  {showAddFeatureForm && featureTargetLevelIndex === index && (
+                                    <tr className="bg-white">
+                                      <td
+                                        colSpan={dndPointsName.trim() ? 6 : 5}
+                                        className="border border-gray-300 px-2 py-2"
+                                      >
+                                        <div className="p-3 bg-white border border-gray-300 rounded">
+                                          <h5 className="text-sm font-semibold text-gray-800 mb-2">Add Feature</h5>
+                                          <div className="grid grid-cols-1 gap-2">
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-700 mb-1">Feature Name</label>
+                                              <input
+                                                type="text"
+                                                value={newFeatureName}
+                                                onChange={(e) => setNewFeatureName(e.target.value)}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-700 mb-1">Feature Text</label>
+                                              <textarea
+                                                value={newFeatureText}
+                                                onChange={(e) => setNewFeatureText(e.target.value)}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                                rows={3}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="mt-3 flex gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={handleSaveDndFeature}
+                                              disabled={savingDndFeature}
+                                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-60"
+                                            >
+                                              {savingDndFeature ? 'Saving...' : 'Save'}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setShowAddFeatureForm(false);
+                                                setNewFeatureName('');
+                                                setNewFeatureText('');
+                                                setFeatureTargetLevelIndex(null);
+                                              }}
+                                              className="px-3 py-1 bg-gray-400 text-white rounded text-xs hover:bg-gray-500"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </Fragment>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Armor</label>
-                      <textarea
-                        value={dndProfArmour}
-                        onChange={(e) => setDndProfArmour(e.target.value)}
-                        placeholder="Enter armor proficiencies"
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                        rows={2}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Weapons</label>
-                      <textarea
-                        value={dndProfWeapons}
-                        onChange={(e) => setDndProfWeapons(e.target.value)}
-                        placeholder="Enter weapon proficiencies"
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                        rows={2}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Saving Throws</label>
-                      <select
-                        multiple
-                        value={dndProfSavingThrows.split(',').filter(s => s.trim())}
-                        onChange={(e) => {
-                          const selected = Array.from(e.target.selectedOptions, (option) => option.value);
-                          setDndProfSavingThrows(selected.join(','));
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                        size={6}
-                      >
-                        <option value="Strength">Strength</option>
-                        <option value="Dexterity">Dexterity</option>
-                        <option value="Constitution">Constitution</option>
-                        <option value="Intelligence">Intelligence</option>
-                        <option value="Wisdom">Wisdom</option>
-                        <option value="Charisma">Charisma</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Skills</label>
-                      <textarea
-                        value={dndProfSkills}
-                        onChange={(e) => setDndProfSkills(e.target.value)}
-                        placeholder="Enter skill proficiencies"
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex gap-3">
-                    <button
-                      onClick={handleSaveDndClass}
-                      disabled={savingDndClass}
-                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
-                    >
-                      {savingDndClass ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        resetDndClassForm();
-                        setShowAddDndClassForm(false);
-                      }}
-                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
-                    >
-                      Cancel
-                    </button>
                   </div>
                 </div>
               )}

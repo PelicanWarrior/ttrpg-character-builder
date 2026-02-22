@@ -15,6 +15,11 @@ export default function SelectTTRPG() {
   const [diceMap, setDiceMap] = useState({});
   const [characters, setCharacters] = useState([]);
   const [showCharacterList, setShowCharacterList] = useState(false);
+  const [dndCharacterLists, setDndCharacterLists] = useState({});
+  const [activeDndListId, setActiveDndListId] = useState(null);
+  const [loadingDndCharacters, setLoadingDndCharacters] = useState(false);
+  const [dndCharacterError, setDndCharacterError] = useState('');
+  const [dndClassMap, setDndClassMap] = useState({});
   const [campaigns, setCampaigns] = useState([]);
   const [showSWCampaigns, setShowSWCampaigns] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -42,7 +47,7 @@ export default function SelectTTRPG() {
       setIsAdmin(!!userData.admin);
 
       const [ttrpgQ, diceQ, swCharsQ, swCampsQ, adminCtrlQ] = await Promise.all([
-        supabase.from('TTRPGs').select('TTRPG_name, show, DND_Mod, Custom_System, Initials'),
+        supabase.from('TTRPGs').select('id, TTRPG_name, show, DND_Mod, Custom_System, Initials'),
         supabase.from('SW_dice').select('colour, name'),
         supabase
           .from('SW_player_characters')
@@ -53,6 +58,7 @@ export default function SelectTTRPG() {
       ]);
 
       const rows = (ttrpgQ.data || []).map(r => ({
+        id: r.id,
         name: r.TTRPG_name,
         show: !!r.show,
         dndMod: !!r.DND_Mod,
@@ -60,6 +66,15 @@ export default function SelectTTRPG() {
         initials: r.Initials || '',
       }));
       setTtrpgRows(rows);
+
+      const ttrpgIdMap = (ttrpgQ.data || []).reduce((acc, row) => {
+        if (row?.TTRPG_name && row?.id != null) {
+          acc[row.TTRPG_name] = row.id;
+        }
+        return acc;
+      }, {});
+      localStorage.setItem('ttrpgIdMap', JSON.stringify(ttrpgIdMap));
+      console.log('TTRPG IDs:', ttrpgIdMap);
 
       const diceMapping = {};
       diceQ.data?.forEach((row) => {
@@ -102,6 +117,17 @@ export default function SelectTTRPG() {
     const words = String(name).trim().split(/\s+/);
     const firstTwo = words.slice(0, 2);
     return firstTwo.map(w => (w[0] || '').toUpperCase()).join('');
+  };
+
+  const resolveTtrpgId = (row) => {
+    if (row?.id != null) return row.id;
+    try {
+      const stored = localStorage.getItem('ttrpgIdMap');
+      const map = stored ? JSON.parse(stored) : {};
+      return map[row?.name] ?? null;
+    } catch (err) {
+      return null;
+    }
   };
 
   const getDiceColorStyle = (letter) => {
@@ -313,6 +339,45 @@ export default function SelectTTRPG() {
     }
 
     setRollResults({ poolResults, diffResults });
+  };
+
+  const fetchDndCharacters = async (ttrpgId) => {
+    if (!ttrpgId || !playerId) return;
+    setLoadingDndCharacters(true);
+    setDndCharacterError('');
+    try {
+      const { data, error } = await supabase
+        .from('DND_player_character')
+        .select('id, Name, Class, Class_ProfSkills, Str, Dex, Con, Int, Wis, Cha')
+        .eq('TTRPG', ttrpgId)
+        .eq('User_ID', playerId);
+      if (error) throw error;
+      setDndCharacterLists((prev) => ({ ...prev, [ttrpgId]: data || [] }));
+
+      const classIds = Array.from(new Set((data || [])
+        .map((row) => row.Class)
+        .filter((id) => id != null)));
+      if (classIds.length > 0) {
+        const { data: classRows, error: classError } = await supabase
+          .from('DND_Classes')
+          .select('id, ClassName')
+          .in('id', classIds);
+        if (!classError && classRows) {
+          setDndClassMap((prev) => {
+            const next = { ...prev };
+            classRows.forEach((row) => {
+              next[row.id] = row.ClassName || 'Unknown Class';
+            });
+            return next;
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load DND characters:', err);
+      setDndCharacterError('Failed to load characters.');
+    } finally {
+      setLoadingDndCharacters(false);
+    }
   };
 
   return (
@@ -928,6 +993,7 @@ export default function SelectTTRPG() {
               .map(row => {
               if (!shouldShow(row)) return null;
               const initials = row.initials || initialsFor(row.name);
+              const resolvedId = resolveTtrpgId(row);
               return (
                 <div key={row.name} className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
                   {isAdmin && (
@@ -947,7 +1013,15 @@ export default function SelectTTRPG() {
                     />
                     <div className="flex justify-center gap-4 mb-6">
                       <button
-                        onClick={() => navigate(`/ttrpg/${initials}/player_characters`)}
+                        onClick={async () => {
+                          const resolvedId = resolveTtrpgId(row);
+                          if (!resolvedId) return;
+                          const nextId = activeDndListId === resolvedId ? null : resolvedId;
+                          setActiveDndListId(nextId);
+                          if (nextId) {
+                            await fetchDndCharacters(nextId);
+                          }
+                        }}
                         className="px-10 py-4 bg-gray-900 text-white font-bold text-lg rounded-xl hover:bg-black shadow-lg transition"
                       >
                         Your Characters
@@ -955,6 +1029,10 @@ export default function SelectTTRPG() {
                       <button
                         onClick={() => {
                           if (row.dndMod) {
+                            localStorage.removeItem('loadedCharacterId');
+                            if (playerId != null) {
+                              localStorage.setItem('userId', String(playerId));
+                            }
                             navigate(`/dndmod_character_creator?mod=${encodeURIComponent(row.name)}`);
                           } else {
                             navigate(`/${initials}_character_creator`);
@@ -972,6 +1050,91 @@ export default function SelectTTRPG() {
                       </button>
                       {/* No dice here; dice is SW-only */}
                     </div>
+
+                    {activeDndListId === resolvedId && (
+                      <div
+                        className="mt-4 rounded-xl p-4 text-left"
+                        style={{ backgroundColor: '#000000', border: '2px solid #dc2626' }}
+                      >
+                        {loadingDndCharacters && (
+                          <p className="text-white text-sm">Loading...</p>
+                        )}
+                        {!loadingDndCharacters && dndCharacterError && (
+                          <p className="text-red-200 text-sm">{dndCharacterError}</p>
+                        )}
+                        {!loadingDndCharacters && !dndCharacterError && (dndCharacterLists[resolvedId] || []).length === 0 && (
+                          <p className="text-white text-sm">No characters found</p>
+                        )}
+                        {!loadingDndCharacters && !dndCharacterError && (dndCharacterLists[resolvedId] || []).length > 0 && (
+                          <ul className="space-y-2">
+                            {dndCharacterLists[resolvedId]
+                              .slice()
+                              .sort((a, b) => (a.Name || '').localeCompare(b.Name || ''))
+                              .map((character) => (
+                                <li
+                                  key={character.id}
+                                  className="flex items-center justify-between gap-4 rounded-lg border border-red-600 bg-black px-4 py-3 text-white"
+                                  style={{ flexWrap: 'wrap', color: '#ffffff' }}
+                                >
+                                  <div className="flex items-center gap-4" style={{ flex: 1, minWidth: 200, color: '#ffffff' }}>
+                                    <div
+                                      className="flex items-center justify-center rounded-full border border-red-600"
+                                      style={{ width: 64, height: 64, backgroundColor: '#111111', color: '#ffffff' }}
+                                    >
+                                      <span className="text-sm font-bold">
+                                        {(character.Name || 'U')[0]}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <h3 className="font-bold text-lg" style={{ color: '#ffffff' }}>{character.Name || 'Unnamed'}</h3>
+                                      <p className="text-sm" style={{ color: '#dddddd' }}>
+                                        {dndClassMap[character.Class] || 'Unknown Class'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col gap-2" style={{ flexShrink: 0 }}>
+                                    <button
+                                      onClick={() => {
+                                        localStorage.setItem('loadedCharacterId', character.id);
+                                        navigate(`/dndmod_character_creator?mod=${encodeURIComponent(row.name)}`);
+                                      }}
+                                      className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-sm"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-sm"
+                                    >
+                                      Overview
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        if (!confirm(`Delete ${character.Name || 'this character'}?`)) return;
+                                        const { error } = await supabase
+                                          .from('DND_player_character')
+                                          .delete()
+                                          .eq('id', character.id);
+                                        if (error) {
+                                          console.error('Error deleting character:', error);
+                                          alert('Failed to delete character.');
+                                          return;
+                                        }
+                                        setDndCharacterLists((prev) => ({
+                                          ...prev,
+                                          [resolvedId]: (prev[resolvedId] || []).filter((c) => c.id !== character.id),
+                                        }));
+                                      }}
+                                        className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-sm"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
