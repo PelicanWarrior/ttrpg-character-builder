@@ -33,6 +33,7 @@ export default function Settings() {
   // State for checkbox links - tracks which checkboxes are checked
   // For grid: gridCheckboxLinks[boxIndex] = { up: bool, down: bool, left: bool, right: bool }
   const [gridCheckboxLinks, setGridCheckboxLinks] = useState(Array(16).fill(null).map(() => ({ up: false, down: false, left: false, right: false })));
+  const [forceLinkEditorIndex, setForceLinkEditorIndex] = useState(0);
 
   const playerId = location.state?.playerId;
 
@@ -61,6 +62,8 @@ export default function Settings() {
   const [showAddForceTreeForm, setShowAddForceTreeForm] = useState(false);
   const [powerTreeName, setPowerTreeName] = useState('');
   const [forcePrerequisite, setForcePrerequisite] = useState('');
+  const [existingForceTrees, setExistingForceTrees] = useState([]);
+  const [selectedForceTreeId, setSelectedForceTreeId] = useState('__new__');
   const [showAddEquipmentForm, setShowAddEquipmentForm] = useState(false);
   const [showAddCareerForm, setShowAddCareerForm] = useState(false);
 
@@ -612,30 +615,197 @@ export default function Settings() {
     }
   }, [showAddPathfinderRaceForm, isAdmin]);
 
-  // Fetch Force Talents from SW_force_talents table
-  useEffect(() => {
-    const fetchForceTalents = async () => {
+  const createEmptyForceGrid = () => Array(16).fill(null).map(() => ({ name: '', cost: '', description: '' }));
+  const createEmptyForceLinks = () => Array(16).fill(null).map(() => ({ up: false, down: false, left: false, right: false }));
+  const parseJsonArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === 'string') {
       try {
-        const { data, error } = await supabase
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const getMergedRangeForIndex = (idx, merges = mergedBoxes) => {
+    const rowStart = Math.floor(idx / 4) * 4;
+    const rowEnd = rowStart + 3;
+
+    let start = idx;
+    while (start > rowStart && merges[`${start - 1}-${start}`]) {
+      start -= 1;
+    }
+
+    let end = idx;
+    while (end < rowEnd && merges[`${end}-${end + 1}`]) {
+      end += 1;
+    }
+
+    return { start, end, span: end - start + 1 };
+  };
+
+  const resetForceTreeForm = () => {
+    setSelectedForceTreeId('__new__');
+    setPowerTreeName('');
+    setForcePrerequisite('');
+    setSelectedForceTalentName('');
+    setSelectedForceTalentDescription('');
+    setForceTalentCost('');
+    setGridTalents(createEmptyForceGrid());
+    setMergedBoxes({});
+    setGridCheckboxLinks(createEmptyForceLinks());
+    setForceLinkEditorIndex(0);
+    setAddingNewTopTalent(false);
+    setNewTopTalentName('');
+    setNewTopTalentDescription('');
+    setAddingNewTalent({});
+    setNewTalentNames({});
+    setNewTalentDescriptions({});
+    setMergePending(null);
+  };
+
+  const loadForceTreeIntoForm = (forceTree, availableTalents) => {
+    if (!forceTree) return;
+
+    const talentById = {};
+    (availableTalents || forceTalentNames).forEach((talent) => {
+      talentById[talent.id] = talent;
+    });
+
+    setSelectedForceTreeId(String(forceTree.id));
+    setPowerTreeName(forceTree.PowerTreeName || '');
+    setForcePrerequisite(forceTree.ForcePrerequisite || '');
+
+    const nodes = parseJsonArray(forceTree.tree_nodes);
+    const links = parseJsonArray(forceTree.tree_links);
+
+    const topNode = nodes.find((node) => Number(node.row) === 1 && Number(node.col) === 1);
+    const topTalentId = topNode?.talent_id ?? topNode?.talentId ?? null;
+    const topTalent = talentById[topTalentId];
+    setSelectedForceTalentName(topTalent?.talent_name || '');
+    setSelectedForceTalentDescription(topTalent?.description || '');
+    setForceTalentCost(topNode?.cost != null ? String(topNode.cost) : '');
+
+    const loadedGrid = createEmptyForceGrid();
+    const loadedLinks = createEmptyForceLinks();
+
+    const loadedMerges = {};
+
+    nodes.forEach((node) => {
+      const row = Number(node.row);
+      const col = Number(node.col);
+      if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+      if (row < 2 || row > 5 || col < 1 || col > 4) return;
+
+      const talentId = node.talent_id ?? node.talentId;
+      const talent = talentById[talentId];
+      const boxIndex = (row - 2) * 4 + (col - 1);
+
+      loadedGrid[boxIndex] = {
+        name: talent?.talent_name || '',
+        description: talent?.description || '',
+        cost: node.cost != null ? String(node.cost) : '',
+      };
+
+      const colSpan = Number(node.col_span ?? node.colSpan ?? 1);
+      if (colSpan > 1 && col < 4) {
+        const maxSpan = Math.min(colSpan, 5 - col);
+        for (let offset = 0; offset < maxSpan - 1; offset++) {
+          loadedMerges[`${boxIndex + offset}-${boxIndex + offset + 1}`] = true;
+        }
+      }
+    });
+
+    const applyLink = (fromRow, fromCol, toRow, toCol) => {
+      if (fromRow === 1 && toRow === 2 && fromCol === 1 && toCol >= 1 && toCol <= 4) {
+        const topIndex = toCol - 1;
+        loadedLinks[topIndex] = { ...loadedLinks[topIndex], up: true };
+        return;
+      }
+
+      if (fromRow < 2 || fromRow > 5 || fromCol < 1 || fromCol > 4) return;
+      const boxIndex = (fromRow - 2) * 4 + (fromCol - 1);
+      const current = loadedLinks[boxIndex] || { up: false, down: false, left: false, right: false };
+
+      if (toRow === fromRow - 1 && toCol === fromCol) loadedLinks[boxIndex] = { ...current, up: true };
+      if (toRow === fromRow + 1 && toCol === fromCol) loadedLinks[boxIndex] = { ...current, down: true };
+      if (toRow === fromRow && toCol === fromCol - 1) loadedLinks[boxIndex] = { ...current, left: true };
+      if (toRow === fromRow && toCol === fromCol + 1) loadedLinks[boxIndex] = { ...current, right: true };
+    };
+
+    links.forEach((link) => {
+      const fromRow = Number(link.from_row ?? link.fromRow ?? link.from?.row);
+      const fromCol = Number(link.from_col ?? link.fromCol ?? link.from?.col);
+      const toRow = Number(link.to_row ?? link.toRow ?? link.to?.row);
+      const toCol = Number(link.to_col ?? link.toCol ?? link.to?.col);
+
+      if (![fromRow, fromCol, toRow, toCol].every(Number.isInteger)) return;
+      applyLink(fromRow, fromCol, toRow, toCol);
+    });
+
+    setGridTalents(loadedGrid);
+    setGridCheckboxLinks(loadedLinks);
+    setForceLinkEditorIndex(0);
+    setMergedBoxes(loadedMerges);
+    setAddingNewTopTalent(false);
+    setNewTopTalentName('');
+    setNewTopTalentDescription('');
+    setAddingNewTalent({});
+    setNewTalentNames({});
+    setNewTalentDescriptions({});
+    setMergePending(null);
+  };
+
+  // Fetch Force Talents and Force Trees for Add/Edit Force Tree form
+  useEffect(() => {
+    const fetchForceTreeAdminData = async () => {
+      try {
+        const { data: talentsData, error: talentsError } = await supabase
           .from('SW_force_talents')
           .select('id, talent_name, description');
-        
-        if (error) {
-          console.error('Error fetching force talents:', error);
+
+        if (talentsError) {
+          console.error('Error fetching force talents:', talentsError);
           return;
         }
 
-        if (data) {
-          const sortedTalents = data.sort((a, b) => a.talent_name.localeCompare(b.talent_name));
+        const { data: treesData, error: treesError } = await supabase
+          .from('SW_force_power_tree')
+          .select('id, PowerTreeName, ForcePrerequisite, tree_nodes, tree_links')
+          .order('PowerTreeName');
+        
+        if (treesError) {
+          console.error('Error fetching force trees:', treesError);
+          return;
+        }
+
+        if (talentsData) {
+          const sortedTalents = talentsData.sort((a, b) => a.talent_name.localeCompare(b.talent_name));
           setForceTalentNames(sortedTalents);
+
+          const sortedTrees = (treesData || []).slice().sort((a, b) =>
+            String(a.PowerTreeName || '').localeCompare(String(b.PowerTreeName || ''))
+          );
+          setExistingForceTrees(sortedTrees);
+
+          if (selectedForceTreeId !== '__new__') {
+            const selectedTree = sortedTrees.find((tree) => String(tree.id) === String(selectedForceTreeId));
+            if (selectedTree) {
+              loadForceTreeIntoForm(selectedTree, sortedTalents);
+            }
+          }
         }
       } catch (err) {
-        console.error('Unexpected error fetching force talents:', err);
+        console.error('Unexpected error fetching force tree admin data:', err);
       }
     };
 
     if (showAddForceTreeForm && isAdmin) {
-      fetchForceTalents();
+      fetchForceTreeAdminData();
     }
   }, [showAddForceTreeForm, isAdmin]);
 
@@ -810,12 +980,32 @@ export default function Settings() {
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
+    resetForceTreeForm();
+  };
+
+  const handleForceTreeSelectionChange = (selectedId) => {
+    if (selectedId === '__new__') {
+      resetForceTreeForm();
+      return;
+    }
+
+    const selectedTree = existingForceTrees.find((tree) => String(tree.id) === String(selectedId));
+    if (!selectedTree) {
+      alert('Unable to load the selected force tree');
+      return;
+    }
+
+    loadForceTreeIntoForm(selectedTree, forceTalentNames);
   };
 
   const handleSaveForceTree = async () => {
     try {
+      const isEditing = selectedForceTreeId !== '__new__';
+      const normalizedPowerTreeName = String(powerTreeName ?? '').trim();
+      const normalizedForcePrerequisite = String(forcePrerequisite ?? '').trim();
+
       // Validate required fields
-      if (!powerTreeName.trim()) {
+      if (!normalizedPowerTreeName) {
         alert('Please enter a Power Tree Name');
         return;
       }
@@ -838,127 +1028,159 @@ export default function Settings() {
         return;
       }
 
-      // Helper function to build links string from checkbox array
-      const buildLinksString = (checkboxStates, directions) => {
-        const links = [];
-        if (checkboxStates[0]) links.push(directions[0]); // Up
-        if (checkboxStates[1]) links.push(directions[1]); // Right
-        if (checkboxStates[2]) links.push(directions[2]); // Down
-        if (checkboxStates[3]) links.push(directions[3]); // Left
-        return links.length > 0 ? links.join(', ') : '';
+      const parseCost = (value) => {
+        const parsed = parseInt(value, 10);
+        return Number.isNaN(parsed) ? null : parsed;
       };
 
-      // Build the data object for insertion - start with required fields
-      const forceTreeData = {
-        PowerTreeName: powerTreeName.trim(),
-        ForcePrerequisite: forcePrerequisite.trim() || null,
-        ability_1_1: topTalentId,
-        ability_1_1_cost: forceTalentCost ? parseInt(forceTalentCost) : null,
+      const getGridIndex = (row, col) => (row - 2) * 4 + (col - 1);
+
+      const isCellOccupied = (row, col) => {
+        if (row < 2 || row > 5 || col < 1 || col > 4) return false;
+        const idx = getGridIndex(row, col);
+        if (gridTalents[idx]?.name) return true;
+        const mergedRange = getMergedRangeForIndex(idx, mergedBoxes);
+        if (mergedRange.start !== idx && gridTalents[mergedRange.start]?.name) {
+          return true;
+        }
+        return false;
       };
-      
-      // Add top talent links only if they exist
-      if (gridCheckboxLinks[0]?.up) forceTreeData.ability_1_1_links = 'Down';
-      if (gridCheckboxLinks[1]?.up) forceTreeData.ability_1_2_links = 'Down';
-      if (gridCheckboxLinks[2]?.up) forceTreeData.ability_1_3_links = 'Down';
-      if (gridCheckboxLinks[3]?.up) forceTreeData.ability_1_4_links = 'Down';
 
-      // Process 4x4 grid
-      const rowNames = ['2', '3', '4'];
-      const colNames = ['1', '2', '3', '4'];
-      let boxNumber = 0;
+      const uniqueLinkSet = new Set();
+      const pushLink = (fromRow, fromCol, toRow, toCol) => {
+        const key = `${fromRow}_${fromCol}_${toRow}_${toCol}`;
+        if (!uniqueLinkSet.has(key)) {
+          uniqueLinkSet.add(key);
+        }
+      };
 
-      for (let rowIndex = 0; rowIndex < 3; rowIndex++) {
-        for (let colIndex = 0; colIndex < 4; colIndex++) {
-          const rowNum = rowNames[rowIndex];
-          const colNum = colNames[colIndex];
-          const talentName = gridTalents[boxNumber]?.name;
-          
-          if (talentName) {
-            const talentId = getTalentId(talentName);
-            
-            // Only add to data if talent was found in database
-            if (talentId) {
-              const cost = gridTalents[boxNumber]?.cost;
-              
-              // Determine which directions apply based on position
-              const directions = [];
-              if (rowIndex === 0) directions.push('Up'); // Can connect to top
-              if (rowIndex < 2) directions.push('Down'); // Can connect down
-              if (colIndex > 0) directions.push('Left'); // Can connect left
-              if (colIndex < 3) directions.push('Right'); // Can connect right
+      const treeNodes = [];
+      treeNodes.push({
+        row: 1,
+        col: 1,
+        talent_id: topTalentId,
+        cost: parseCost(forceTalentCost) ?? 0,
+        col_span: 4,
+      });
 
-              // Get checkbox states for this box
-              const checkboxStates = [
-                gridCheckboxLinks[boxNumber]?.up || false,
-                gridCheckboxLinks[boxNumber]?.right || false,
-                gridCheckboxLinks[boxNumber]?.down || false,
-                gridCheckboxLinks[boxNumber]?.left || false,
-              ];
+      for (let row = 2; row <= 5; row++) {
+        for (let col = 1; col <= 4; col++) {
+          const idx = getGridIndex(row, col);
+          const mergedRange = getMergedRangeForIndex(idx, mergedBoxes);
+          if (mergedRange.start !== idx) continue;
 
-              // Build links string
-              const linksString = buildLinksString(checkboxStates, directions);
+          const talentName = gridTalents[idx]?.name?.trim();
+          if (!talentName) continue;
+          const talentId = getTalentId(talentName);
+          if (!talentId) continue;
 
-              // Add to data object
-              const abilityKey = `ability_${rowNum}_${colNum}`;
-              const costKey = `${abilityKey}_cost`;
-              const linksKey = `${abilityKey}_links`;
+          const colSpan = mergedRange.span;
 
-              forceTreeData[abilityKey] = talentId;
-              // Only add cost if it's provided and valid
-              if (cost) {
-                forceTreeData[costKey] = parseInt(cost);
-              }
-              // Only add links if they exist
-              if (linksString) {
-                forceTreeData[linksKey] = linksString;
-              }
-
-              // Check if this box is merged with the next one
-              const mergeKey = `${boxNumber}-${boxNumber + 1}`;
-              if (mergedBoxes[mergeKey] && colIndex < 3) {
-                // Same talent in next box - put ID and cost in next column too
-                const nextColNum = colNames[colIndex + 1];
-                const nextAbilityKey = `ability_${rowNum}_${nextColNum}`;
-                const nextCostKey = `${nextAbilityKey}_cost`;
-                const nextLinksKey = `${nextAbilityKey}_links`;
-
-                forceTreeData[nextAbilityKey] = talentId;
-                // Only add cost if it's provided and valid
-                if (cost) {
-                  forceTreeData[nextCostKey] = parseInt(cost);
-                }
-                // Only add links if they exist
-                if (linksString) {
-                  forceTreeData[nextLinksKey] = linksString;
-                }
-              }
-            }
-          }
-
-          boxNumber++;
+          treeNodes.push({
+            row,
+            col,
+            talent_id: talentId,
+            cost: parseCost(gridTalents[idx]?.cost) ?? 0,
+            col_span: colSpan,
+          });
         }
       }
 
-      // Insert or update the force tree in database
-      const { error } = await supabase
-        .from('SW_force_power_tree')
-        .insert([forceTreeData]);
+      for (let col = 1; col <= 4; col++) {
+        const topLinkIndex = col - 1;
+        if (gridCheckboxLinks[topLinkIndex]?.up && isCellOccupied(2, col)) {
+          pushLink(1, 1, 2, col);
+        }
+      }
 
-      if (error) {
-        console.error('Error saving force tree:', error);
-        alert('Failed to save force tree: ' + error.message);
+      for (let row = 2; row <= 5; row++) {
+        for (let col = 1; col <= 4; col++) {
+          const idx = getGridIndex(row, col);
+          if (!isCellOccupied(row, col)) continue;
+
+          const mergedRange = getMergedRangeForIndex(idx, mergedBoxes);
+          if (mergedRange.start !== idx) continue;
+
+          const colSpan = mergedRange.span;
+
+          for (let offset = 0; offset < colSpan; offset++) {
+            const sourceIdx = idx + offset;
+            const sourceCol = col + offset;
+            const sourceLinkState = gridCheckboxLinks[sourceIdx] || {};
+
+            if (sourceLinkState.up && row > 2 && isCellOccupied(row - 1, sourceCol)) {
+              pushLink(row, sourceCol, row - 1, sourceCol);
+            }
+
+            if (sourceLinkState.down && row < 5 && isCellOccupied(row + 1, sourceCol)) {
+              pushLink(row, sourceCol, row + 1, sourceCol);
+            }
+          }
+
+          const rightSourceIdx = idx + (colSpan - 1);
+          const rightSourceCol = col + (colSpan - 1);
+          const rightLinkState = gridCheckboxLinks[rightSourceIdx] || {};
+          const rightTargetCol = rightSourceCol + 1;
+          if (rightLinkState.right && rightTargetCol <= 4 && isCellOccupied(row, rightTargetCol)) {
+            pushLink(row, rightSourceCol, row, rightTargetCol);
+          }
+
+          const leftLinkState = gridCheckboxLinks[idx] || {};
+          if (leftLinkState.left && col > 1 && isCellOccupied(row, col - 1)) {
+            pushLink(row, col, row, col - 1);
+          }
+        }
+      }
+
+      const treeLinks = Array.from(uniqueLinkSet).map((key) => {
+        const [fromRow, fromCol, toRow, toCol] = key.split('_').map(Number);
+        return {
+          from_row: fromRow,
+          from_col: fromCol,
+          to_row: toRow,
+          to_col: toCol,
+        };
+      });
+
+      const forceTreeData = {
+        PowerTreeName: normalizedPowerTreeName,
+        ForcePrerequisite: normalizedForcePrerequisite || null,
+        tree_nodes: treeNodes,
+        tree_links: treeLinks,
+      };
+
+      let saveError = null;
+
+      if (isEditing) {
+        const { error } = await supabase
+          .from('SW_force_power_tree')
+          .update(forceTreeData)
+          .eq('id', selectedForceTreeId);
+        saveError = error;
+      } else {
+        const { error } = await supabase
+          .from('SW_force_power_tree')
+          .insert([forceTreeData]);
+        saveError = error;
+      }
+
+      if (saveError) {
+        console.error('Error saving force tree:', saveError);
+        alert('Failed to save force tree: ' + saveError.message);
         return;
       }
 
-      alert('Force tree saved successfully!');
-      // Reset form
-      setPowerTreeName('');
-      setForcePrerequisite('');
-      setSelectedForceTalentName('');
-      setForceTalentCost('');
-      setGridTalents(Array(16).fill(null).map(() => ({ name: '', cost: '', description: '' })));
-      setMergedBoxes({});
-      setGridCheckboxLinks(Array(16).fill(null).map(() => ({ up: false, down: false, left: false, right: false })));
+      alert(isEditing ? 'Force tree updated successfully!' : 'Force tree saved successfully!');
+      resetForceTreeForm();
+
+      const { data: treesData, error: treesError } = await supabase
+        .from('SW_force_power_tree')
+        .select('id, PowerTreeName, ForcePrerequisite, tree_nodes, tree_links')
+        .order('PowerTreeName');
+
+      if (!treesError) {
+        setExistingForceTrees(treesData || []);
+      }
     } catch (err) {
       console.error('Unexpected error:', err);
       alert('Failed to save force tree: ' + err.message);
@@ -3680,6 +3902,29 @@ export default function Settings() {
               {showAddForceTreeForm && (
                 <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
                   <h3 className="text-xl font-bold mb-4 text-gray-800">Add or Edit Force Power Tree</h3>
+                  <div className="mb-4 p-3 bg-white border border-gray-300 rounded">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Existing Force Tree</label>
+                    <div className="flex gap-2 items-center">
+                      <select
+                        value={selectedForceTreeId}
+                        onChange={(e) => handleForceTreeSelectionChange(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="__new__">-- Create New Force Tree --</option>
+                        {existingForceTrees.map((tree) => (
+                          <option key={tree.id} value={tree.id}>{tree.PowerTreeName}</option>
+                        ))}
+                      </select>
+                      {selectedForceTreeId !== '__new__' && (
+                        <button
+                          onClick={resetForceTreeForm}
+                          className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm font-medium"
+                        >
+                          New
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   {/* Tree Header Section - moved directly under main header */}
                   <div className="mb-4 flex flex-col gap-2">
                     <label className="text-2xl font-bold text-blue-700 flex items-center">
@@ -3884,30 +4129,18 @@ export default function Settings() {
                               const talent = gridTalents[boxIndex];
                               
                               // Check if this box is part of a merged set
-                              const getMergeKey = (idx) => {
-                                for (const key in mergedBoxes) {
-                                  if (mergedBoxes[key]) {
-                                    const [start, end] = key.split('-').map(Number);
-                                    if (idx >= start && idx <= end) {
-                                      return key;
-                                    }
-                                  }
-                                }
-                                return null;
-                              };
-                              
-                              const currentMergeKey = getMergeKey(boxIndex);
-                              const isSecondMergedBox = currentMergeKey ? 
-                                (() => {
-                                  const [start, end] = currentMergeKey.split('-').map(Number);
-                                  return boxIndex === end; // Check if this is the second (end) box in the merge
-                                })() 
-                                : false;
+                              const mergedRange = getMergedRangeForIndex(boxIndex, mergedBoxes);
+                              const mergeSpan = mergedRange.span;
+                              const isMerged = mergeSpan > 1;
+                              const isMergedLead = isMerged && mergedRange.start === boxIndex;
+                              const isMergedChild = isMerged && mergedRange.start !== boxIndex;
+                              const currentMergeKey = isMerged ? `${mergedRange.start}-${mergedRange.end}` : null;
+                              const mergedWidth = mergeSpan * 260 + (mergeSpan - 1) * 24;
+                              const rightmostColIndex = colIndex + mergeSpan - 1;
                               
                               // Get links for the merged box (use second box's right link if merged)
-                              const rightBoxIndex = boxIndex + 1;
-                              const rightBoxLinks = currentMergeKey && colIndex < 3 ? linksGrid[rowIndex][colIndex + 1] : [];
-                              const mergedLinks = currentMergeKey && !isSecondMergedBox ? {
+                              const rightBoxLinks = isMergedLead && rightmostColIndex < 4 ? linksGrid[rowIndex][rightmostColIndex] : [];
+                              const mergedLinks = isMergedLead ? {
                                 up: links.includes('Up'),
                                 down: links.includes('Down'),
                                 left: links.includes('Left'),
@@ -3961,7 +4194,9 @@ export default function Settings() {
                               
                               const handleUnmerge = () => {
                                 const newMergedBoxes = { ...mergedBoxes };
-                                delete newMergedBoxes[currentMergeKey];
+                                for (let i = mergedRange.start; i < mergedRange.end; i++) {
+                                  delete newMergedBoxes[`${i}-${i + 1}`];
+                                }
                                 setMergedBoxes(newMergedBoxes);
                               };
                               
@@ -3970,28 +4205,28 @@ export default function Settings() {
                                   <td 
                                     key={`force-td-${colIndex}`} 
                                     style={{
-                                      position: isSecondMergedBox ? 'static' : 'relative',
-                                      border: isSecondMergedBox ? 'none' : '2px solid #1976d2',
+                                      position: isMergedChild ? 'static' : 'relative',
+                                      border: isMergedChild ? 'none' : '2px solid #1976d2',
                                       width: '260px',
                                       height: '190px',
                                       textAlign: 'center',
                                       verticalAlign: 'middle',
-                                      background: isSecondMergedBox ? 'transparent' : '#e3f2fd',
+                                      background: isMergedChild ? 'transparent' : '#e3f2fd',
                                       padding: '8px',
-                                      overflow: isSecondMergedBox ? 'hidden' : 'visible'
+                                      overflow: isMergedChild ? 'hidden' : 'visible'
                                     }}
                                   >
-                                    {!isSecondMergedBox && (
+                                    {!isMergedChild && (
                                       <div
                                         className="talent-box"
                                         style={{
-                                          width: currentMergeKey ? '544px' : '100%', // 260+24+260 = 544px for merged
+                                          width: isMerged ? `${mergedWidth}px` : '100%',
                                           height: '100%',
                                           textAlign: 'left',
                                           padding: '8px',
-                                          position: currentMergeKey ? 'absolute' : 'relative',
-                                          top: currentMergeKey ? '8px' : undefined,
-                                          left: currentMergeKey ? '8px' : undefined,
+                                          position: isMerged ? 'absolute' : 'relative',
+                                          top: isMerged ? '8px' : undefined,
+                                          left: isMerged ? '8px' : undefined,
                                           boxSizing: 'border-box',
                                           backgroundColor: '#e3f2fd',
                                           border: '1px solid #90caf9',
@@ -4000,14 +4235,14 @@ export default function Settings() {
                                           flexDirection: 'column',
                                           color: '#1976d2',
                                           fontWeight: 600,
-                                          zIndex: currentMergeKey ? 10 : 1
+                                          zIndex: isMerged ? 10 : 1
                                         }}
                                       >
                                       {/* Checkboxes - only render Right and Down to avoid duplicates */}
                                       {/* Each box owns its right and down checkboxes */}
                                       
                                       {/* Down checkboxes - show for all rows except last row */}
-                                      {rowIndex < 3 && !currentMergeKey && (
+                                      {rowIndex < 3 && !isMerged && (
                                         <input 
                                           type="checkbox" 
                                           checked={gridCheckboxLinks[boxIndex]?.down || false}
@@ -4022,36 +4257,34 @@ export default function Settings() {
                                       )}
                                       
                                       {/* Down checkboxes for merged boxes - one at left edge, one at right edge */}
-                                      {rowIndex < 3 && currentMergeKey && !isSecondMergedBox && (
+                                      {rowIndex < 3 && isMergedLead && (
                                         <>
-                                          <input 
-                                            type="checkbox" 
-                                            checked={gridCheckboxLinks[boxIndex]?.down || false}
-                                            onChange={e => {
-                                              const newLinks = [...gridCheckboxLinks];
-                                              newLinks[boxIndex] = { ...newLinks[boxIndex], down: e.target.checked };
-                                              setGridCheckboxLinks(newLinks);
-                                            }}
-                                            style={{ position: 'absolute', bottom: '-18px', left: 'calc(50% - 132px)', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
-                                            title="Down" 
-                                          />
-                                          <input 
-                                            type="checkbox"
-                                            // Second merged box's down link - need to check the right box's down link
-                                            checked={gridCheckboxLinks[boxIndex + 1]?.down || false}
-                                            onChange={e => {
-                                              const newLinks = [...gridCheckboxLinks];
-                                              newLinks[boxIndex + 1] = { ...newLinks[boxIndex + 1], down: e.target.checked };
-                                              setGridCheckboxLinks(newLinks);
-                                            }}
-                                            style={{ position: 'absolute', bottom: '-18px', left: 'calc(50% + 132px)', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
-                                            title="Down" 
-                                          />
+                                          {Array.from({ length: mergeSpan }, (_, offset) => (
+                                            <input
+                                              key={`down-${boxIndex + offset}`}
+                                              type="checkbox"
+                                              checked={gridCheckboxLinks[boxIndex + offset]?.down || false}
+                                              onChange={e => {
+                                                const newLinks = [...gridCheckboxLinks];
+                                                newLinks[boxIndex + offset] = { ...newLinks[boxIndex + offset], down: e.target.checked };
+                                                setGridCheckboxLinks(newLinks);
+                                              }}
+                                              style={{
+                                                position: 'absolute',
+                                                bottom: '-18px',
+                                                left: `${132 + (offset * 284)}px`,
+                                                transform: 'translateX(-50%)',
+                                                width: '22px',
+                                                height: '22px'
+                                              }}
+                                              title="Down"
+                                            />
+                                          ))}
                                         </>
                                       )}
                                       
                                       {/* Right checkbox - show for non-merged boxes except last column */}
-                                      {!currentMergeKey && colIndex < 3 && (
+                                      {!isMerged && colIndex < 3 && (
                                         <input 
                                           type="checkbox" 
                                           checked={gridCheckboxLinks[boxIndex]?.right || false}
@@ -4066,13 +4299,13 @@ export default function Settings() {
                                       )}
                                       
                                       {/* Right checkbox for merged boxes - position at the right edge of merged area */}
-                                      {currentMergeKey && !isSecondMergedBox && colIndex < 2 && (
+                                      {isMergedLead && rightmostColIndex < 3 && (
                                         <input 
                                           type="checkbox" 
-                                          checked={gridCheckboxLinks[boxIndex]?.right || false}
+                                          checked={gridCheckboxLinks[mergedRange.end]?.right || false}
                                           onChange={e => {
                                             const newLinks = [...gridCheckboxLinks];
-                                            newLinks[boxIndex] = { ...newLinks[boxIndex], right: e.target.checked };
+                                            newLinks[mergedRange.end] = { ...newLinks[mergedRange.end], right: e.target.checked };
                                             setGridCheckboxLinks(newLinks);
                                           }}
                                           style={{ position: 'absolute', right: '-18px', top: '50%', transform: 'translateY(-50%)', width: '22px', height: '22px' }} 
@@ -4081,7 +4314,7 @@ export default function Settings() {
                                       )}
                                       
                                       {/* Up checkboxes - only for first row to connect to top talent box */}
-                                      {rowIndex === 0 && !currentMergeKey && (
+                                      {rowIndex === 0 && !isMerged && (
                                         <input 
                                           type="checkbox" 
                                           checked={gridCheckboxLinks[boxIndex]?.up || false}
@@ -4096,30 +4329,29 @@ export default function Settings() {
                                       )}
                                       
                                       {/* Up checkboxes for merged boxes - one at left edge, one at right edge */}
-                                      {rowIndex === 0 && currentMergeKey && !isSecondMergedBox && (
+                                      {rowIndex === 0 && isMergedLead && (
                                         <>
-                                          <input 
-                                            type="checkbox" 
-                                            checked={gridCheckboxLinks[boxIndex]?.up || false}
-                                            onChange={e => {
-                                              const newLinks = [...gridCheckboxLinks];
-                                              newLinks[boxIndex] = { ...newLinks[boxIndex], up: e.target.checked };
-                                              setGridCheckboxLinks(newLinks);
-                                            }}
-                                            style={{ position: 'absolute', top: '-18px', left: 'calc(50% - 132px)', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
-                                            title="Up" 
-                                          />
-                                          <input 
-                                            type="checkbox"
-                                            checked={gridCheckboxLinks[boxIndex + 1]?.up || false}
-                                            onChange={e => {
-                                              const newLinks = [...gridCheckboxLinks];
-                                              newLinks[boxIndex + 1] = { ...newLinks[boxIndex + 1], up: e.target.checked };
-                                              setGridCheckboxLinks(newLinks);
-                                            }}
-                                            style={{ position: 'absolute', top: '-18px', left: 'calc(50% + 132px)', transform: 'translateX(-50%)', width: '22px', height: '22px' }} 
-                                            title="Up" 
-                                          />
+                                          {Array.from({ length: mergeSpan }, (_, offset) => (
+                                            <input
+                                              key={`up-${boxIndex + offset}`}
+                                              type="checkbox"
+                                              checked={gridCheckboxLinks[boxIndex + offset]?.up || false}
+                                              onChange={e => {
+                                                const newLinks = [...gridCheckboxLinks];
+                                                newLinks[boxIndex + offset] = { ...newLinks[boxIndex + offset], up: e.target.checked };
+                                                setGridCheckboxLinks(newLinks);
+                                              }}
+                                              style={{
+                                                position: 'absolute',
+                                                top: '-18px',
+                                                left: `${132 + (offset * 284)}px`,
+                                                transform: 'translateX(-50%)',
+                                                width: '22px',
+                                                height: '22px'
+                                              }}
+                                              title="Up"
+                                            />
+                                          ))}
                                         </>
                                       )}
                                       
@@ -4249,7 +4481,7 @@ export default function Settings() {
                                       )}
                                       
                                       {/* Unmerge button - only show for merged boxes */}
-                                      {currentMergeKey && !isSecondMergedBox && (
+                                      {isMergedLead && (
                                         <button
                                           onClick={handleUnmerge}
                                           className="px-2 py-1 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700"
@@ -4273,6 +4505,48 @@ export default function Settings() {
                       </tbody>
                     </table>
                   </div>
+
+                  <div style={{ marginTop: '14px', padding: '10px', border: '1px solid #90caf9', borderRadius: '6px', background: '#f8fbff' }}>
+                    <div style={{ fontWeight: 700, color: '#1976d2', marginBottom: '8px' }}>Link Editor (fallback)</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <label style={{ fontSize: '0.9rem', color: '#0d47a1' }}>Cell</label>
+                      <select
+                        value={String(forceLinkEditorIndex)}
+                        onChange={(e) => setForceLinkEditorIndex(parseInt(e.target.value, 10) || 0)}
+                        style={{ minWidth: '260px', border: '1px solid #64b5f6', borderRadius: '4px', padding: '2px 6px' }}
+                      >
+                        {Array.from({ length: 16 }, (_, idx) => {
+                          const row = Math.floor(idx / 4) + 2;
+                          const col = (idx % 4) + 1;
+                          const talentName = gridTalents[idx]?.name || '(empty)';
+                          return (
+                            <option key={`force-link-cell-${idx}`} value={idx}>
+                              {`Row ${row}, Col ${col} - ${talentName}`}
+                            </option>
+                          );
+                        })}
+                      </select>
+
+                      {['up', 'down', 'left', 'right'].map((direction) => (
+                        <label key={`fallback-link-${direction}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem', color: '#0d47a1' }}>
+                          <input
+                            type="checkbox"
+                            checked={gridCheckboxLinks[forceLinkEditorIndex]?.[direction] || false}
+                            onChange={(e) => {
+                              const newLinks = [...gridCheckboxLinks];
+                              const current = newLinks[forceLinkEditorIndex] || { up: false, down: false, left: false, right: false };
+                              newLinks[forceLinkEditorIndex] = { ...current, [direction]: e.target.checked };
+                              setGridCheckboxLinks(newLinks);
+                            }}
+                          />
+                          {direction.charAt(0).toUpperCase() + direction.slice(1)}
+                        </label>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: '6px', fontSize: '0.8rem', color: '#546e7a' }}>
+                      Use this when the edge checkbox is hard to click. It edits the same saved link flags.
+                    </div>
+                  </div>
                   
                   {/* Save Force Tree Button */}
                   <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
@@ -4280,18 +4554,12 @@ export default function Settings() {
                       onClick={handleSaveForceTree}
                       className="px-8 py-3 bg-green-600 text-white rounded font-bold hover:bg-green-700 transition text-lg"
                     >
-                      Save Force Tree
+                      {selectedForceTreeId === '__new__' ? 'Save Force Tree' : 'Update Force Tree'}
                     </button>
                     <button
                       onClick={() => {
                         setShowAddForceTreeForm(false);
-                        setPowerTreeName('');
-                        setForcePrerequisite('');
-                        setSelectedForceTalentName('');
-                        setForceTalentCost('');
-                        setGridTalents(Array(16).fill(null).map(() => ({ name: '', cost: '', description: '' })));
-                        setMergedBoxes({});
-                        setGridCheckboxLinks(Array(16).fill(null).map(() => ({ up: false, down: false, left: false, right: false })));
+                        resetForceTreeForm();
                       }}
                       className="px-8 py-3 bg-gray-400 text-white rounded font-bold hover:bg-gray-500 transition text-lg"
                     >

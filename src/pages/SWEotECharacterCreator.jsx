@@ -13,6 +13,8 @@ export default function SWEotECharacterCreator() {
   const [skills, setSkills] = useState([]);
   const [statCosts, setStatCosts] = useState([]);
   const [exp, setExp] = useState(0);
+  const [manualForceRating, setManualForceRating] = useState(null);
+  const [manualForceRatingInput, setManualForceRatingInput] = useState('0');
   const [activeTab, setActiveTab] = useState('Species');
 
   // Starting Skills — Two dropdowns for "X and Y" species
@@ -62,6 +64,7 @@ export default function SWEotECharacterCreator() {
   const [forcePowerTrees, setForcePowerTrees] = useState([]);
   const [selectedForceTreeTab, setSelectedForceTreeTab] = useState(null);
   const [forceTalents, setForceTalents] = useState([]);
+  const [selectedForceTalentsByTree, setSelectedForceTalentsByTree] = useState({});
   const [publishForceTrees, setPublishForceTrees] = useState(false);
   const [availableCharacterPictures, setAvailableCharacterPictures] = useState([]);
   const [selectedCharacterPictureId, setSelectedCharacterPictureId] = useState(null);
@@ -87,6 +90,7 @@ export default function SWEotECharacterCreator() {
 
   const queryParams = new URLSearchParams(location.search);
   const createCharacter = queryParams.get('create_character') === 'true';
+  const isEditorMode = !createCharacter;
 
   const CHARACTERISTICS = ['Brawn', 'Agility', 'Intellect', 'Cunning', 'Willpower', 'Presence'];
 
@@ -113,6 +117,100 @@ export default function SWEotECharacterCreator() {
       firstSkills: trimmed.split(',').map(s => s.trim()).filter(Boolean),
       secondSkills: []
     };
+  };
+
+  const parseJsonArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const normalizeForceTreeForClient = (tree) => {
+    if (!tree) return tree;
+
+    const normalized = { ...tree };
+    const nodes = parseJsonArray(tree.tree_nodes);
+    const links = parseJsonArray(tree.tree_links);
+    normalized._treeNodes = nodes;
+    normalized._treeLinks = links;
+
+    const addDirection = (row, col, direction) => {
+      if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+      if (row < 1 || row > 5 || col < 1 || col > 4) return;
+      if (!direction) return;
+
+      const field = `ability_${row}_${col}_links`;
+      const existing = normalized[field]
+        ? String(normalized[field]).split(',').map((item) => item.trim()).filter(Boolean)
+        : [];
+      if (!existing.includes(direction)) {
+        existing.push(direction);
+      }
+      normalized[field] = existing.join(', ');
+    };
+
+    nodes.forEach((node) => {
+      const row = Number(node.row);
+      const col = Number(node.col);
+      const colSpan = Number(node.col_span ?? node.colSpan ?? 1);
+      const talentId = node.talent_id ?? node.talentId;
+      const cost = Number(node.cost ?? 0);
+
+      if (!Number.isInteger(row) || !Number.isInteger(col) || !talentId) return;
+      for (let offset = 0; offset < Math.max(1, colSpan); offset++) {
+        const currentCol = col + offset;
+        if (currentCol < 1 || currentCol > 4) continue;
+        normalized[`ability_${row}_${currentCol}`] = talentId;
+        normalized[`ability_${row}_${currentCol}_cost`] = Number.isFinite(cost) ? cost : 0;
+      }
+    });
+
+    links.forEach((link) => {
+      const fromRow = Number(link.from_row ?? link.fromRow ?? link.from?.row);
+      const fromCol = Number(link.from_col ?? link.fromCol ?? link.from?.col);
+      const toRow = Number(link.to_row ?? link.toRow ?? link.to?.row);
+      const toCol = Number(link.to_col ?? link.toCol ?? link.to?.col);
+      if (![fromRow, fromCol, toRow, toCol].every(Number.isInteger)) return;
+
+      if (fromRow === 1 && fromCol === 1 && toRow === 2 && toCol >= 1 && toCol <= 4) {
+        addDirection(1, toCol, 'Down');
+        addDirection(2, toCol, 'Up');
+        return;
+      }
+
+      if (toRow === 1 && toCol === 1 && fromRow === 2 && fromCol >= 1 && fromCol <= 4) {
+        addDirection(1, fromCol, 'Down');
+        addDirection(2, fromCol, 'Up');
+        return;
+      }
+
+      if (toRow === fromRow - 1 && toCol === fromCol) {
+        addDirection(fromRow, fromCol, 'Up');
+        addDirection(toRow, toCol, 'Down');
+      }
+      if (toRow === fromRow + 1 && toCol === fromCol) {
+        addDirection(fromRow, fromCol, 'Down');
+        addDirection(toRow, toCol, 'Up');
+      }
+      if (toRow === fromRow && toCol === fromCol - 1) {
+        addDirection(fromRow, fromCol, 'Left');
+        addDirection(toRow, toCol, 'Right');
+      }
+      if (toRow === fromRow && toCol === fromCol + 1) {
+        addDirection(fromRow, fromCol, 'Right');
+        addDirection(toRow, toCol, 'Left');
+      }
+    });
+
+    return normalized;
   };
 
   useEffect(() => {
@@ -196,7 +294,7 @@ export default function SWEotECharacterCreator() {
 
       if (forceTreeResponse.error) console.error('Error fetching force power trees:', forceTreeResponse.error);
       else {
-        const forceTrees = forceTreeResponse.data || [];
+        const forceTrees = (forceTreeResponse.data || []).map(normalizeForceTreeForClient);
         setForcePowerTrees(forceTrees);
         if (forceTrees.length > 0 && !selectedForceTreeTab) {
           setSelectedForceTreeTab(forceTrees[0].PowerTreeName);
@@ -228,6 +326,9 @@ export default function SWEotECharacterCreator() {
         // Clear any previous character data when creating new character
         localStorage.removeItem('loadedCharacterId');
         setClickableTalents([0, 1, 2, 3]);
+        setSelectedForceTalentsByTree({});
+        setManualForceRating(null);
+        setManualForceRatingInput('0');
       } else if (!createCharacter) {
         const loadedCharacterId = localStorage.getItem('loadedCharacterId');
         if (loadedCharacterId) {
@@ -266,6 +367,10 @@ export default function SWEotECharacterCreator() {
                 });
               }
               setExp(playerData.exp || 0);
+              const loadedForceRating = Number(playerData.force_rating);
+              const normalizedForceRating = Number.isFinite(loadedForceRating) ? Math.max(0, loadedForceRating) : 0;
+              setManualForceRating(normalizedForceRating);
+              setManualForceRatingInput(String(normalizedForceRating));
               setBackstory(playerData.backstory || '');
               setWoundThreshold(playerData.wound_threshold || 0);
               setStrainThreshold(playerData.strain_threshold || 0);
@@ -327,16 +432,18 @@ export default function SWEotECharacterCreator() {
               const choices = {};
               if (playerData.talent_tree && playerData.talent_tree.trim()) {
                 const talentList = playerData.talent_tree.split(',').map(t => t.trim()).filter(t => t);
-                talentList.forEach(t => {
+                talentList
+                  .filter(t => /^ability_\d+_\d+/.test(t))
+                  .forEach(t => {
                   const match = t.match(/ability_\d+_\d+\(([^)]+)\)/);
                   if (match) {
-                    const [_, row, col] = t.match(/ability_(\d+)_(\d+)/) || [];
+                    const [_, row, col] = t.match(/^ability_(\d+)_(\d+)/) || [];
                     if (row && col) {
                       const index = (parseInt(row) / 5 - 1) * 4 + (parseInt(col) - 1);
                       choices[index] = match[1];
                     }
                   }
-                });
+                  });
               }
               setTalentChoices(choices);
 
@@ -344,8 +451,10 @@ export default function SWEotECharacterCreator() {
 
               if (playerData.talent_tree && playerData.talent_tree.trim()) {
                 const talentList = playerData.talent_tree.split(',').map(t => t.trim()).filter(t => t);
-                const talentIndices = talentList.map(t => {
-                  const [_, row, col] = t.match(/ability_(\d+)_(\d+)/) || [];
+                const talentIndices = talentList
+                  .filter(t => /^ability_\d+_\d+/.test(t))
+                  .map(t => {
+                  const [_, row, col] = t.match(/^ability_(\d+)_(\d+)/) || [];
                   return row && col ? (parseInt(row) / 5 - 1) * 4 + (parseInt(col) - 1) : -1;
                 }).filter(i => i >= 0);
                 setSelectedTalents(talentIndices);
@@ -376,8 +485,37 @@ export default function SWEotECharacterCreator() {
 
               if (playerData.talent_tree && playerData.talent_tree.trim()) {
                 const talentList = playerData.talent_tree.split(',').map(t => t.trim()).filter(t => t);
-                talentList.forEach(t => {
-                  const [_, row, col] = t.match(/ability_(\d+)_(\d+)/) || [];
+                const parsedForceSelections = {};
+
+                talentList.forEach((entry) => {
+                  const forceMatch = entry.match(/^force:([^:]+):ability_(\d+)_(\d+)$/);
+                  if (!forceMatch) return;
+
+                  const treeName = decodeURIComponent(forceMatch[1]);
+                  const row = parseInt(forceMatch[2], 10);
+                  const col = parseInt(forceMatch[3], 10);
+                  const key = `${row}_${col}`;
+
+                  if (!parsedForceSelections[treeName]) {
+                    parsedForceSelections[treeName] = [];
+                  }
+
+                  if (!parsedForceSelections[treeName].includes(key)) {
+                    parsedForceSelections[treeName].push(key);
+                  }
+                });
+
+                setSelectedForceTalentsByTree(parsedForceSelections);
+              } else {
+                setSelectedForceTalentsByTree({});
+              }
+
+              if (playerData.talent_tree && playerData.talent_tree.trim()) {
+                const talentList = playerData.talent_tree.split(',').map(t => t.trim()).filter(t => t);
+                talentList
+                  .filter(t => /^ability_\d+_\d+/.test(t))
+                  .forEach(t => {
+                  const [_, row, col] = t.match(/^ability_(\d+)_(\d+)/) || [];
                   if (row && col) {
                     const index = (parseInt(row) / 5 - 1) * 4 + (parseInt(col) - 1);
                     const talentData = getTalentTreeData()[index];
@@ -607,6 +745,7 @@ export default function SWEotECharacterCreator() {
       setStrainThreshold((race.Strain || 0) + (race.willpower || 0));
     }
     setSelectedTalents([]);
+    setSelectedForceTalentsByTree({});
     setClickableTalents([0, 1, 2, 3]);
     setStartingTalents([]);
 
@@ -777,6 +916,7 @@ export default function SWEotECharacterCreator() {
     setSelectedSpecSkill2('');
     setSelectedSpecSkill3('');
     setSelectedTalents([]);
+    setSelectedForceTalentsByTree({});
     setClickableTalents([0, 1, 2, 3]);
 
     if (careerName) {
@@ -994,7 +1134,82 @@ export default function SWEotECharacterCreator() {
     return startingTalents.map(t => t.name).join(', ');
   };
 
-  const getForceRating = () => (isForceSensitiveCareer ? 1 : 0);
+  const buildForceTalentTreeString = () => {
+    const forceEntries = [];
+
+    Object.entries(selectedForceTalentsByTree).forEach(([treeName, selectedKeys]) => {
+      selectedKeys.forEach((key) => {
+        const [row, col] = key.split('_').map((value) => parseInt(value, 10));
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+        forceEntries.push(`force:${encodeURIComponent(treeName)}:ability_${row}_${col}`);
+      });
+    });
+
+    return forceEntries.join(', ');
+  };
+
+  const buildForceTalentNamesString = () => {
+    const names = [];
+
+    Object.entries(selectedForceTalentsByTree).forEach(([treeName, selectedKeys]) => {
+      const tree = forcePowerTrees.find((item) => item.PowerTreeName === treeName);
+      if (!tree) return;
+
+      selectedKeys.forEach((key) => {
+        const [row, col] = key.split('_').map((value) => parseInt(value, 10));
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+        const talentId = tree[`ability_${row}_${col}`];
+        if (!talentId) return;
+        const talent = forceTalents.find((item) => item.id === talentId);
+        if (!talent?.talent_name) return;
+        names.push(talent.talent_name);
+      });
+    });
+
+    return names.join(', ');
+  };
+
+  const getAutoForceRating = () => {
+    let forceRating = isForceSensitiveCareer ? 1 : 0;
+
+    const countForceRatingIncreases = (increaseStat) => {
+      if (!increaseStat) return 0;
+      return increaseStat
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value === 'force rating')
+        .length;
+    };
+
+    selectedTalents.forEach((index) => {
+      const talentData = getTalentTreeData()[index];
+      const ability = abilities.find((item) => item.id === talentData?.abilityId);
+      forceRating += countForceRatingIncreases(ability?.increase_stat);
+    });
+
+    Object.entries(selectedForceTalentsByTree).forEach(([treeName, selectedKeys]) => {
+      const tree = forcePowerTrees.find((item) => item.PowerTreeName === treeName);
+      if (!tree) return;
+
+      selectedKeys.forEach((key) => {
+        const [row, col] = key.split('_').map((value) => parseInt(value, 10));
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+        const talentId = tree[`ability_${row}_${col}`];
+        if (!talentId) return;
+        const forceTalent = forceTalents.find((item) => item.id === talentId);
+        forceRating += countForceRatingIncreases(forceTalent?.increase_stat);
+      });
+    });
+
+    return Math.max(0, forceRating);
+  };
+
+  const getForceRating = () => {
+    if (isEditorMode && manualForceRating !== null && manualForceRating !== undefined) {
+      return Math.max(0, manualForceRating);
+    }
+    return getAutoForceRating();
+  };
 
   const handleSave = async () => {
     const username = localStorage.getItem('username');
@@ -1033,7 +1248,10 @@ export default function SWEotECharacterCreator() {
     const finalSpecSkills = [specSkillsString, startingTalentsString].filter(s => s).join(', ');
 
     const { talentTreeString, talentString } = buildTalentStrings();
-    const startingTalentsForTalentsField = startingTalentsString ? (talentString ? `${talentString}, ${startingTalentsString}` : startingTalentsString) : talentString;
+    const forceTalentTreeString = buildForceTalentTreeString();
+    const forceTalentNamesString = buildForceTalentNamesString();
+    const combinedTalentTreeString = [talentTreeString, forceTalentTreeString].filter(Boolean).join(', ');
+    const startingTalentsForTalentsField = [talentString, forceTalentNamesString, startingTalentsString].filter(Boolean).join(', ');
 
     const startingSkillCombined = selectedStartingSkill2 
       ? `${selectedStartingSkill1}, ${selectedStartingSkill2}` 
@@ -1054,7 +1272,7 @@ export default function SWEotECharacterCreator() {
       career_skills: careerSkillsString,
       spec: selectedSpecialization,
       spec_skills: finalSpecSkills,
-      talent_tree: talentTreeString,
+      talent_tree: combinedTalentTreeString,
       talents: startingTalentsForTalentsField,
       skills_rank: skillsRankString,
       backstory: backstory,
@@ -1147,6 +1365,183 @@ export default function SWEotECharacterCreator() {
       }
     }
     return treeData;
+  };
+
+  const getForceTalentKey = (row, col) => `${row}_${col}`;
+
+  const getForceTalentNode = (tree, row, col) => {
+    if (!tree) return null;
+
+    const abilityField = `ability_${row}_${col}`;
+    const linksField = `${abilityField}_links`;
+    const costField = `${abilityField}_cost`;
+    const talentId = tree[abilityField];
+    const links = tree[linksField]
+      ? tree[linksField].split(',').map((link) => link.trim()).filter(Boolean)
+      : [];
+    const cost = Number(tree[costField] || 0);
+    const talent = talentId ? forceTalents.find((entry) => entry.id === talentId) : null;
+
+    return {
+      row,
+      col,
+      key: getForceTalentKey(row, col),
+      talentId,
+      talent,
+      links,
+      cost: Number.isFinite(cost) ? cost : 0,
+    };
+  };
+
+  const getReverseDirection = (direction) => {
+    if (direction === 'Up') return 'Down';
+    if (direction === 'Down') return 'Up';
+    if (direction === 'Left') return 'Right';
+    if (direction === 'Right') return 'Left';
+    return '';
+  };
+
+  const getDirectionBetweenForceNodes = (fromRow, fromCol, toRow, toCol) => {
+    if (toRow === fromRow - 1 && toCol === fromCol) return 'Up';
+    if (toRow === fromRow + 1 && toCol === fromCol) return 'Down';
+    if (toRow === fromRow && toCol === fromCol - 1) return 'Left';
+    if (toRow === fromRow && toCol === fromCol + 1) return 'Right';
+    return '';
+  };
+
+  const areForceNodesConnected = (tree, fromRow, fromCol, toRow, toCol) => {
+    const direction = getDirectionBetweenForceNodes(fromRow, fromCol, toRow, toCol);
+    if (!direction) return false;
+
+    const fromNode = getForceTalentNode(tree, fromRow, fromCol);
+    const toNode = getForceTalentNode(tree, toRow, toCol);
+    if (!fromNode?.talent || !toNode?.talent) return false;
+
+    if (fromNode.links.includes(direction)) return true;
+    const reverseDirection = getReverseDirection(direction);
+    return !!reverseDirection && toNode.links.includes(reverseDirection);
+  };
+
+  const getMergedForceKeysForNode = (tree, row, col) => {
+    const baseNode = getForceTalentNode(tree, row, col);
+    if (!baseNode?.talentId) return [];
+
+    const treeNodes = Array.isArray(tree?._treeNodes) ? tree._treeNodes : [];
+    const explicitNode = treeNodes.find((node) => {
+      const nodeRow = Number(node.row);
+      const nodeCol = Number(node.col);
+      const nodeSpan = Math.max(1, Number(node.col_span ?? node.colSpan ?? 1));
+      return (
+        nodeRow === row &&
+        col >= nodeCol &&
+        col <= (nodeCol + nodeSpan - 1)
+      );
+    });
+
+    if (explicitNode) {
+      const startCol = Number(explicitNode.col);
+      const span = Math.max(1, Number(explicitNode.col_span ?? explicitNode.colSpan ?? 1));
+      const mergedKeys = [];
+      for (let currentCol = startCol; currentCol < startCol + span && currentCol <= 4; currentCol++) {
+        mergedKeys.push(getForceTalentKey(row, currentCol));
+      }
+      return mergedKeys;
+    }
+
+    return [getForceTalentKey(row, col)];
+  };
+
+  const getForceClickableKeys = (treeName) => {
+    const tree = forcePowerTrees.find((item) => item.PowerTreeName === treeName);
+    const clickable = new Set();
+    if (!tree) return clickable;
+
+    const selectedKeys = selectedForceTalentsByTree[treeName] || [];
+    const topNode = getForceTalentNode(tree, 1, 1);
+    if (topNode?.talent) {
+      clickable.add(topNode.key);
+    }
+
+    selectedKeys.forEach((key) => {
+      const [row, col] = key.split('_').map((value) => parseInt(value, 10));
+      if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+
+      const expandedKeys = getMergedForceKeysForNode(tree, row, col);
+
+      expandedKeys.forEach((expandedKey) => {
+        clickable.add(expandedKey);
+        const [expandedRow, expandedCol] = expandedKey.split('_').map((value) => parseInt(value, 10));
+        if (!Number.isInteger(expandedRow) || !Number.isInteger(expandedCol)) return;
+
+        const neighbors = [
+          [expandedRow - 1, expandedCol],
+          [expandedRow + 1, expandedCol],
+          [expandedRow, expandedCol - 1],
+          [expandedRow, expandedCol + 1],
+        ];
+
+        neighbors.forEach(([nextRow, nextCol]) => {
+          if (nextRow < 1 || nextRow > 5 || nextCol < 1 || nextCol > 4) return;
+          if (areForceNodesConnected(tree, expandedRow, expandedCol, nextRow, nextCol)) {
+            const connectedMergedKeys = getMergedForceKeysForNode(tree, nextRow, nextCol);
+            if (connectedMergedKeys.length > 0) {
+              connectedMergedKeys.forEach((connectedKey) => clickable.add(connectedKey));
+            } else {
+              clickable.add(getForceTalentKey(nextRow, nextCol));
+            }
+          }
+        });
+      });
+    });
+
+    return clickable;
+  };
+
+  const handleForceTalentClick = (treeName, row, col) => {
+    const tree = forcePowerTrees.find((item) => item.PowerTreeName === treeName);
+    if (!tree) return;
+
+    const node = getForceTalentNode(tree, row, col);
+    if (!node?.talent) return;
+
+    const clickable = getForceClickableKeys(treeName);
+    const selectedKeys = selectedForceTalentsByTree[treeName] || [];
+    const isSelected = selectedKeys.includes(node.key);
+
+    if (isSelected) {
+      setExp((prev) => prev + (node.cost || 0));
+      setSelectedForceTalentsByTree((prev) => {
+        const updatedTreeSelections = (prev[treeName] || []).filter((entry) => entry !== node.key);
+        if (updatedTreeSelections.length === 0) {
+          const next = { ...prev };
+          delete next[treeName];
+          return next;
+        }
+        return { ...prev, [treeName]: updatedTreeSelections };
+      });
+      return;
+    }
+
+    if (!clickable.has(node.key)) return;
+
+    const treeForcePrerequisite = Number.parseInt(String(tree.ForcePrerequisite ?? '').trim(), 10);
+    const characterForceRating = getForceRating();
+    if (Number.isFinite(treeForcePrerequisite) && characterForceRating < treeForcePrerequisite) {
+      alert('The Force is not strong with you. Raise your force rating');
+      return;
+    }
+
+    if (exp < (node.cost || 0)) {
+      alert('Not enough EXP to unlock this force talent');
+      return;
+    }
+
+    setExp((prev) => prev - (node.cost || 0));
+    setSelectedForceTalentsByTree((prev) => {
+      const current = prev[treeName] || [];
+      if (current.includes(node.key)) return prev;
+      return { ...prev, [treeName]: [...current, node.key] };
+    });
   };
 
   const handleTalentClick = (index) => {
@@ -1266,6 +1661,38 @@ export default function SWEotECharacterCreator() {
 
   const handleExpChange = (delta) => {
     setExp(prev => Math.max(0, prev + delta));
+  };
+
+  const handleExpInputChange = (value) => {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) {
+      setExp(0);
+      return;
+    }
+    setExp(Math.max(0, parsed));
+  };
+
+  const handleForceRatingInputChange = (value) => {
+    if (value === '') {
+      setManualForceRatingInput('');
+      return;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) {
+      return;
+    }
+
+    const normalized = Math.max(0, parsed);
+    setManualForceRating(normalized);
+    setManualForceRatingInput(String(normalized));
+  };
+
+  const handleForceRatingInputBlur = () => {
+    if (manualForceRatingInput === '') {
+      setManualForceRating(0);
+      setManualForceRatingInput('0');
+    }
   };
 
   const getSkillsByType = (type) => {
@@ -1406,12 +1833,36 @@ export default function SWEotECharacterCreator() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
-            <h2 className="font-bold text-lg sm:text-xl">EXP:</h2>
-            <div className="flex items-center gap-2 sm:gap-0 sm:space-x-2">
-              <button onClick={() => handleExpChange(-1)} className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-base sm:text-lg">-</button>
-              <span className="border-4 border-black rounded px-4 sm:px-8 py-2 sm:py-3 font-bold text-2xl sm:text-3xl min-w-20 sm:min-w-32 text-center">{exp}</span>
-              <button onClick={() => handleExpChange(1)} className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-base sm:text-lg">+</button>
+          <div className="flex flex-row items-end justify-center gap-4 sm:gap-8 w-full">
+            <div className="flex flex-col items-center gap-2">
+              <h2 className="font-bold text-lg sm:text-xl">EXP:</h2>
+              <div className="flex items-center gap-2 sm:gap-0 sm:space-x-2">
+                <button onClick={() => handleExpChange(-1)} className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-base sm:text-lg">-</button>
+                <input
+                  type="number"
+                  min="0"
+                  value={exp}
+                  onChange={(e) => handleExpInputChange(e.target.value)}
+                  className="border-4 border-black rounded px-2 sm:px-4 py-2 sm:py-3 font-bold text-2xl sm:text-3xl w-24 sm:w-36 text-center"
+                />
+                <button onClick={() => handleExpChange(1)} className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-base sm:text-lg">+</button>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-2">
+              <h2 className="font-bold text-lg sm:text-xl">Force Rating:</h2>
+              {isEditorMode ? (
+                <input
+                  type="number"
+                  min="0"
+                  value={manualForceRatingInput}
+                  onChange={(e) => handleForceRatingInputChange(e.target.value)}
+                  onBlur={handleForceRatingInputBlur}
+                  className="border-4 border-black rounded px-2 sm:px-4 py-2 sm:py-3 font-bold text-2xl sm:text-3xl w-24 sm:w-36 text-center"
+                />
+              ) : (
+                <span className="border-4 border-black rounded px-4 sm:px-8 py-2 sm:py-3 font-bold text-2xl sm:text-3xl min-w-20 sm:min-w-32 text-center">{getForceRating()}</span>
+              )}
             </div>
           </div>
         </div>
@@ -2169,7 +2620,7 @@ export default function SWEotECharacterCreator() {
             </div>
           )}
           
-          {isForceSensitiveCareer && (publishForceTrees || isAdmin) && (
+          {(publishForceTrees || isAdmin) && (
             <div className="flex border-2 border-black rounded-lg overflow-hidden mb-4">
               <button 
                 onClick={() => setTalentTreeTab('Career Tree')}
@@ -2314,7 +2765,7 @@ export default function SWEotECharacterCreator() {
             <p className="text-gray-700">Select a specialization to view its talent tree.</p>
           ) : null}
           
-          {talentTreeTab === 'Force Trees' && isForceSensitiveCareer && (publishForceTrees || isAdmin) && (
+          {talentTreeTab === 'Force Trees' && (publishForceTrees || isAdmin) && (
             <>
               {forcePowerTrees.length > 0 && (
                 <div className="flex border-2 border-black rounded-lg overflow-hidden mb-4 flex-wrap">
@@ -2332,6 +2783,9 @@ export default function SWEotECharacterCreator() {
               
               {selectedForceTreeTab && (
                 <>
+                  <h3 className="font-bold text-base sm:text-lg md:text-xl mb-4">
+                    Force Ability: {selectedForceTreeTab} Ability Tree
+                  </h3>
                   {forcePowerTrees.find(ft => ft.PowerTreeName === selectedForceTreeTab) && (
                     <div className="border-2 border-black rounded-lg p-4 bg-white mb-4">
                       <div className="mb-4 text-left">
@@ -2340,6 +2794,36 @@ export default function SWEotECharacterCreator() {
                       
                       {(() => {
                         const currentTree = forcePowerTrees.find(ft => ft.PowerTreeName === selectedForceTreeTab);
+                        const selectedKeys = new Set(selectedForceTalentsByTree[selectedForceTreeTab] || []);
+                        const clickableKeys = getForceClickableKeys(selectedForceTreeTab);
+
+                        const getTreeSpanInfo = (rowNumber, colNumber) => {
+                          const treeNodes = Array.isArray(currentTree?._treeNodes) ? currentTree._treeNodes : [];
+                          const explicitNode = treeNodes.find((node) => {
+                            const nodeRow = Number(node.row);
+                            const nodeCol = Number(node.col);
+                            const nodeSpan = Math.max(1, Number(node.col_span ?? node.colSpan ?? 1));
+                            return (
+                              nodeRow === rowNumber &&
+                              colNumber >= nodeCol &&
+                              colNumber <= (nodeCol + nodeSpan - 1)
+                            );
+                          });
+
+                          if (explicitNode) {
+                            const startCol = Number(explicitNode.col);
+                            const span = Math.max(1, Number(explicitNode.col_span ?? explicitNode.colSpan ?? 1));
+                            const endCol = Math.min(4, startCol + span - 1);
+                            return {
+                              startCol,
+                              endCol,
+                              span: endCol - startCol + 1,
+                              isStart: colNumber === startCol,
+                            };
+                          }
+
+                          return { startCol: colNumber, endCol: colNumber, span: 1, isStart: true };
+                        };
                         
                         // Build grid data: 4 columns, 5 rows
                         const gridData = [];
@@ -2356,9 +2840,6 @@ export default function SWEotECharacterCreator() {
                           gridData.push(rowData);
                         }
                         
-                        // Track merged cells
-                        const merged = new Set();
-                        
                         return (
                           <div className="flex" style={{ width: 'max-content', minWidth: '1650px', margin: '0 auto', overflow: 'auto' }}>
                             <table
@@ -2373,24 +2854,27 @@ export default function SWEotECharacterCreator() {
                                       <tr key={`empty-${rowIndex}`}>
                                         {row.map((cell, colIndex) => {
                                           const cellKey = `empty-${rowIndex}-${colIndex}`;
-                                          let colSpan = 1;
-                                          if (cell.talentId) {
-                                            for (let i = colIndex + 1; i < row.length; i++) {
-                                              if (row[i].talentId === cell.talentId) {
-                                                colSpan++;
-                                              } else {
-                                                break;
-                                              }
-                                            }
-                                          }
-                                          // Skip if this cell was already counted in a previous colspan
-                                          if (colIndex > 0 && row[colIndex - 1].talentId === cell.talentId) {
+                                          const actualRow = rowIndex + 1;
+                                          const actualCol = colIndex + 1;
+                                          const spanInfo = getTreeSpanInfo(actualRow, actualCol);
+                                          if (!spanInfo.isStart) {
                                             return null;
                                           }
+
+                                          const colSpan = spanInfo.span;
+                                          const mergedEndColIndex = colIndex + colSpan - 1;
+                                          const showSpacerAfter = mergedEndColIndex < row.length - 1;
+
                                           return (
                                             <>
-                                              <td key={cellKey} style={{ border: 'none', width: `${300 * colSpan}px`, height: '10px' }}></td>
-                                              <td key={`${cellKey}-spacer`} style={{ border: 'none', width: '10px', height: '10px' }}></td>
+                                              <td
+                                                key={cellKey}
+                                                colSpan={cell.talentId ? (colSpan * 2) - 1 : 1}
+                                                style={{ border: 'none', width: `${(300 * colSpan) + (10 * (colSpan - 1))}px`, height: '10px' }}
+                                              ></td>
+                                              {showSpacerAfter && (
+                                                <td key={`${cellKey}-spacer`} style={{ border: 'none', width: '10px', height: '10px' }}></td>
+                                              )}
                                             </>
                                           );
                                         })}
@@ -2401,17 +2885,32 @@ export default function SWEotECharacterCreator() {
                                       // Top row: single cell stretches across all columns (abilities + empty boxes)
                                       <td
                                         key="top-ability"
-                                        colSpan={row.length * 2}
+                                        colSpan={(row.length * 2) - 1}
                                         className="p-2 align-top"
                                         style={{
                                           position: 'relative',
                                           border: row[0].talent ? '2px solid black' : 'none',
                                           width: `${300 * row.length + 10 * (row.length - 1)}px`,
                                           height: '176px',
+                                          cursor: row[0].talent && clickableKeys.has(getForceTalentKey(1, 1)) ? 'pointer' : 'not-allowed',
+                                        }}
+                                        onClick={() => {
+                                          if (row[0].talent) {
+                                            handleForceTalentClick(selectedForceTreeTab, 1, 1);
+                                          }
                                         }}
                                       >
                                         {row[0].talent && (
-                                          <div className="text-xs sm:text-sm h-full overflow-hidden flex flex-col">
+                                          <div
+                                            className="text-xs sm:text-sm h-full overflow-hidden flex flex-col"
+                                            style={{
+                                              backgroundColor: selectedKeys.has(getForceTalentKey(1, 1))
+                                                ? '#fef08a'
+                                                : (clickableKeys.has(getForceTalentKey(1, 1)) ? '#e0f7fa' : '#f0f0f0'),
+                                              borderRadius: '4px',
+                                              padding: '6px',
+                                            }}
+                                          >
                                             <div className="font-bold text-left">{row[0].talent.talent_name}</div>
                                             <div className="border-b border-black my-1"></div>
                                             <div className="text-xs text-gray-700 flex-1">{row[0].talent.description}</div>
@@ -2422,34 +2921,66 @@ export default function SWEotECharacterCreator() {
                                     ) : (
                                       row.map((cell, colIndex) => {
                                         const cellKey = `${rowIndex}-${colIndex}`;
-                                        if (merged.has(cellKey)) return null;
-                                        // ...existing code...
-                                        let colSpan = 1;
-                                        if (cell.talentId) {
-                                          for (let i = colIndex + 1; i < row.length; i++) {
-                                            if (row[i].talentId === cell.talentId && !merged.has(`${rowIndex}-${i}`)) {
-                                              colSpan++;
-                                              merged.add(`${rowIndex}-${i}`);
-                                            } else {
-                                              break;
+                                        const actualRow = rowIndex + 1;
+                                        const actualCol = colIndex + 1;
+                                        const spanInfo = getTreeSpanInfo(actualRow, actualCol);
+                                        if (!spanInfo.isStart) return null;
+                                        const talentKey = getForceTalentKey(actualRow, actualCol);
+                                        const isSelected = selectedKeys.has(talentKey);
+                                        const isClickable = clickableKeys.has(talentKey);
+                                        const colSpan = spanInfo.span;
+
+                                        const mergedLinkColumns = Array.from({ length: colSpan }, (_, offset) => actualCol + offset);
+                                        const mergedLinksByDirection = mergedLinkColumns.reduce((acc, column) => {
+                                          const linksFieldName = `ability_${actualRow}_${column}_links`;
+                                          const linksStr = currentTree[linksFieldName] || '';
+                                          const linksList = linksStr
+                                            .split(',')
+                                            .map((link) => link.trim())
+                                            .filter(Boolean);
+
+                                          linksList.forEach((direction) => {
+                                            if (!acc[direction]) {
+                                              acc[direction] = [];
                                             }
-                                          }
-                                        }
+                                            acc[direction].push(column);
+                                          });
+
+                                          return acc;
+                                        }, {});
+
+                                        const firstMergedCol = actualCol;
+                                        const lastMergedCol = actualCol + colSpan - 1;
+                                        const showSpacerAfter = lastMergedCol < row.length;
+
                                         return (
                                           <>
                                             <td
                                               key={cellKey}
-                                              colSpan={colSpan}
+                                              colSpan={(colSpan * 2) - 1}
                                               className="p-2 align-top"
                                               style={{
                                                 position: 'relative',
                                                 border: cell.talent ? '2px solid black' : 'none',
-                                                width: cell.talent ? `${300 * colSpan}px` : '0px',
+                                                width: cell.talent ? `${(300 * colSpan) + (10 * (colSpan - 1))}px` : '0px',
                                                 height: '176px',
+                                                cursor: cell.talent ? (isClickable ? 'pointer' : 'not-allowed') : 'default',
+                                              }}
+                                              onClick={() => {
+                                                if (cell.talent) {
+                                                  handleForceTalentClick(selectedForceTreeTab, actualRow, actualCol);
+                                                }
                                               }}
                                             >
                                               {cell.talent && (
-                                                <div className="text-xs sm:text-sm h-full overflow-hidden flex flex-col">
+                                                <div
+                                                  className="text-xs sm:text-sm h-full overflow-hidden flex flex-col"
+                                                  style={{
+                                                    backgroundColor: isSelected ? '#fef08a' : (isClickable ? '#e0f7fa' : '#f0f0f0'),
+                                                    borderRadius: '4px',
+                                                    padding: '6px',
+                                                  }}
+                                                >
                                                   <div className="font-bold text-left">{cell.talent.talent_name}</div>
                                                   <div className="border-b border-black my-1"></div>
                                                   <div className="text-xs text-gray-700 flex-1">{cell.talent.description}</div>
@@ -2457,28 +2988,62 @@ export default function SWEotECharacterCreator() {
                                                 </div>
                                               )}
                                               {cell.talent && (() => {
-                                                const linksFieldName = `ability_${rowIndex + 1}_${colIndex + 1}_links`;
-                                                const linksStr = currentTree[linksFieldName] || '';
-                                                const linksList = linksStr.split(',').map(l => l.trim()).filter(l => l);
+                                                const getHorizontalPercentForColumn = (column) => {
+                                                  const offset = column - actualCol;
+                                                  return `${((offset + 0.5) / colSpan) * 100}%`;
+                                                };
+
+                                                const upColumns = mergedLinksByDirection.Up || [];
+                                                const downColumns = mergedLinksByDirection.Down || [];
+                                                const hasLeft = (mergedLinksByDirection.Left || []).includes(firstMergedCol);
+                                                const hasRight = (mergedLinksByDirection.Right || []).includes(lastMergedCol);
+
                                                 return (
                                                   <>
-                                                    {linksList.includes('Up') && (
-                                                      <div style={{ position: 'absolute', top: rowIndex === 1 ? '-18px' : '-8px', left: '50%', width: '2px', height: rowIndex === 1 ? '18px' : '8px', backgroundColor: 'black', transform: 'translateX(-50%)' }} />
-                                                    )}
-                                                    {linksList.includes('Down') && rowIndex < gridData.length - 1 && (
-                                                      <div style={{ position: 'absolute', bottom: '-8px', left: '50%', width: '2px', height: '8px', backgroundColor: 'black', transform: 'translateX(-50%)' }} />
-                                                    )}
-                                                    {linksList.includes('Left') && colIndex > 0 && (
+                                                    {upColumns.map((column) => (
+                                                      <div
+                                                        key={`up-${actualRow}-${column}`}
+                                                        style={{
+                                                          position: 'absolute',
+                                                          top: rowIndex === 1 ? '-18px' : '-8px',
+                                                          left: getHorizontalPercentForColumn(column),
+                                                          width: '2px',
+                                                          height: rowIndex === 1 ? '18px' : '8px',
+                                                          backgroundColor: 'black',
+                                                          transform: 'translateX(-50%)'
+                                                        }}
+                                                      />
+                                                    ))}
+
+                                                    {rowIndex < gridData.length - 1 && downColumns.map((column) => (
+                                                      <div
+                                                        key={`down-${actualRow}-${column}`}
+                                                        style={{
+                                                          position: 'absolute',
+                                                          bottom: '-8px',
+                                                          left: getHorizontalPercentForColumn(column),
+                                                          width: '2px',
+                                                          height: '8px',
+                                                          backgroundColor: 'black',
+                                                          transform: 'translateX(-50%)'
+                                                        }}
+                                                      />
+                                                    ))}
+
+                                                    {hasLeft && colIndex > 0 && (
                                                       <div style={{ position: 'absolute', top: '50%', left: '-10px', width: '10px', height: '2px', backgroundColor: 'black', transform: 'translateY(-50%)' }} />
                                                     )}
-                                                    {linksList.includes('Right') && colIndex < 3 && (
+
+                                                    {hasRight && lastMergedCol < 4 && (
                                                       <div style={{ position: 'absolute', top: '50%', right: '-10px', width: '10px', height: '2px', backgroundColor: 'black', transform: 'translateY(-50%)' }} />
                                                     )}
                                                   </>
                                                 );
                                               })()}
                                             </td>
-                                            <td style={{ border: 'none', width: '10px', height: '176px' }}></td>
+                                            {showSpacerAfter && (
+                                              <td style={{ border: 'none', width: '10px', height: '176px' }}></td>
+                                            )}
                                           </>
                                         );
                                       })

@@ -40,6 +40,7 @@ export default function SWCharacterOverview() {
   const [totalSoak, setTotalSoak] = useState(0);
   const [activeTab, setActiveTab] = useState('stats');
   const [abilities, setAbilities] = useState([]);
+  const [forceAbilities, setForceAbilities] = useState([]);
   const [skillBonuses, setSkillBonuses] = useState({});
   const [statSubstitutions, setStatSubstitutions] = useState({}); // { skillName: 'newStat' }
   const [previousSoak, setPreviousSoak] = useState(null);
@@ -585,6 +586,163 @@ export default function SWCharacterOverview() {
       setBackstory(characterData.backstory || '');
       setCredits(characterData.credits ?? 0);
       setForceRating(characterData.force_rating ?? 0);
+
+      const talentTreeEntries = characterData.talent_tree
+        ? characterData.talent_tree.split(',').map(entry => entry.trim()).filter(Boolean)
+        : [];
+
+      const cleanedTalentNames = characterData.talents
+        ? characterData.talents
+            .split(',')
+            .map(entry => entry.trim())
+            .filter(Boolean)
+            .map(entry => entry.replace(/\s*\(.*\)$/, '').trim())
+        : [];
+
+      const parsedForceEntries = talentTreeEntries
+        .map((entry) => {
+          const match = entry.match(/^force:([^:]+):ability_(\d+)_(\d+)$/);
+          if (!match) return null;
+          return {
+            treeName: decodeURIComponent(match[1]),
+            row: parseInt(match[2], 10),
+            col: parseInt(match[3], 10),
+          };
+        })
+        .filter(Boolean);
+
+      const forceAbilityMap = {};
+
+      const addForceAbility = (name, description, tree = '') => {
+        if (!name) return;
+        const key = `${name}::${description || ''}`;
+        if (!forceAbilityMap[key]) {
+          forceAbilityMap[key] = {
+            name,
+            description: description || '',
+            tree,
+          };
+        }
+      };
+
+      if (parsedForceEntries.length > 0) {
+        const uniqueTreeNames = Array.from(new Set(parsedForceEntries.map(entry => entry.treeName)));
+
+        const { data: forceTreeData, error: forceTreeError } = await supabase
+          .from('SW_force_power_tree')
+          .select('*')
+          .in('PowerTreeName', uniqueTreeNames);
+
+        if (forceTreeError) {
+          console.error('Error fetching force trees for overview:', forceTreeError);
+          setForceAbilities([]);
+        } else {
+          const treeMap = (forceTreeData || []).reduce((acc, tree) => {
+            acc[tree.PowerTreeName] = tree;
+            return acc;
+          }, {});
+
+          const parseJsonArray = (value) => {
+            if (Array.isArray(value)) return value;
+            if (!value) return [];
+            if (typeof value === 'string') {
+              try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [];
+              } catch {
+                return [];
+              }
+            }
+            return [];
+          };
+
+          const getTalentIdAtPosition = (tree, row, col) => {
+            if (!tree) return null;
+
+            const directId = tree[`ability_${row}_${col}`];
+            if (directId) return directId;
+
+            const nodes = parseJsonArray(tree.tree_nodes);
+            const match = nodes.find((node) => {
+              const nodeRow = Number(node.row);
+              const nodeCol = Number(node.col);
+              const colSpan = Number(node.col_span ?? node.colSpan ?? 1);
+              return nodeRow === row && col >= nodeCol && col < nodeCol + Math.max(1, colSpan);
+            });
+
+            return match?.talent_id ?? match?.talentId ?? null;
+          };
+
+          const normalizedForceSelections = parsedForceEntries
+            .map((entry) => {
+              const tree = treeMap[entry.treeName];
+              if (!tree) return null;
+              const talentId = getTalentIdAtPosition(tree, entry.row, entry.col);
+              if (!talentId) return null;
+              return {
+                ...entry,
+                talentId,
+                sourceTree: tree.PowerTreeName,
+              };
+            })
+            .filter(Boolean);
+
+          const uniqueTalentIds = Array.from(new Set(normalizedForceSelections.map(entry => entry.talentId)));
+
+          if (uniqueTalentIds.length > 0) {
+            const { data: forceTalentData, error: forceTalentError } = await supabase
+              .from('SW_force_talents')
+              .select('id, talent_name, description')
+              .in('id', uniqueTalentIds);
+
+            if (forceTalentError) {
+              console.error('Error fetching force talents for overview:', forceTalentError);
+            } else {
+              const talentMap = (forceTalentData || []).reduce((acc, talent) => {
+                acc[talent.id] = talent;
+                return acc;
+              }, {});
+
+              const displayForceAbilities = normalizedForceSelections
+                .map((entry) => {
+                  const talent = talentMap[entry.talentId];
+                  if (!talent) return null;
+                  return {
+                    name: talent.talent_name,
+                    description: talent.description || '',
+                    tree: entry.sourceTree,
+                    sortKey: `${entry.sourceTree}|${entry.row}|${entry.col}|${talent.talent_name}`,
+                  };
+                })
+                .filter(Boolean)
+                .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+              displayForceAbilities.forEach((ability) => {
+                addForceAbility(ability.name, ability.description, ability.tree);
+              });
+            }
+          }
+        }
+      }
+
+      if (cleanedTalentNames.length > 0) {
+        const uniqueTalentNames = Array.from(new Set(cleanedTalentNames));
+        const { data: namedForceTalentData, error: namedForceTalentError } = await supabase
+          .from('SW_force_talents')
+          .select('id, talent_name, description')
+          .in('talent_name', uniqueTalentNames);
+
+        if (namedForceTalentError) {
+          console.error('Error fetching force talents by name for overview:', namedForceTalentError);
+        } else {
+          (namedForceTalentData || []).forEach((talent) => {
+            addForceAbility(talent.talent_name, talent.description || '', '');
+          });
+        }
+      }
+
+      const finalForceAbilities = Object.values(forceAbilityMap).sort((a, b) => a.name.localeCompare(b.name));
+      setForceAbilities(finalForceAbilities);
 
       if (characterData.career) {
         const { data: careerData, error: careerError } = await supabase
@@ -2025,6 +2183,28 @@ export default function SWCharacterOverview() {
                           <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{ability.description}</td>
                         </tr>
                       ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {forceAbilities.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-bold text-lg mb-3">Force Abilities</h3>
+                <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed' }}>
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-black py-1" style={{ minWidth: '300px', wordWrap: 'break-word' }}>Ability</th>
+                      <th className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {forceAbilities.map((ability, idx) => (
+                      <tr key={`${ability.tree}-${ability.name}-${idx}`} className="bg-gray-100">
+                        <td className="border border-black py-1" style={{ minWidth: '300px', wordWrap: 'break-word' }}>{ability.name}</td>
+                        <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>{ability.description}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
