@@ -2620,22 +2620,20 @@ export default function SWEotECharacterCreator() {
             </div>
           )}
           
-          {(publishForceTrees || isAdmin) && (
-            <div className="flex border-2 border-black rounded-lg overflow-hidden mb-4">
-              <button 
-                onClick={() => setTalentTreeTab('Career Tree')}
-                className={`flex-1 px-4 py-2 font-semibold text-sm sm:text-base ${talentTreeTab === 'Career Tree' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
-              >
-                Career Tree
-              </button>
-              <button 
-                onClick={() => setTalentTreeTab('Force Trees')}
-                className={`flex-1 px-4 py-2 font-semibold text-sm sm:text-base ${talentTreeTab === 'Force Trees' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
-              >
-                Force Trees
-              </button>
-            </div>
-          )}
+          <div className="flex border-2 border-black rounded-lg overflow-hidden mb-4">
+            <button 
+              onClick={() => setTalentTreeTab('Career Tree')}
+              className={`flex-1 px-4 py-2 font-semibold text-sm sm:text-base ${talentTreeTab === 'Career Tree' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
+            >
+              Career Tree
+            </button>
+            <button 
+              onClick={() => setTalentTreeTab('Force Trees')}
+              className={`flex-1 px-4 py-2 font-semibold text-sm sm:text-base ${talentTreeTab === 'Force Trees' ? 'bg-blue-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
+            >
+              Force Trees
+            </button>
+          </div>
           
           {talentTreeTab === 'Career Tree' && selectedSpecialization && (
             <h3 className="font-bold text-base sm:text-lg md:text-xl mb-4">{selectedSpecialization} Ability Tree</h3>
@@ -2765,7 +2763,7 @@ export default function SWEotECharacterCreator() {
             <p className="text-gray-700">Select a specialization to view its talent tree.</p>
           ) : null}
           
-          {talentTreeTab === 'Force Trees' && (publishForceTrees || isAdmin) && (
+          {talentTreeTab === 'Force Trees' && (
             <>
               {forcePowerTrees.length > 0 && (
                 <div className="flex border-2 border-black rounded-lg overflow-hidden mb-4 flex-wrap">

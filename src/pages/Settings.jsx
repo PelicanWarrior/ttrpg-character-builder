@@ -66,6 +66,15 @@ export default function Settings() {
   const [selectedForceTreeId, setSelectedForceTreeId] = useState('__new__');
   const [showAddEquipmentForm, setShowAddEquipmentForm] = useState(false);
   const [showAddCareerForm, setShowAddCareerForm] = useState(false);
+  const [existingCareers, setExistingCareers] = useState([]);
+  const [careerBooks, setCareerBooks] = useState([]);
+  const [editingCareerId, setEditingCareerId] = useState(null);
+  const [careerName, setCareerName] = useState('');
+  const [careerDescription, setCareerDescription] = useState('');
+  const [careerSkills, setCareerSkills] = useState([]);
+  const [careerSourceBook, setCareerSourceBook] = useState('');
+  const [careerForceSensitive, setCareerForceSensitive] = useState(false);
+  const [savingCareer, setSavingCareer] = useState(false);
 
   // -----------------------------------------------------------------
   // 2a. Pathfinder Section State
@@ -90,8 +99,20 @@ export default function Settings() {
   // -----------------------------------------------------------------
   const [showDndSection, setShowDndSection] = useState(false);
   const [showAddDndClassForm, setShowAddDndClassForm] = useState(false);
+  const [showAddDndRaceForm, setShowAddDndRaceForm] = useState(false);
+  const [showAddDndBackgroundForm, setShowAddDndBackgroundForm] = useState(false);
+  const [showAddDndEquipmentForm, setShowAddDndEquipmentForm] = useState(false);
+  const [showAddDndSpellForm, setShowAddDndSpellForm] = useState(false);
   const [existingDndClasses, setExistingDndClasses] = useState([]); // All existing DND classes
+  const [existingDndRaces, setExistingDndRaces] = useState([]);
+  const [existingDndBackgrounds, setExistingDndBackgrounds] = useState([]);
+  const [existingDndEquipment, setExistingDndEquipment] = useState([]);
+  const [existingDndSpells, setExistingDndSpells] = useState([]);
   const [selectedDndClassId, setSelectedDndClassId] = useState('__new__');
+  const [selectedDndRaceId, setSelectedDndRaceId] = useState('__new__');
+  const [selectedDndBackgroundId, setSelectedDndBackgroundId] = useState('__new__');
+  const [selectedDndEquipmentId, setSelectedDndEquipmentId] = useState('__new__');
+  const [selectedDndSpellId, setSelectedDndSpellId] = useState('__new__');
   const [availableDndTTRPGs, setAvailableDndTTRPGs] = useState([]); // TTRPGs with DND_Mod = true
   const [selectedDndTTRPGs, setSelectedDndTTRPGs] = useState([]); // Selected TTRPG IDs
   const [dndClassName, setDndClassName] = useState('');
@@ -120,6 +141,53 @@ export default function Settings() {
   const [savingDndFeature, setSavingDndFeature] = useState(false);
   const [activeFeaturePickerIndex, setActiveFeaturePickerIndex] = useState(null);
   const [featureTargetLevelIndex, setFeatureTargetLevelIndex] = useState(null);
+
+  const [dndRaceName, setDndRaceName] = useState('');
+  const [dndRaceDescription, setDndRaceDescription] = useState('');
+  const [dndRaceSize, setDndRaceSize] = useState('');
+  const [dndRaceSpeed, setDndRaceSpeed] = useState('');
+  const [dndRaceLanguages, setDndRaceLanguages] = useState('');
+  const [dndRaceTraits, setDndRaceTraits] = useState('');
+  const [dndRaceAbilityBonusStr, setDndRaceAbilityBonusStr] = useState('0');
+  const [dndRaceAbilityBonusDex, setDndRaceAbilityBonusDex] = useState('0');
+  const [dndRaceAbilityBonusCon, setDndRaceAbilityBonusCon] = useState('0');
+  const [dndRaceAbilityBonusInt, setDndRaceAbilityBonusInt] = useState('0');
+  const [dndRaceAbilityBonusWis, setDndRaceAbilityBonusWis] = useState('0');
+  const [dndRaceAbilityBonusCha, setDndRaceAbilityBonusCha] = useState('0');
+  const [savingDndRace, setSavingDndRace] = useState(false);
+
+  const [dndBackgroundName, setDndBackgroundName] = useState('');
+  const [dndBackgroundDescription, setDndBackgroundDescription] = useState('');
+  const [dndBackgroundSkillProficiencies, setDndBackgroundSkillProficiencies] = useState('');
+  const [dndBackgroundToolProficiencies, setDndBackgroundToolProficiencies] = useState('');
+  const [dndBackgroundLanguages, setDndBackgroundLanguages] = useState('');
+  const [dndBackgroundFeatureName, setDndBackgroundFeatureName] = useState('');
+  const [dndBackgroundFeatureText, setDndBackgroundFeatureText] = useState('');
+  const [dndBackgroundStartingEquipment, setDndBackgroundStartingEquipment] = useState('');
+  const [savingDndBackground, setSavingDndBackground] = useState(false);
+
+  const [dndEquipmentName, setDndEquipmentName] = useState('');
+  const [dndEquipmentCategory, setDndEquipmentCategory] = useState('');
+  const [dndEquipmentDescription, setDndEquipmentDescription] = useState('');
+  const [dndEquipmentCost, setDndEquipmentCost] = useState('');
+  const [dndEquipmentWeight, setDndEquipmentWeight] = useState('');
+  const [dndEquipmentProperties, setDndEquipmentProperties] = useState('');
+  const [dndEquipmentDamage, setDndEquipmentDamage] = useState('');
+  const [dndEquipmentDamageType, setDndEquipmentDamageType] = useState('');
+  const [dndEquipmentArmorClass, setDndEquipmentArmorClass] = useState('');
+  const [dndEquipmentAllowedClasses, setDndEquipmentAllowedClasses] = useState('');
+  const [savingDndEquipment, setSavingDndEquipment] = useState(false);
+
+  const [dndSpellName, setDndSpellName] = useState('');
+  const [dndSpellLevel, setDndSpellLevel] = useState('0');
+  const [dndSpellSchool, setDndSpellSchool] = useState('');
+  const [dndSpellCastingTime, setDndSpellCastingTime] = useState('');
+  const [dndSpellRange, setDndSpellRange] = useState('');
+  const [dndSpellComponents, setDndSpellComponents] = useState('');
+  const [dndSpellDuration, setDndSpellDuration] = useState('');
+  const [dndSpellDescription, setDndSpellDescription] = useState('');
+  const [dndSpellClassList, setDndSpellClassList] = useState('');
+  const [savingDndSpell, setSavingDndSpell] = useState(false);
 
   // -----------------------------------------------------------------
   // 2c. Add Species Form State
@@ -189,6 +257,8 @@ export default function Settings() {
   const [equipmentDamageMelee, setEquipmentDamageMelee] = useState('');
   const [equipmentConsumable, setEquipmentConsumable] = useState(false);
   const [availableSkillsDetailed, setAvailableSkillsDetailed] = useState([]); // [{ id, skill }]
+  const [existingSwEquipment, setExistingSwEquipment] = useState([]);
+  const [selectedSwEquipmentId, setSelectedSwEquipmentId] = useState('__new__');
 
   // -----------------------------------------------------------------
   // 3. Data
@@ -393,6 +463,28 @@ export default function Settings() {
 
     fetchSpecies();
   }, [showAddSpeciesForm]);
+
+  // Fetch existing SW equipment for editing/deleting when form is shown
+  useEffect(() => {
+    const fetchSwEquipment = async () => {
+      if (!showAddEquipmentForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('SW_equipment')
+          .select('id, name, description, skill, range, encumbrance, price, rarity, damage, critical, HP, special, soak, defence_range, defence_melee, consumable')
+          .order('name');
+
+        if (error) throw error;
+
+        setExistingSwEquipment(data || []);
+      } catch (err) {
+        console.error('Failed to fetch SW equipment:', err);
+      }
+    };
+
+    fetchSwEquipment();
+  }, [showAddEquipmentForm]);
 
   // Fetch careers when Add Specialization form is shown
   useEffect(() => {
@@ -1207,12 +1299,86 @@ export default function Settings() {
     setShowCareerPictures(false);
   };
 
+  const parseNumberOrNull = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
+  const parseDndTtrpgIdsFromMod = (value) => {
+    if (!value) return [];
+    const names = String(value)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return names
+      .map((name) => {
+        const ttrpg = availableDndTTRPGs.find((item) => item.TTRPG_name === name);
+        return ttrpg ? ttrpg.id : null;
+      })
+      .filter((id) => id != null);
+  };
+
+  const getSelectedDndModValue = () => (
+    selectedDndTTRPGs.length > 0
+      ? selectedDndTTRPGs
+        .map((id) => {
+          const ttrpg = availableDndTTRPGs.find((item) => item.id === id);
+          return ttrpg ? ttrpg.TTRPG_name : '';
+        })
+        .filter((name) => name)
+        .join(',')
+      : ''
+  );
+
+  const closeDndForms = () => {
+    setShowAddDndClassForm(false);
+    setShowAddDndRaceForm(false);
+    setShowAddDndBackgroundForm(false);
+    setShowAddDndEquipmentForm(false);
+    setShowAddDndSpellForm(false);
+  };
+
   const handleAddDndClass = () => {
+    closeDndForms();
     setShowAddDndClassForm(true);
     resetDndClassForm();
     loadDndTTRPGs();
     loadDndClasses();
     loadDndClassFeatures();
+  };
+
+  const handleAddDndRace = () => {
+    closeDndForms();
+    setShowAddDndRaceForm(true);
+    resetDndRaceForm();
+    loadDndTTRPGs();
+    loadDndRaces();
+  };
+
+  const handleAddDndBackground = () => {
+    closeDndForms();
+    setShowAddDndBackgroundForm(true);
+    resetDndBackgroundForm();
+    loadDndTTRPGs();
+    loadDndBackgrounds();
+  };
+
+  const handleAddDndEquipment = () => {
+    closeDndForms();
+    setShowAddDndEquipmentForm(true);
+    resetDndEquipmentForm();
+    loadDndTTRPGs();
+    loadDndEquipmentRows();
+  };
+
+  const handleAddDndSpell = () => {
+    closeDndForms();
+    setShowAddDndSpellForm(true);
+    resetDndSpellForm();
+    loadDndTTRPGs();
+    loadDndSpells();
   };
 
   const loadDndTTRPGs = async () => {
@@ -1245,6 +1411,70 @@ export default function Settings() {
     } catch (err) {
       console.error('Failed to fetch DND Classes:', err);
       setError('Failed to load DND Classes');
+    }
+  };
+
+  const loadDndRaces = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Races')
+        .select('id, RaceName')
+        .order('RaceName');
+
+      if (error) throw error;
+
+      setExistingDndRaces(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Races:', err);
+      setError('Failed to load DND Races');
+    }
+  };
+
+  const loadDndBackgrounds = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Backgrounds')
+        .select('id, BackgroundName')
+        .order('BackgroundName');
+
+      if (error) throw error;
+
+      setExistingDndBackgrounds(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Backgrounds:', err);
+      setError('Failed to load DND Backgrounds');
+    }
+  };
+
+  const loadDndEquipmentRows = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Equipment')
+        .select('id, ItemName')
+        .order('ItemName');
+
+      if (error) throw error;
+
+      setExistingDndEquipment(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Equipment:', err);
+      setError('Failed to load DND Equipment');
+    }
+  };
+
+  const loadDndSpells = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Spells')
+        .select('id, SpellName')
+        .order('SpellName');
+
+      if (error) throw error;
+
+      setExistingDndSpells(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Spells:', err);
+      setError('Failed to load DND Spells');
     }
   };
 
@@ -1355,6 +1585,121 @@ export default function Settings() {
     }
   };
 
+  const loadDndRaceData = async (raceId) => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Races')
+        .select('*')
+        .eq('id', raceId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDndRaceName(data.RaceName || '');
+        setDndRaceDescription(data.Description || '');
+        setDndRaceSize(data.Size || '');
+        setDndRaceSpeed(data.Speed != null ? String(data.Speed) : '');
+        setDndRaceLanguages(data.Languages || '');
+        setDndRaceTraits(data.Traits || '');
+        setDndRaceAbilityBonusStr(String(data.AbilityBonus_Str ?? 0));
+        setDndRaceAbilityBonusDex(String(data.AbilityBonus_Dex ?? 0));
+        setDndRaceAbilityBonusCon(String(data.AbilityBonus_Con ?? 0));
+        setDndRaceAbilityBonusInt(String(data.AbilityBonus_Int ?? 0));
+        setDndRaceAbilityBonusWis(String(data.AbilityBonus_Wis ?? 0));
+        setDndRaceAbilityBonusCha(String(data.AbilityBonus_Cha ?? 0));
+        setSelectedDndTTRPGs(parseDndTtrpgIdsFromMod(data.DNDMod));
+      }
+    } catch (err) {
+      console.error('Failed to fetch DND Race data:', err);
+      setError('Failed to load race data');
+    }
+  };
+
+  const loadDndBackgroundData = async (backgroundId) => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Backgrounds')
+        .select('*')
+        .eq('id', backgroundId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDndBackgroundName(data.BackgroundName || '');
+        setDndBackgroundDescription(data.Description || '');
+        setDndBackgroundSkillProficiencies(data.SkillProficiencies || '');
+        setDndBackgroundToolProficiencies(data.ToolProficiencies || '');
+        setDndBackgroundLanguages(data.Languages || '');
+        setDndBackgroundFeatureName(data.FeatureName || '');
+        setDndBackgroundFeatureText(data.FeatureText || '');
+        setDndBackgroundStartingEquipment(data.StartingEquipment || '');
+        setSelectedDndTTRPGs(parseDndTtrpgIdsFromMod(data.DNDMod));
+      }
+    } catch (err) {
+      console.error('Failed to fetch DND Background data:', err);
+      setError('Failed to load background data');
+    }
+  };
+
+  const loadDndEquipmentData = async (equipmentId) => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Equipment')
+        .select('*')
+        .eq('id', equipmentId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDndEquipmentName(data.ItemName || '');
+        setDndEquipmentCategory(data.Category || '');
+        setDndEquipmentDescription(data.Description || '');
+        setDndEquipmentCost(data.Cost || '');
+        setDndEquipmentWeight(data.Weight || '');
+        setDndEquipmentProperties(data.Properties || '');
+        setDndEquipmentDamage(data.Damage || '');
+        setDndEquipmentDamageType(data.DamageType || '');
+        setDndEquipmentArmorClass(data.ArmorClass || '');
+        setDndEquipmentAllowedClasses(data.AllowedClasses || '');
+        setSelectedDndTTRPGs(parseDndTtrpgIdsFromMod(data.DNDMod));
+      }
+    } catch (err) {
+      console.error('Failed to fetch DND Equipment data:', err);
+      setError('Failed to load equipment data');
+    }
+  };
+
+  const loadDndSpellData = async (spellId) => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Spells')
+        .select('*')
+        .eq('id', spellId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDndSpellName(data.SpellName || '');
+        setDndSpellLevel(String(data.SpellLevel ?? 0));
+        setDndSpellSchool(data.School || '');
+        setDndSpellCastingTime(data.CastingTime || '');
+        setDndSpellRange(data.Range || '');
+        setDndSpellComponents(data.Components || '');
+        setDndSpellDuration(data.Duration || '');
+        setDndSpellDescription(data.Description || '');
+        setDndSpellClassList(data.ClassList || '');
+        setSelectedDndTTRPGs(parseDndTtrpgIdsFromMod(data.DNDMod));
+      }
+    } catch (err) {
+      console.error('Failed to fetch DND Spell data:', err);
+      setError('Failed to load spell data');
+    }
+  };
+
   const resetDndClassForm = () => {
     setSelectedDndClassId('__new__');
     setDndClassName('');
@@ -1373,6 +1718,65 @@ export default function Settings() {
     setNewFeatureName('');
     setNewFeatureText('');
     setFeatureTargetLevelIndex(null);
+  };
+
+  const resetDndRaceForm = () => {
+    setSelectedDndRaceId('__new__');
+    setSelectedDndTTRPGs([]);
+    setDndRaceName('');
+    setDndRaceDescription('');
+    setDndRaceSize('');
+    setDndRaceSpeed('');
+    setDndRaceLanguages('');
+    setDndRaceTraits('');
+    setDndRaceAbilityBonusStr('0');
+    setDndRaceAbilityBonusDex('0');
+    setDndRaceAbilityBonusCon('0');
+    setDndRaceAbilityBonusInt('0');
+    setDndRaceAbilityBonusWis('0');
+    setDndRaceAbilityBonusCha('0');
+  };
+
+  const resetDndBackgroundForm = () => {
+    setSelectedDndBackgroundId('__new__');
+    setSelectedDndTTRPGs([]);
+    setDndBackgroundName('');
+    setDndBackgroundDescription('');
+    setDndBackgroundSkillProficiencies('');
+    setDndBackgroundToolProficiencies('');
+    setDndBackgroundLanguages('');
+    setDndBackgroundFeatureName('');
+    setDndBackgroundFeatureText('');
+    setDndBackgroundStartingEquipment('');
+  };
+
+  const resetDndEquipmentForm = () => {
+    setSelectedDndEquipmentId('__new__');
+    setSelectedDndTTRPGs([]);
+    setDndEquipmentName('');
+    setDndEquipmentCategory('');
+    setDndEquipmentDescription('');
+    setDndEquipmentCost('');
+    setDndEquipmentWeight('');
+    setDndEquipmentProperties('');
+    setDndEquipmentDamage('');
+    setDndEquipmentDamageType('');
+    setDndEquipmentArmorClass('');
+    setDndEquipmentAllowedClasses('');
+  };
+
+  const resetDndSpellForm = () => {
+    setSelectedDndSpellId('__new__');
+    setSelectedDndTTRPGs([]);
+    setDndSpellName('');
+    setDndSpellLevel('0');
+    setDndSpellSchool('');
+    setDndSpellCastingTime('');
+    setDndSpellRange('');
+    setDndSpellComponents('');
+    setDndSpellDuration('');
+    setDndSpellDescription('');
+    setDndSpellClassList('');
   };
 
   const updateDndClassLevel = (index, field, value) => {
@@ -1446,16 +1850,7 @@ export default function Settings() {
         return;
       }
 
-      // Convert selected TTRPG IDs to names
-      const dndModValue = selectedDndTTRPGs.length > 0 
-        ? selectedDndTTRPGs
-            .map(id => {
-              const ttrpg = availableDndTTRPGs.find(t => t.id === id);
-              return ttrpg ? ttrpg.TTRPG_name : '';
-            })
-            .filter(name => name)
-            .join(',')
-        : '';
+      const dndModValue = getSelectedDndModValue();
 
       let classIdToUse = selectedDndClassId;
 
@@ -1505,13 +1900,6 @@ export default function Settings() {
         throw new Error('Failed to resolve Class ID for level save');
       }
 
-      const parseNumberOrNull = (value) => {
-        const trimmed = String(value || '').trim();
-        if (!trimmed) return null;
-        const parsed = Number(trimmed);
-        return Number.isNaN(parsed) ? null : parsed;
-      };
-
       const featureNameToId = new Map(dndClassFeatures.map((feature) => [feature.FeatureName, feature.id]));
 
       const levelRows = dndClassLevels.map((row, index) => ({
@@ -1550,6 +1938,293 @@ export default function Settings() {
       setError('Failed to save DND Class. Please try again.');
     } finally {
       setSavingDndClass(false);
+    }
+  };
+
+  const handleSaveDndRace = async () => {
+    if (!dndRaceName.trim()) {
+      setError('Race name is required');
+      return;
+    }
+
+    setSavingDndRace(true);
+    try {
+      const payload = {
+        RaceName: dndRaceName,
+        DNDMod: getSelectedDndModValue(),
+        Description: dndRaceDescription,
+        Size: dndRaceSize,
+        Speed: parseNumberOrNull(dndRaceSpeed),
+        Languages: dndRaceLanguages,
+        Traits: dndRaceTraits,
+        AbilityBonus_Str: parseNumberOrNull(dndRaceAbilityBonusStr) ?? 0,
+        AbilityBonus_Dex: parseNumberOrNull(dndRaceAbilityBonusDex) ?? 0,
+        AbilityBonus_Con: parseNumberOrNull(dndRaceAbilityBonusCon) ?? 0,
+        AbilityBonus_Int: parseNumberOrNull(dndRaceAbilityBonusInt) ?? 0,
+        AbilityBonus_Wis: parseNumberOrNull(dndRaceAbilityBonusWis) ?? 0,
+        AbilityBonus_Cha: parseNumberOrNull(dndRaceAbilityBonusCha) ?? 0,
+      };
+
+      if (selectedDndRaceId === '__new__') {
+        const { error } = await supabase.from('DND_Races').insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('DND_Races')
+          .update(payload)
+          .eq('id', selectedDndRaceId);
+        if (error) throw error;
+      }
+
+      setSuccess('DND Race saved successfully');
+      resetDndRaceForm();
+      setShowAddDndRaceForm(false);
+      loadDndRaces();
+    } catch (err) {
+      console.error('Failed to save DND Race:', err);
+      setError('Failed to save DND Race. Please try again.');
+    } finally {
+      setSavingDndRace(false);
+    }
+  };
+
+  const handleSaveDndBackground = async () => {
+    if (!dndBackgroundName.trim()) {
+      setError('Background name is required');
+      return;
+    }
+
+    setSavingDndBackground(true);
+    try {
+      const payload = {
+        BackgroundName: dndBackgroundName,
+        DNDMod: getSelectedDndModValue(),
+        Description: dndBackgroundDescription,
+        SkillProficiencies: dndBackgroundSkillProficiencies,
+        ToolProficiencies: dndBackgroundToolProficiencies,
+        Languages: dndBackgroundLanguages,
+        FeatureName: dndBackgroundFeatureName,
+        FeatureText: dndBackgroundFeatureText,
+        StartingEquipment: dndBackgroundStartingEquipment,
+      };
+
+      if (selectedDndBackgroundId === '__new__') {
+        const { error } = await supabase.from('DND_Backgrounds').insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('DND_Backgrounds')
+          .update(payload)
+          .eq('id', selectedDndBackgroundId);
+        if (error) throw error;
+      }
+
+      setSuccess('DND Background saved successfully');
+      resetDndBackgroundForm();
+      setShowAddDndBackgroundForm(false);
+      loadDndBackgrounds();
+    } catch (err) {
+      console.error('Failed to save DND Background:', err);
+      setError('Failed to save DND Background. Please try again.');
+    } finally {
+      setSavingDndBackground(false);
+    }
+  };
+
+  const handleSaveDndEquipment = async () => {
+    if (!dndEquipmentName.trim()) {
+      setError('Equipment name is required');
+      return;
+    }
+
+    setSavingDndEquipment(true);
+    try {
+      const payload = {
+        ItemName: dndEquipmentName,
+        DNDMod: getSelectedDndModValue(),
+        Category: dndEquipmentCategory,
+        Description: dndEquipmentDescription,
+        Cost: dndEquipmentCost,
+        Weight: dndEquipmentWeight,
+        Properties: dndEquipmentProperties,
+        Damage: dndEquipmentDamage,
+        DamageType: dndEquipmentDamageType,
+        ArmorClass: dndEquipmentArmorClass,
+        AllowedClasses: dndEquipmentAllowedClasses,
+      };
+
+      if (selectedDndEquipmentId === '__new__') {
+        const { error } = await supabase.from('DND_Equipment').insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('DND_Equipment')
+          .update(payload)
+          .eq('id', selectedDndEquipmentId);
+        if (error) throw error;
+      }
+
+      setSuccess('DND Equipment saved successfully');
+      resetDndEquipmentForm();
+      setShowAddDndEquipmentForm(false);
+      loadDndEquipmentRows();
+    } catch (err) {
+      console.error('Failed to save DND Equipment:', err);
+      setError('Failed to save DND Equipment. Please try again.');
+    } finally {
+      setSavingDndEquipment(false);
+    }
+  };
+
+  const handleSaveDndSpell = async () => {
+    if (!dndSpellName.trim()) {
+      setError('Spell name is required');
+      return;
+    }
+
+    setSavingDndSpell(true);
+    try {
+      const payload = {
+        SpellName: dndSpellName,
+        DNDMod: getSelectedDndModValue(),
+        SpellLevel: parseNumberOrNull(dndSpellLevel) ?? 0,
+        School: dndSpellSchool,
+        CastingTime: dndSpellCastingTime,
+        Range: dndSpellRange,
+        Components: dndSpellComponents,
+        Duration: dndSpellDuration,
+        Description: dndSpellDescription,
+        ClassList: dndSpellClassList,
+      };
+
+      if (selectedDndSpellId === '__new__') {
+        const { error } = await supabase.from('DND_Spells').insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('DND_Spells')
+          .update(payload)
+          .eq('id', selectedDndSpellId);
+        if (error) throw error;
+      }
+
+      setSuccess('DND Spell saved successfully');
+      resetDndSpellForm();
+      setShowAddDndSpellForm(false);
+      loadDndSpells();
+    } catch (err) {
+      console.error('Failed to save DND Spell:', err);
+      setError('Failed to save DND Spell. Please try again.');
+    } finally {
+      setSavingDndSpell(false);
+    }
+  };
+
+  const handleDeleteDndClass = async () => {
+    if (selectedDndClassId === '__new__') return;
+    if (!confirm('Delete this DND class and all class levels?')) return;
+
+    try {
+      const classId = parseInt(selectedDndClassId, 10);
+
+      const { error: levelDeleteError } = await supabase
+        .from('DND_Class_Levels')
+        .delete()
+        .eq('Class', classId);
+      if (levelDeleteError) throw levelDeleteError;
+
+      const { error } = await supabase
+        .from('DND_Classes')
+        .delete()
+        .eq('id', classId);
+      if (error) throw error;
+
+      setSuccess('DND Class deleted successfully');
+      resetDndClassForm();
+      loadDndClasses();
+    } catch (err) {
+      console.error('Failed to delete DND Class:', err);
+      setError('Failed to delete DND Class. It may still be referenced by characters.');
+    }
+  };
+
+  const handleDeleteDndRace = async () => {
+    if (selectedDndRaceId === '__new__') return;
+    if (!confirm('Delete this DND race?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('DND_Races')
+        .delete()
+        .eq('id', parseInt(selectedDndRaceId, 10));
+      if (error) throw error;
+
+      setSuccess('DND Race deleted successfully');
+      resetDndRaceForm();
+      loadDndRaces();
+    } catch (err) {
+      console.error('Failed to delete DND Race:', err);
+      setError('Failed to delete DND Race. It may still be referenced by characters.');
+    }
+  };
+
+  const handleDeleteDndBackground = async () => {
+    if (selectedDndBackgroundId === '__new__') return;
+    if (!confirm('Delete this DND background?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('DND_Backgrounds')
+        .delete()
+        .eq('id', parseInt(selectedDndBackgroundId, 10));
+      if (error) throw error;
+
+      setSuccess('DND Background deleted successfully');
+      resetDndBackgroundForm();
+      loadDndBackgrounds();
+    } catch (err) {
+      console.error('Failed to delete DND Background:', err);
+      setError('Failed to delete DND Background. It may still be referenced by characters.');
+    }
+  };
+
+  const handleDeleteDndEquipment = async () => {
+    if (selectedDndEquipmentId === '__new__') return;
+    if (!confirm('Delete this DND equipment item?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('DND_Equipment')
+        .delete()
+        .eq('id', parseInt(selectedDndEquipmentId, 10));
+      if (error) throw error;
+
+      setSuccess('DND Equipment deleted successfully');
+      resetDndEquipmentForm();
+      loadDndEquipmentRows();
+    } catch (err) {
+      console.error('Failed to delete DND Equipment:', err);
+      setError('Failed to delete DND Equipment.');
+    }
+  };
+
+  const handleDeleteDndSpell = async () => {
+    if (selectedDndSpellId === '__new__') return;
+    if (!confirm('Delete this DND spell?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('DND_Spells')
+        .delete()
+        .eq('id', parseInt(selectedDndSpellId, 10));
+      if (error) throw error;
+
+      setSuccess('DND Spell deleted successfully');
+      resetDndSpellForm();
+      loadDndSpells();
+    } catch (err) {
+      console.error('Failed to delete DND Spell:', err);
+      setError('Failed to delete DND Spell.');
     }
   };
 
@@ -1695,6 +2370,7 @@ export default function Settings() {
   };
 
   const resetEquipmentForm = () => {
+    setSelectedSwEquipmentId('__new__');
     setEquipmentName('');
     setEquipmentDescription('');
     setEquipmentSkillId('');
@@ -1710,6 +2386,33 @@ export default function Settings() {
     setEquipmentDamageRange('');
     setEquipmentDamageMelee('');
     setEquipmentConsumable(false);
+  };
+
+  const handleSelectEquipment = (equipmentId) => {
+    if (!equipmentId || equipmentId === '__new__') {
+      resetEquipmentForm();
+      return;
+    }
+
+    const selected = existingSwEquipment.find((item) => String(item.id) === String(equipmentId));
+    if (!selected) return;
+
+    setSelectedSwEquipmentId(String(selected.id));
+    setEquipmentName(selected.name || '');
+    setEquipmentDescription(selected.description || '');
+    setEquipmentSkillId(selected.skill != null ? String(selected.skill) : '');
+    setEquipmentRange(selected.range || '');
+    setEquipmentEncumbrance(selected.encumbrance != null ? String(selected.encumbrance) : '');
+    setEquipmentPrice(selected.price != null ? String(selected.price) : '');
+    setEquipmentRarity(selected.rarity != null ? String(selected.rarity) : '');
+    setEquipmentDamage(selected.damage != null ? String(selected.damage) : '');
+    setEquipmentCritical(selected.critical != null ? String(selected.critical) : '');
+    setEquipmentHP(selected.HP != null ? String(selected.HP) : '');
+    setEquipmentSpecial(selected.special || '');
+    setEquipmentSoak(selected.soak != null ? String(selected.soak) : '');
+    setEquipmentDamageRange(selected.defence_range != null ? String(selected.defence_range) : '');
+    setEquipmentDamageMelee(selected.defence_melee != null ? String(selected.defence_melee) : '');
+    setEquipmentConsumable(selected.consumable === true);
   };
 
   const handleSaveEquipment = async () => {
@@ -1737,9 +2440,17 @@ export default function Settings() {
         consumable: equipmentConsumable,
       };
 
-      const { error } = await supabase
-        .from('SW_equipment')
-        .insert(payload);
+      let error;
+      if (selectedSwEquipmentId && selectedSwEquipmentId !== '__new__') {
+        ({ error } = await supabase
+          .from('SW_equipment')
+          .update(payload)
+          .eq('id', selectedSwEquipmentId));
+      } else {
+        ({ error } = await supabase
+          .from('SW_equipment')
+          .insert(payload));
+      }
 
       if (error) {
         console.error('Error saving equipment:', error);
@@ -1747,13 +2458,124 @@ export default function Settings() {
         return;
       }
 
-      alert('Equipment saved');
+      alert(selectedSwEquipmentId && selectedSwEquipmentId !== '__new__' ? 'Equipment updated' : 'Equipment saved');
       resetEquipmentForm();
       setShowAddEquipmentForm(false);
     } catch (err) {
       console.error('Unexpected error saving equipment:', err);
       alert('Failed to save equipment');
     }
+  };
+
+  const handleDeleteSpecies = async () => {
+    if (!editingSpeciesId) return;
+    if (!confirm('Delete this species?')) return;
+
+    const { error } = await supabase
+      .from('races')
+      .delete()
+      .eq('id', editingSpeciesId);
+
+    if (error) {
+      console.error('Failed to delete species:', error);
+      alert('Failed to delete species.');
+      return;
+    }
+
+    setExistingSpecies((prev) => prev.filter((row) => row.id !== editingSpeciesId));
+    resetSpeciesForm();
+    alert('Species deleted.');
+  };
+
+  const handleDeleteCareer = async () => {
+    if (!editingCareerId) return;
+    if (!confirm('Delete this career?')) return;
+
+    const { error } = await supabase
+      .from('SW_career')
+      .delete()
+      .eq('id', editingCareerId);
+
+    if (error) {
+      console.error('Failed to delete career:', error);
+      alert('Failed to delete career. It may still be referenced by specializations.');
+      return;
+    }
+
+    setExistingCareers((prev) => prev.filter((row) => row.id !== editingCareerId));
+    resetCareerForm();
+    alert('Career deleted.');
+  };
+
+  const handleDeleteSpecialization = async () => {
+    if (!editingSpecId) return;
+    if (!confirm('Delete this specialization and its tree?')) return;
+
+    const { error: treeError } = await supabase
+      .from('SW_spec_tree')
+      .delete()
+      .eq('spec_ID', editingSpecId);
+
+    if (treeError) {
+      console.error('Failed to delete specialization tree:', treeError);
+      alert('Failed to delete specialization tree.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('SW_spec')
+      .delete()
+      .eq('id', editingSpecId);
+
+    if (error) {
+      console.error('Failed to delete specialization:', error);
+      alert('Failed to delete specialization.');
+      return;
+    }
+
+    setExistingSpecs((prev) => prev.filter((row) => row.id !== editingSpecId));
+    resetSpecializationForm();
+    alert('Specialization deleted.');
+  };
+
+  const handleDeleteForceTree = async () => {
+    if (!selectedForceTreeId || selectedForceTreeId === '__new__') return;
+    if (!confirm('Delete this force tree?')) return;
+
+    const { error } = await supabase
+      .from('SW_force_power_tree')
+      .delete()
+      .eq('id', selectedForceTreeId);
+
+    if (error) {
+      console.error('Failed to delete force tree:', error);
+      alert('Failed to delete force tree.');
+      return;
+    }
+
+    setExistingForceTrees((prev) => prev.filter((row) => String(row.id) !== String(selectedForceTreeId)));
+    resetForceTreeForm();
+    alert('Force tree deleted.');
+  };
+
+  const handleDeleteEquipment = async () => {
+    if (!selectedSwEquipmentId || selectedSwEquipmentId === '__new__') return;
+    if (!confirm('Delete this equipment item?')) return;
+
+    const { error } = await supabase
+      .from('SW_equipment')
+      .delete()
+      .eq('id', selectedSwEquipmentId);
+
+    if (error) {
+      console.error('Failed to delete equipment:', error);
+      alert('Failed to delete equipment.');
+      return;
+    }
+
+    setExistingSwEquipment((prev) => prev.filter((row) => String(row.id) !== String(selectedSwEquipmentId)));
+    resetEquipmentForm();
+    alert('Equipment deleted.');
   };
 
   const handleSaveSpecialization = async ({ forceCreateSpec = false, updateSpec = false, abilityMode: abilityModeOverride = null, specIdOverride = null } = {}) => {
@@ -3276,6 +4098,12 @@ export default function Settings() {
             >
               DND Stats
             </button>
+            <button
+              onClick={() => navigate('/settings/www-admin')}
+              className="flex-1 px-6 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition font-medium"
+            >
+              WWW Admin
+            </button>
           </div>
 
           {/* Upload Pictures Setting */}
@@ -3467,12 +4295,38 @@ export default function Settings() {
 
           {showDndSection && (
             <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
-              <button
-                onClick={handleAddDndClass}
-                className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-medium"
-              >
-                DND Classes
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                <button
+                  onClick={handleAddDndClass}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-medium"
+                >
+                  DND Classes
+                </button>
+                <button
+                  onClick={handleAddDndRace}
+                  className="w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition font-medium"
+                >
+                  DND Races
+                </button>
+                <button
+                  onClick={handleAddDndBackground}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium"
+                >
+                  DND Backgrounds
+                </button>
+                <button
+                  onClick={handleAddDndEquipment}
+                  className="w-full px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition font-medium"
+                >
+                  DND Equipment
+                </button>
+                <button
+                  onClick={handleAddDndSpell}
+                  className="w-full px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition font-medium"
+                >
+                  DND Spells
+                </button>
+              </div>
 
               {showAddDndClassForm && (
                 <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
@@ -3638,6 +4492,14 @@ export default function Settings() {
                         >
                           {savingDndClass ? 'Saving...' : 'Save'}
                         </button>
+                        {selectedDndClassId !== '__new__' && (
+                          <button
+                            onClick={handleDeleteDndClass}
+                            className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                          >
+                            Delete
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             resetDndClassForm();
@@ -3828,6 +4690,509 @@ export default function Settings() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {showAddDndRaceForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Race</h3>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Race</label>
+                    <select
+                      value={selectedDndRaceId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__new__') {
+                          resetDndRaceForm();
+                          setSelectedDndRaceId('__new__');
+                        } else {
+                          setSelectedDndRaceId(value);
+                          loadDndRaceData(parseInt(value, 10));
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Race --</option>
+                      {existingDndRaces.map((row) => (
+                        <option key={row.id} value={row.id}>{row.RaceName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select TTRPGs</label>
+                    <select
+                      multiple
+                      value={selectedDndTTRPGs.map(String)}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, (option) => parseInt(option.value, 10));
+                        setSelectedDndTTRPGs(selected);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      size={Math.min(availableDndTTRPGs.length || 3, 6)}
+                    >
+                      {availableDndTTRPGs.map((ttrpg) => (
+                        <option key={ttrpg.id} value={ttrpg.id}>{ttrpg.TTRPG_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Race Name</label>
+                      <input
+                        type="text"
+                        value={dndRaceName}
+                        onChange={(e) => setDndRaceName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
+                      <select
+                        value={dndRaceSize}
+                        onChange={(e) => setDndRaceSize(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select Size --</option>
+                        <option value="Tiny">Tiny</option>
+                        <option value="Small">Small</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Large">Large</option>
+                        <option value="Huge">Huge</option>
+                        <option value="Gargantuan">Gargantuan</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Speed</label>
+                      <input
+                        type="number"
+                        value={dndRaceSpeed}
+                        onChange={(e) => setDndRaceSpeed(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={dndRaceDescription}
+                        onChange={(e) => setDndRaceDescription(e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Languages</label>
+                      <textarea
+                        value={dndRaceLanguages}
+                        onChange={(e) => setDndRaceLanguages(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Traits</label>
+                      <textarea
+                        value={dndRaceTraits}
+                        onChange={(e) => setDndRaceTraits(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-6 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">STR</label>
+                        <input type="number" value={dndRaceAbilityBonusStr} onChange={(e) => setDndRaceAbilityBonusStr(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">DEX</label>
+                        <input type="number" value={dndRaceAbilityBonusDex} onChange={(e) => setDndRaceAbilityBonusDex(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">CON</label>
+                        <input type="number" value={dndRaceAbilityBonusCon} onChange={(e) => setDndRaceAbilityBonusCon(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">INT</label>
+                        <input type="number" value={dndRaceAbilityBonusInt} onChange={(e) => setDndRaceAbilityBonusInt(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">WIS</label>
+                        <input type="number" value={dndRaceAbilityBonusWis} onChange={(e) => setDndRaceAbilityBonusWis(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">CHA</label>
+                        <input type="number" value={dndRaceAbilityBonusCha} onChange={(e) => setDndRaceAbilityBonusCha(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      onClick={handleSaveDndRace}
+                      disabled={savingDndRace}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                    >
+                      {savingDndRace ? 'Saving...' : 'Save'}
+                    </button>
+                    {selectedDndRaceId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteDndRace}
+                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        resetDndRaceForm();
+                        setShowAddDndRaceForm(false);
+                      }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddDndBackgroundForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Background</h3>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Background</label>
+                    <select
+                      value={selectedDndBackgroundId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__new__') {
+                          resetDndBackgroundForm();
+                          setSelectedDndBackgroundId('__new__');
+                        } else {
+                          setSelectedDndBackgroundId(value);
+                          loadDndBackgroundData(parseInt(value, 10));
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Background --</option>
+                      {existingDndBackgrounds.map((row) => (
+                        <option key={row.id} value={row.id}>{row.BackgroundName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select TTRPGs</label>
+                    <select
+                      multiple
+                      value={selectedDndTTRPGs.map(String)}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, (option) => parseInt(option.value, 10));
+                        setSelectedDndTTRPGs(selected);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      size={Math.min(availableDndTTRPGs.length || 3, 6)}
+                    >
+                      {availableDndTTRPGs.map((ttrpg) => (
+                        <option key={ttrpg.id} value={ttrpg.id}>{ttrpg.TTRPG_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Background Name</label>
+                      <input type="text" value={dndBackgroundName} onChange={(e) => setDndBackgroundName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Feature Name</label>
+                      <input type="text" value={dndBackgroundFeatureName} onChange={(e) => setDndBackgroundFeatureName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea value={dndBackgroundDescription} onChange={(e) => setDndBackgroundDescription(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skill Proficiencies</label>
+                      <textarea value={dndBackgroundSkillProficiencies} onChange={(e) => setDndBackgroundSkillProficiencies(e.target.value)} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tool Proficiencies</label>
+                      <textarea value={dndBackgroundToolProficiencies} onChange={(e) => setDndBackgroundToolProficiencies(e.target.value)} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Languages</label>
+                      <textarea value={dndBackgroundLanguages} onChange={(e) => setDndBackgroundLanguages(e.target.value)} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Starting Equipment</label>
+                      <textarea value={dndBackgroundStartingEquipment} onChange={(e) => setDndBackgroundStartingEquipment(e.target.value)} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Feature Text</label>
+                      <textarea value={dndBackgroundFeatureText} onChange={(e) => setDndBackgroundFeatureText(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      onClick={handleSaveDndBackground}
+                      disabled={savingDndBackground}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                    >
+                      {savingDndBackground ? 'Saving...' : 'Save'}
+                    </button>
+                    {selectedDndBackgroundId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteDndBackground}
+                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        resetDndBackgroundForm();
+                        setShowAddDndBackgroundForm(false);
+                      }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddDndEquipmentForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Equipment</h3>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Equipment</label>
+                    <select
+                      value={selectedDndEquipmentId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__new__') {
+                          resetDndEquipmentForm();
+                          setSelectedDndEquipmentId('__new__');
+                        } else {
+                          setSelectedDndEquipmentId(value);
+                          loadDndEquipmentData(parseInt(value, 10));
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Equipment --</option>
+                      {existingDndEquipment.map((row) => (
+                        <option key={row.id} value={row.id}>{row.ItemName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select TTRPGs</label>
+                    <select
+                      multiple
+                      value={selectedDndTTRPGs.map(String)}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, (option) => parseInt(option.value, 10));
+                        setSelectedDndTTRPGs(selected);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      size={Math.min(availableDndTTRPGs.length || 3, 6)}
+                    >
+                      {availableDndTTRPGs.map((ttrpg) => (
+                        <option key={ttrpg.id} value={ttrpg.id}>{ttrpg.TTRPG_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                      <input type="text" value={dndEquipmentName} onChange={(e) => setDndEquipmentName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <input type="text" value={dndEquipmentCategory} onChange={(e) => setDndEquipmentCategory(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Cost</label>
+                      <input type="text" value={dndEquipmentCost} onChange={(e) => setDndEquipmentCost(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Weight</label>
+                      <input type="text" value={dndEquipmentWeight} onChange={(e) => setDndEquipmentWeight(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Damage</label>
+                      <input type="text" value={dndEquipmentDamage} onChange={(e) => setDndEquipmentDamage(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Damage Type</label>
+                      <input type="text" value={dndEquipmentDamageType} onChange={(e) => setDndEquipmentDamageType(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Armor Class</label>
+                      <input type="text" value={dndEquipmentArmorClass} onChange={(e) => setDndEquipmentArmorClass(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Allowed Classes</label>
+                      <input type="text" value={dndEquipmentAllowedClasses} onChange={(e) => setDndEquipmentAllowedClasses(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Properties</label>
+                      <textarea value={dndEquipmentProperties} onChange={(e) => setDndEquipmentProperties(e.target.value)} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea value={dndEquipmentDescription} onChange={(e) => setDndEquipmentDescription(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      onClick={handleSaveDndEquipment}
+                      disabled={savingDndEquipment}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                    >
+                      {savingDndEquipment ? 'Saving...' : 'Save'}
+                    </button>
+                    {selectedDndEquipmentId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteDndEquipment}
+                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        resetDndEquipmentForm();
+                        setShowAddDndEquipmentForm(false);
+                      }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddDndSpellForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Spell</h3>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Spell</label>
+                    <select
+                      value={selectedDndSpellId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__new__') {
+                          resetDndSpellForm();
+                          setSelectedDndSpellId('__new__');
+                        } else {
+                          setSelectedDndSpellId(value);
+                          loadDndSpellData(parseInt(value, 10));
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Spell --</option>
+                      {existingDndSpells.map((row) => (
+                        <option key={row.id} value={row.id}>{row.SpellName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select TTRPGs</label>
+                    <select
+                      multiple
+                      value={selectedDndTTRPGs.map(String)}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, (option) => parseInt(option.value, 10));
+                        setSelectedDndTTRPGs(selected);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      size={Math.min(availableDndTTRPGs.length || 3, 6)}
+                    >
+                      {availableDndTTRPGs.map((ttrpg) => (
+                        <option key={ttrpg.id} value={ttrpg.id}>{ttrpg.TTRPG_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Spell Name</label>
+                      <input type="text" value={dndSpellName} onChange={(e) => setDndSpellName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Spell Level</label>
+                      <input type="number" min="0" value={dndSpellLevel} onChange={(e) => setDndSpellLevel(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">School</label>
+                      <input type="text" value={dndSpellSchool} onChange={(e) => setDndSpellSchool(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Casting Time</label>
+                      <input type="text" value={dndSpellCastingTime} onChange={(e) => setDndSpellCastingTime(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Range</label>
+                      <input type="text" value={dndSpellRange} onChange={(e) => setDndSpellRange(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                      <input type="text" value={dndSpellDuration} onChange={(e) => setDndSpellDuration(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Components</label>
+                      <input type="text" value={dndSpellComponents} onChange={(e) => setDndSpellComponents(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Class List</label>
+                      <textarea value={dndSpellClassList} onChange={(e) => setDndSpellClassList(e.target.value)} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea value={dndSpellDescription} onChange={(e) => setDndSpellDescription(e.target.value)} rows={4} className="w-full px-3 py-2 border border-gray-300 rounded" />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      onClick={handleSaveDndSpell}
+                      disabled={savingDndSpell}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                    >
+                      {savingDndSpell ? 'Saving...' : 'Save'}
+                    </button>
+                    {selectedDndSpellId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteDndSpell}
+                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        resetDndSpellForm();
+                        setShowAddDndSpellForm(false);
+                      }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               )}
@@ -4556,6 +5921,14 @@ export default function Settings() {
                     >
                       {selectedForceTreeId === '__new__' ? 'Save Force Tree' : 'Update Force Tree'}
                     </button>
+                    {selectedForceTreeId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteForceTree}
+                        className="px-8 py-3 bg-red-600 text-white rounded font-bold hover:bg-red-700 transition text-lg"
+                      >
+                        Delete
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setShowAddForceTreeForm(false);
@@ -4891,12 +6264,22 @@ export default function Settings() {
                       />
                     </div>
 
-                    <button
-                      onClick={handleSaveSpecies}
-                      className="w-full px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition shadow-lg"
-                    >
-                      {editingSpeciesId ? 'Update Species' : 'Save Species'}
-                    </button>
+                    <div className="flex gap-3 flex-wrap">
+                      <button
+                        onClick={handleSaveSpecies}
+                        className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition shadow-lg"
+                      >
+                        {editingSpeciesId ? 'Update Species' : 'Save Species'}
+                      </button>
+                      {editingSpeciesId && (
+                        <button
+                          onClick={handleDeleteSpecies}
+                          className="px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-lg"
+                        >
+                          Delete Species
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -5012,13 +6395,23 @@ export default function Settings() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={handleSaveCareer}
-                      disabled={savingCareer}
-                      className="w-full px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:opacity-60 transition shadow-lg"
-                    >
-                      {savingCareer ? 'Saving...' : (editingCareerId ? 'Update Career' : 'Save Career')}
-                    </button>
+                    <div className="flex gap-3 flex-wrap">
+                      <button
+                        onClick={handleSaveCareer}
+                        disabled={savingCareer}
+                        className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:opacity-60 transition shadow-lg"
+                      >
+                        {savingCareer ? 'Saving...' : (editingCareerId ? 'Update Career' : 'Save Career')}
+                      </button>
+                      {editingCareerId && (
+                        <button
+                          onClick={handleDeleteCareer}
+                          className="px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-lg"
+                        >
+                          Delete Career
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -5257,13 +6650,23 @@ export default function Settings() {
                           </tbody>
                         </table>
                       </div>
-                      <button
-                        onClick={() => editingSpecId ? handleSaveSpecialization({ updateSpec: true, specIdOverride: editingSpecId }) : handleSaveSpecialization()}
-                        disabled={savingSpec}
-                        className="mt-4 w-full px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-60 transition shadow-lg"
-                      >
-                        {savingSpec ? 'Saving...' : (editingSpecId ? 'Update Specialization' : 'Save Specialization')}
-                      </button>
+                      <div className="mt-4 flex gap-3 flex-wrap">
+                        <button
+                          onClick={() => editingSpecId ? handleSaveSpecialization({ updateSpec: true, specIdOverride: editingSpecId }) : handleSaveSpecialization()}
+                          disabled={savingSpec}
+                          className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-60 transition shadow-lg"
+                        >
+                          {savingSpec ? 'Saving...' : (editingSpecId ? 'Update Specialization' : 'Save Specialization')}
+                        </button>
+                        {editingSpecId && (
+                          <button
+                            onClick={handleDeleteSpecialization}
+                            className="px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-lg"
+                          >
+                            Delete Specialization
+                          </button>
+                        )}
+                      </div>
                       {specConflict && (
                         <div className="mt-3 p-3 border border-yellow-400 rounded bg-yellow-50">
                           <div className="text-sm font-semibold text-yellow-800 mb-2">
@@ -5321,6 +6724,22 @@ export default function Settings() {
               {showAddEquipmentForm && (
                 <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
                   <h3 className="text-xl font-bold mb-4 text-gray-800">Add Equipment</h3>
+                  <div className="mb-4 p-3 bg-white border border-gray-300 rounded">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Existing Equipment</label>
+                    <select
+                      value={selectedSwEquipmentId}
+                      onChange={(e) => handleSelectEquipment(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Equipment --</option>
+                      {existingSwEquipment
+                        .slice()
+                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                        .map((item) => (
+                          <option key={item.id} value={String(item.id)}>{item.name}</option>
+                        ))}
+                    </select>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -5479,8 +6898,16 @@ export default function Settings() {
                       onClick={handleSaveEquipment}
                       className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold"
                     >
-                      Save Equipment
+                      {selectedSwEquipmentId !== '__new__' ? 'Update Equipment' : 'Save Equipment'}
                     </button>
+                    {selectedSwEquipmentId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteEquipment}
+                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                      >
+                        Delete Equipment
+                      </button>
+                    )}
                     <button
                       onClick={() => { resetEquipmentForm(); setShowAddEquipmentForm(false); }}
                       className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"

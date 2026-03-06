@@ -12,6 +12,9 @@ import SWBattles from './pages/SW_battles';
 import CampaignJoin from './pages/CampaignJoin';
 import Settings from './pages/Settings';   // <-- NEW
 import TTRPGGenericPage from './pages/TTRPGGenericPage';
+import UnifiedTTRPGAdmin from './pages/UnifiedTTRPGAdmin';
+import WWWCharacterCreator from './pages/WWW_character_creator';
+import SoloAdventure from './pages/SoloAdventure';
 
 export default function App() {
   return (
@@ -27,6 +30,9 @@ export default function App() {
       <Route path="/SW_battles" element={<SWBattles />} />
       <Route path="/campaign-join" element={<CampaignJoin />} />
       <Route path="/settings" element={<Settings />} />   {/* NEW ROUTE */}
+      <Route path="/settings/www-admin" element={<UnifiedTTRPGAdmin />} />
+      <Route path="/www-character-creator" element={<WWWCharacterCreator />} />
+      <Route path="/solo-adventure" element={<SoloAdventure />} />
       <Route path="/ttrpg/:initials/:page" element={<TTRPGGenericPage />} />
     </Routes>
   );

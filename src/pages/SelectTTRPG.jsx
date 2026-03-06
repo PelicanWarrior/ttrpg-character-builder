@@ -22,6 +22,7 @@ export default function SelectTTRPG() {
   const [dndClassMap, setDndClassMap] = useState({});
   const [campaigns, setCampaigns] = useState([]);
   const [showSWCampaigns, setShowSWCampaigns] = useState(false);
+  const [showSoloAdventures, setShowSoloAdventures] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTtrpgName, setNewTtrpgName] = useState('');
   const [newTtrpgInitials, setNewTtrpgInitials] = useState('');
@@ -54,7 +55,7 @@ export default function SelectTTRPG() {
           .select('id, name, race, career, spec, picture, campaign_joined')
           .eq('user_number', userData.id),
         supabase.from('SW_campaign').select('id, Name'),
-        supabase.from('Admin_Control').select('SW_campaigns').eq('id', 1).single(),
+        supabase.from('Admin_Control').select('SW_campaigns, SoloAdventures').eq('id', 1).single(),
       ]);
 
       const rows = (ttrpgQ.data || []).map(r => ({
@@ -86,6 +87,7 @@ export default function SelectTTRPG() {
       setCampaigns(swCampsQ.data || []);
       if (!adminCtrlQ.error && adminCtrlQ.data) {
         setShowSWCampaigns(!!adminCtrlQ.data.SW_campaigns);
+        setShowSoloAdventures(!!adminCtrlQ.data.SoloAdventures);
       }
 
       // Logos are expected in public: /<INITIALS>_Pictures/Logo.png
@@ -110,6 +112,15 @@ export default function SelectTTRPG() {
       .update({ SW_campaigns: newVal })
       .eq('id', 1);
     if (!error) setShowSWCampaigns(newVal);
+  };
+
+  const toggleSoloAdventuresVisibility = async () => {
+    const newVal = !showSoloAdventures;
+    const { error } = await supabase
+      .from('Admin_Control')
+      .update({ SoloAdventures: newVal })
+      .eq('id', 1);
+    if (!error) setShowSoloAdventures(newVal);
   };
 
   const initialsFor = (name) => {
@@ -757,10 +768,31 @@ export default function SelectTTRPG() {
         <button onClick={() => navigate('/settings', { state: { playerId } })} className="px-12 py-4 bg-gray-800 text-white text-lg font-bold rounded-xl hover:bg-gray-900 shadow-lg transition">
           Settings
         </button>
+        {(isAdmin || showSoloAdventures) && (
+          <button onClick={() => navigate('/solo-adventure')} className="px-12 py-4 bg-indigo-600 text-white text-lg font-bold rounded-xl hover:bg-indigo-700 shadow-lg transition">
+            Solo Adventure
+          </button>
+        )}
         <button onClick={() => { localStorage.clear(); window.location.href = '/'; }} className="px-12 py-4 bg-red-600 text-white text-lg font-bold rounded-xl hover:bg-red-700 shadow-lg transition">
           Log Out
         </button>
       </div>
+
+      {isAdmin && (
+        <div className="mx-auto mb-10 max-w-md rounded-lg border border-gray-300 bg-gray-50 p-4">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showSoloAdventures}
+              onChange={toggleSoloAdventuresVisibility}
+              className="w-4 h-4 cursor-pointer"
+            />
+            <span className="text-sm font-medium text-gray-800">
+              Show Solo Adventure to all users
+            </span>
+          </label>
+        </div>
+      )}
       {/* Dynamic TTRPG Grid (Non-DND Mods) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
         {ttrpgRows
@@ -773,6 +805,7 @@ export default function SelectTTRPG() {
           const initials = row.initials || initialsFor(row.name);
           if (!shouldShow(row)) return null;
           const isSW = initials === 'SW' || row.name === 'Star Wars';
+          const isWWW = initials.toUpperCase() === 'WWW' || /world\s*wide\s*wrestling/i.test(row.name || '');
           return (
             <div key={row.name} className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
               {isAdmin && (
@@ -813,6 +846,8 @@ export default function SelectTTRPG() {
                     onClick={() => {
                       if (isSW) {
                         navigate('/sweote-character-creator', { state: { create_character: true } });
+                      } else if (isWWW) {
+                        navigate(`/www-character-creator?mod=${encodeURIComponent(row.name)}`);
                       } else if (row.dndMod) {
                         navigate(`/dndmod_character_creator?mod=${encodeURIComponent(row.name)}`);
                       } else {
@@ -1157,6 +1192,7 @@ export default function SelectTTRPG() {
               .map(row => {
               if (!shouldShow(row)) return null;
               const initials = row.initials || initialsFor(row.name);
+              const isWWW = initials.toUpperCase() === 'WWW' || /world\s*wide\s*wrestling/i.test(row.name || '');
               return (
                 <div key={row.name} className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
                   {isAdmin && (
@@ -1185,6 +1221,8 @@ export default function SelectTTRPG() {
                         onClick={() => {
                           if (row.dndMod) {
                             navigate(`/dndmod_character_creator?mod=${encodeURIComponent(row.name)}`);
+                          } else if (isWWW) {
+                            navigate(`/www-character-creator?mod=${encodeURIComponent(row.name)}`);
                           } else {
                             navigate(`/${initials}_character_creator`);
                           }

@@ -1,23 +1,91 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+
+const normalizeList = (value) => String(value || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+const normalizeIdList = (value) => normalizeList(value)
+  .map((item) => Number(item))
+  .filter((item) => !Number.isNaN(item));
+
+const toNumericString = (value, fallback = '0') => {
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? fallback : String(parsed);
+};
+
+const parseIntegerOrNull = (value) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const parseIntegerOrFallback = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? fallback : parsed;
+};
 
 export default function DNDModCharacterCreator() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const dndMod = searchParams.get('mod') || '';
 
-  const [showClasses, setShowClasses] = useState(false);
-  const [showStats, setShowStats] = useState(false);
+  const [activeSection, setActiveSection] = useState('basics');
   const [classes, setClasses] = useState([]);
+  const [races, setRaces] = useState([]);
+  const [backgrounds, setBackgrounds] = useState([]);
+  const [equipmentOptions, setEquipmentOptions] = useState([]);
+  const [spellOptions, setSpellOptions] = useState([]);
+  const [classLevels, setClassLevels] = useState([]);
+  const [classFeaturesById, setClassFeaturesById] = useState({});
+
   const [loadingClasses, setLoadingClasses] = useState(false);
+  const [loadingReferenceData, setLoadingReferenceData] = useState(false);
   const [classError, setClassError] = useState('');
+  const [dataWarnings, setDataWarnings] = useState([]);
+
   const [expandedClassId, setExpandedClassId] = useState(null);
+  const [expandedRaceId, setExpandedRaceId] = useState(null);
+  const [expandedBackgroundId, setExpandedBackgroundId] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedRace, setSelectedRace] = useState(null);
+  const [selectedBackground, setSelectedBackground] = useState(null);
+
   const [skillChoices, setSkillChoices] = useState([]);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState([]);
+  const [selectedSpellIds, setSelectedSpellIds] = useState([]);
+
   const [initials, setInitials] = useState('');
   const [characterName, setCharacterName] = useState('');
   const [classLevel, setClassLevel] = useState('1');
+  const [alignment, setAlignment] = useState('');
+  const [experience, setExperience] = useState('0');
+  const [maxHp, setMaxHp] = useState('');
+  const [currentHp, setCurrentHp] = useState('');
+  const [tempHp, setTempHp] = useState('0');
+  const [armorClass, setArmorClass] = useState('');
+  const [initiativeBonus, setInitiativeBonus] = useState('0');
+  const [speedOverride, setSpeedOverride] = useState('');
+  const [inspiration, setInspiration] = useState(false);
+  const [passivePerception, setPassivePerception] = useState('10');
+
+  const [inventoryText, setInventoryText] = useState('');
+  const [personalityTraits, setPersonalityTraits] = useState('');
+  const [ideals, setIdeals] = useState('');
+  const [bonds, setBonds] = useState('');
+  const [flaws, setFlaws] = useState('');
+  const [backstory, setBackstory] = useState('');
+  const [characterNotes, setCharacterNotes] = useState('');
+
+  const [cp, setCp] = useState('0');
+  const [sp, setSp] = useState('0');
+  const [ep, setEp] = useState('0');
+  const [gp, setGp] = useState('0');
+  const [pp, setPp] = useState('0');
+
   const [statValues, setStatValues] = useState({
     STRENGTH: '8',
     DEXTERITY: '8',
@@ -28,12 +96,26 @@ export default function DNDModCharacterCreator() {
   });
   const [ttrpgId, setTtrpgId] = useState(null);
   const [editingClassId, setEditingClassId] = useState(null);
+  const [editingRaceId, setEditingRaceId] = useState(null);
+  const [editingBackgroundId, setEditingBackgroundId] = useState(null);
   const [isInitializingFromEdit, setIsInitializingFromEdit] = useState(false);
+
+  const matchesMod = useCallback((rowModValue) => {
+    if (!dndMod) return true;
+    const target = dndMod.trim().toLowerCase();
+    if (!target) return true;
+    const values = normalizeList(rowModValue).map((entry) => entry.toLowerCase());
+    if (values.length === 0) {
+      const raw = String(rowModValue || '').trim().toLowerCase();
+      if (!raw) return true;
+      return raw.includes(target);
+    }
+    return values.includes(target);
+  }, [dndMod]);
 
   const parseSkillChoices = (skillsText) => {
     if (!skillsText) return { isChoice: false, count: 0, options: [], raw: '' };
 
-    const lower = skillsText.toLowerCase();
     const chooseMatch = /choose\s+(\w+)\s+from\s+(.+)$/i.exec(skillsText);
 
     if (!chooseMatch) return { isChoice: false, count: 0, options: [], raw: skillsText };
@@ -55,19 +137,17 @@ export default function DNDModCharacterCreator() {
     return { isChoice: uniqueOptions.length > 0, count, options: uniqueOptions, raw: skillsText };
   };
 
-  const loadClasses = async () => {
+  const loadClasses = useCallback(async () => {
     setLoadingClasses(true);
     setClassError('');
     try {
       const { data, error } = await supabase
         .from('DND_Classes')
-        .select('id, ClassName, DNDMod, Description, HitDice, Prof_Armour, Prof_Weapons, Prof_SavingThrows, Prof_Skills');
+        .select('id, ClassName, DNDMod, Description, HitDice, Prof_Armour, Prof_Weapons, Prof_SavingThrows, Prof_Skills, PointsName');
 
       if (error) throw error;
 
-      const filtered = (data || []).filter((row) =>
-        typeof row.DNDMod === 'string' && row.DNDMod.toLowerCase().includes(dndMod.toLowerCase())
-      );
+      const filtered = (data || []).filter((row) => matchesMod(row.DNDMod));
 
       setClasses(filtered.map((row) => ({
         id: row.id,
@@ -78,6 +158,7 @@ export default function DNDModCharacterCreator() {
         profWeapons: row.Prof_Weapons || '',
         profSavingThrows: row.Prof_SavingThrows || '',
         profSkills: row.Prof_Skills || '',
+        pointsName: row.PointsName || 'Class Points',
       })));
     } catch (err) {
       console.error('Failed to load classes:', err);
@@ -85,19 +166,166 @@ export default function DNDModCharacterCreator() {
     } finally {
       setLoadingClasses(false);
     }
-  };
+  }, [matchesMod]);
+
+  const loadReferenceData = useCallback(async () => {
+    setLoadingReferenceData(true);
+    const warnings = [];
+
+    try {
+      const [raceResult, backgroundResult, equipmentResult, spellResult] = await Promise.all([
+        supabase
+          .from('DND_Races')
+          .select('id, RaceName, DNDMod, Description, Size, Speed, Languages, Traits, AbilityBonus_Str, AbilityBonus_Dex, AbilityBonus_Con, AbilityBonus_Int, AbilityBonus_Wis, AbilityBonus_Cha'),
+        supabase
+          .from('DND_Backgrounds')
+          .select('id, BackgroundName, DNDMod, Description, SkillProficiencies, ToolProficiencies, Languages, FeatureName, FeatureText, StartingEquipment'),
+        supabase
+          .from('DND_Equipment')
+          .select('id, ItemName, DNDMod, Category, Description, Cost, Weight, Properties, Damage, DamageType, ArmorClass, AllowedClasses'),
+        supabase
+          .from('DND_Spells')
+          .select('id, SpellName, DNDMod, SpellLevel, School, CastingTime, Range, Components, Duration, Description, ClassList'),
+      ]);
+
+      if (raceResult.error) {
+        warnings.push('DND_Races table is missing or unavailable.');
+      } else {
+        const raceRows = (raceResult.data || []).filter((row) => matchesMod(row.DNDMod));
+        setRaces(raceRows.map((row) => ({
+          id: row.id,
+          name: row.RaceName || 'Unnamed Race',
+          description: row.Description || '',
+          size: row.Size || '',
+          speed: row.Speed != null ? String(row.Speed) : '',
+          languages: row.Languages || '',
+          traits: row.Traits || '',
+          abilityBonuses: {
+            STRENGTH: parseIntegerOrFallback(row.AbilityBonus_Str, 0),
+            DEXTERITY: parseIntegerOrFallback(row.AbilityBonus_Dex, 0),
+            CONSTITUTION: parseIntegerOrFallback(row.AbilityBonus_Con, 0),
+            INTELLIGENCE: parseIntegerOrFallback(row.AbilityBonus_Int, 0),
+            WISDOM: parseIntegerOrFallback(row.AbilityBonus_Wis, 0),
+            CHARISMA: parseIntegerOrFallback(row.AbilityBonus_Cha, 0),
+          },
+        })));
+      }
+
+      if (backgroundResult.error) {
+        warnings.push('DND_Backgrounds table is missing or unavailable.');
+      } else {
+        const backgroundRows = (backgroundResult.data || []).filter((row) => matchesMod(row.DNDMod));
+        setBackgrounds(backgroundRows.map((row) => ({
+          id: row.id,
+          name: row.BackgroundName || 'Unnamed Background',
+          description: row.Description || '',
+          skillProficiencies: row.SkillProficiencies || '',
+          toolProficiencies: row.ToolProficiencies || '',
+          languages: row.Languages || '',
+          featureName: row.FeatureName || '',
+          featureText: row.FeatureText || '',
+          startingEquipment: row.StartingEquipment || '',
+        })));
+      }
+
+      if (equipmentResult.error) {
+        warnings.push('DND_Equipment table is missing or unavailable.');
+      } else {
+        const equipmentRows = (equipmentResult.data || []).filter((row) => matchesMod(row.DNDMod));
+        setEquipmentOptions(equipmentRows.map((row) => ({
+          id: row.id,
+          name: row.ItemName || 'Unnamed Item',
+          category: row.Category || '',
+          description: row.Description || '',
+          cost: row.Cost || '',
+          weight: row.Weight || '',
+          properties: row.Properties || '',
+          damage: row.Damage || '',
+          damageType: row.DamageType || '',
+          armorClass: row.ArmorClass || '',
+          allowedClasses: row.AllowedClasses || '',
+        })));
+      }
+
+      if (spellResult.error) {
+        warnings.push('DND_Spells table is missing or unavailable.');
+      } else {
+        const spellRows = (spellResult.data || []).filter((row) => matchesMod(row.DNDMod));
+        setSpellOptions(spellRows.map((row) => ({
+          id: row.id,
+          name: row.SpellName || 'Unnamed Spell',
+          spellLevel: parseIntegerOrFallback(row.SpellLevel, 0),
+          school: row.School || '',
+          castingTime: row.CastingTime || '',
+          range: row.Range || '',
+          components: row.Components || '',
+          duration: row.Duration || '',
+          description: row.Description || '',
+          classList: row.ClassList || '',
+        })));
+      }
+    } finally {
+      setDataWarnings(warnings);
+      setLoadingReferenceData(false);
+    }
+  }, [matchesMod]);
+
+  const loadClassProgression = useCallback(async (classId) => {
+    if (!classId) {
+      setClassLevels([]);
+      return;
+    }
+
+    try {
+      const [featureResult, levelsResult] = await Promise.all([
+        supabase
+          .from('DND_ClassFeatures')
+          .select('id, FeatureName, FeatureText'),
+        supabase
+          .from('DND_Class_Levels')
+          .select('Level, ProfBonus, Features, Cantrips, SpellsKnown, Points')
+          .eq('Class', classId)
+          .order('Level', { ascending: true }),
+      ]);
+
+      if (featureResult.error) throw featureResult.error;
+      if (levelsResult.error) throw levelsResult.error;
+
+      const featureMap = {};
+      (featureResult.data || []).forEach((feature) => {
+        featureMap[feature.id] = {
+          name: feature.FeatureName || 'Unnamed Feature',
+          text: feature.FeatureText || '',
+        };
+      });
+
+      setClassFeaturesById(featureMap);
+      setClassLevels(levelsResult.data || []);
+    } catch (err) {
+      console.error('Failed to load class progression:', err);
+      setClassLevels([]);
+    }
+  }, []);
 
   useEffect(() => {
-    if (showClasses && dndMod) {
-      loadClasses();
-    }
-  }, [showClasses, dndMod]);
+    if (!dndMod) return;
+    loadClasses();
+    loadReferenceData();
+  }, [dndMod, loadClasses, loadReferenceData]);
 
   useEffect(() => {
-    if (editingClassId && dndMod && classes.length === 0) {
+    if (editingClassId && classes.length === 0) {
       loadClasses();
     }
-  }, [editingClassId, dndMod, classes.length]);
+  }, [editingClassId, classes.length, loadClasses]);
+
+  useEffect(() => {
+    if (!selectedClass?.id) {
+      setClassLevels([]);
+      return;
+    }
+    loadClassProgression(selectedClass.id);
+  }, [selectedClass?.id, loadClassProgression]);
 
   useEffect(() => {
     if (isInitializingFromEdit) {
@@ -105,12 +333,11 @@ export default function DNDModCharacterCreator() {
       return;
     }
     setSkillChoices([]);
-  }, [selectedClass?.id]);
+  }, [selectedClass?.id, isInitializingFromEdit]);
 
   useEffect(() => {
     const fetchInitials = async () => {
       if (!dndMod) return;
-      console.log('[Logo Debug] dndMod param:', dndMod);
       try {
         const { data, error } = await supabase
           .from('TTRPGs')
@@ -118,13 +345,9 @@ export default function DNDModCharacterCreator() {
           .eq('TTRPG_name', dndMod)
           .single();
 
-        console.log('[Logo Debug] TTRPGs query result:', { data, error });
         if (!error && data) {
-          console.log('[Logo Debug] Setting initials to:', data.Initials);
           setInitials(data.Initials);
           setTtrpgId(data.id);
-        } else if (error) {
-          console.error('[Logo Debug] Error fetching initials:', error);
         }
       } catch (err) {
         console.error('Failed to fetch initials:', err);
@@ -142,7 +365,7 @@ export default function DNDModCharacterCreator() {
       try {
         const { data, error } = await supabase
           .from('DND_player_character')
-          .select('id, Name, Class, ClassLevel, Class_ProfSkills, Str, Dex, Con, Int, Wis, Cha')
+          .select('*')
           .eq('id', parseInt(loadedCharacterId, 10))
           .single();
 
@@ -150,7 +373,38 @@ export default function DNDModCharacterCreator() {
 
         setCharacterName(data?.Name || '');
         setEditingClassId(data?.Class ?? null);
+        setEditingRaceId(data?.Race ?? null);
+        setEditingBackgroundId(data?.Background ?? null);
         setClassLevel(data?.ClassLevel ? String(data.ClassLevel) : '1');
+        setAlignment(data?.Alignment || '');
+        setExperience(toNumericString(data?.Experience, '0'));
+
+        setMaxHp(toNumericString(data?.MaxHP, ''));
+        setCurrentHp(toNumericString(data?.CurrentHP, ''));
+        setTempHp(toNumericString(data?.TempHP, '0'));
+        setArmorClass(toNumericString(data?.ArmorClass, ''));
+        setInitiativeBonus(toNumericString(data?.InitiativeBonus, '0'));
+        setSpeedOverride(toNumericString(data?.Speed, ''));
+        setPassivePerception(toNumericString(data?.PassivePerception, '10'));
+        setInspiration(Boolean(data?.Inspiration));
+
+        setInventoryText(data?.Inventory || '');
+        setPersonalityTraits(data?.PersonalityTraits || '');
+        setIdeals(data?.Ideals || '');
+        setBonds(data?.Bonds || '');
+        setFlaws(data?.Flaws || '');
+        setBackstory(data?.Backstory || '');
+        setCharacterNotes(data?.Character_Notes || '');
+
+        setCp(toNumericString(data?.Money_CP, '0'));
+        setSp(toNumericString(data?.Money_SP, '0'));
+        setEp(toNumericString(data?.Money_EP, '0'));
+        setGp(toNumericString(data?.Money_GP, '0'));
+        setPp(toNumericString(data?.Money_PP, '0'));
+
+        setSelectedEquipmentIds(normalizeIdList(data?.Known_Equipment));
+        setSelectedSpellIds(normalizeIdList(data?.Known_Spells));
+
         setIsInitializingFromEdit(true);
         setStatValues({
           STRENGTH: String(data?.Str ?? 8),
@@ -167,7 +421,7 @@ export default function DNDModCharacterCreator() {
           .filter(Boolean);
         setSkillChoices(profSkills);
 
-        setShowClasses(true);
+        setActiveSection('class');
       } catch (err) {
         console.error('Failed to load character for edit:', err);
       }
@@ -184,7 +438,44 @@ export default function DNDModCharacterCreator() {
     }
   }, [editingClassId, classes]);
 
+  useEffect(() => {
+    if (!editingRaceId || races.length === 0) return;
+    const found = races.find((race) => race.id === editingRaceId);
+    if (found) {
+      setSelectedRace(found);
+    }
+  }, [editingRaceId, races]);
+
+  useEffect(() => {
+    if (!editingBackgroundId || backgrounds.length === 0) return;
+    const found = backgrounds.find((background) => background.id === editingBackgroundId);
+    if (found) {
+      setSelectedBackground(found);
+    }
+  }, [editingBackgroundId, backgrounds]);
+
   const statsList = ['STRENGTH', 'DEXTERITY', 'CONSTITUTION', 'INTELLIGENCE', 'WISDOM', 'CHARISMA'];
+  const statColumnMap = {
+    STRENGTH: 'Str',
+    DEXTERITY: 'Dex',
+    CONSTITUTION: 'Con',
+    INTELLIGENCE: 'Int',
+    WISDOM: 'Wis',
+    CHARISMA: 'Cha',
+  };
+
+  const alignmentOptions = [
+    'Lawful Good',
+    'Neutral Good',
+    'Chaotic Good',
+    'Lawful Neutral',
+    'True Neutral',
+    'Chaotic Neutral',
+    'Lawful Evil',
+    'Neutral Evil',
+    'Chaotic Evil',
+    'Unaligned',
+  ];
 
   const pointCosts = {
     '8': 0,
@@ -205,6 +496,74 @@ export default function DNDModCharacterCreator() {
     return 27 - pointsSpent;
   };
 
+  const selectedClassLevelData = classLevels.find((row) => String(row.Level) === String(classLevel)) || null;
+  const selectedClassFeatureIds = normalizeIdList(selectedClassLevelData?.Features);
+  const selectedClassFeatures = selectedClassFeatureIds
+    .map((featureId) => ({ id: featureId, ...classFeaturesById[featureId] }))
+    .filter((feature) => Boolean(feature.name));
+
+  const raceAbilityBonus = (statName) => selectedRace?.abilityBonuses?.[statName] || 0;
+
+  const totalStatValue = (statName) => {
+    const baseValue = parseIntegerOrFallback(statValues[statName], 8);
+    return baseValue + raceAbilityBonus(statName);
+  };
+
+  const abilityModifier = (score) => Math.floor((score - 10) / 2);
+
+  const spellById = spellOptions.reduce((acc, spell) => {
+    acc[spell.id] = spell;
+    return acc;
+  }, {});
+
+  const filteredSpellOptions = spellOptions.filter((spell) => {
+    if (!selectedClass) return true;
+    const allowedClasses = normalizeList(spell.classList).map((item) => item.toLowerCase());
+    if (allowedClasses.length === 0) return true;
+    return allowedClasses.includes(selectedClass.name.toLowerCase());
+  });
+
+  const cantripLimit = parseIntegerOrFallback(selectedClassLevelData?.Cantrips, 0);
+  const spellsKnownLimit = parseIntegerOrFallback(selectedClassLevelData?.SpellsKnown, 0);
+
+  const countSelectedCantrips = selectedSpellIds.filter((id) => (spellById[id]?.spellLevel || 0) === 0).length;
+  const countSelectedLeveledSpells = selectedSpellIds.filter((id) => (spellById[id]?.spellLevel || 0) > 0).length;
+
+  const toggleEquipment = (equipmentId) => {
+    setSelectedEquipmentIds((prev) => (
+      prev.includes(equipmentId)
+        ? prev.filter((id) => id !== equipmentId)
+        : [...prev, equipmentId]
+    ));
+  };
+
+  const toggleSpell = (spellId) => {
+    setSelectedSpellIds((prev) => {
+      if (prev.includes(spellId)) {
+        return prev.filter((id) => id !== spellId);
+      }
+
+      const spell = spellById[spellId];
+      if (!spell) return prev;
+
+      if (spell.spellLevel === 0 && cantripLimit > 0 && countSelectedCantrips >= cantripLimit) {
+        alert(`You can only pick ${cantripLimit} cantrip${cantripLimit === 1 ? '' : 's'} at this class level.`);
+        return prev;
+      }
+      if (spell.spellLevel > 0 && spellsKnownLimit > 0 && countSelectedLeveledSpells >= spellsKnownLimit) {
+        alert(`You can only pick ${spellsKnownLimit} known spell${spellsKnownLimit === 1 ? '' : 's'} at this class level.`);
+        return prev;
+      }
+
+      return [...prev, spellId];
+    });
+  };
+
+  const isMissingCharacterColumnError = (error) => {
+    const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+    return message.includes('column') && message.includes('dnd_player_character');
+  };
+
   const saveCharacter = async () => {
     if (!characterName.trim()) {
       alert('Please enter a character name.');
@@ -223,48 +582,123 @@ export default function DNDModCharacterCreator() {
     const loadedCharacterId = localStorage.getItem('loadedCharacterId');
     const userId = localStorage.getItem('userId');
 
-    const characterData = {
+    const baseCharacterData = {
       Name: characterName,
       Class: selectedClass.id,
       ClassLevel: parseInt(classLevel, 10),
       Class_ProfSkills: profSkills,
       TTRPG: ttrpgId,
       User_ID: userId ? parseInt(userId, 10) : null,
-      Str: parseInt(statValues.STRENGTH, 10),
-      Dex: parseInt(statValues.DEXTERITY, 10),
-      Con: parseInt(statValues.CONSTITUTION, 10),
-      Int: parseInt(statValues.INTELLIGENCE, 10),
-      Wis: parseInt(statValues.WISDOM, 10),
-      Cha: parseInt(statValues.CHARISMA, 10),
+      Str: parseIntegerOrFallback(statValues.STRENGTH, 8),
+      Dex: parseIntegerOrFallback(statValues.DEXTERITY, 8),
+      Con: parseIntegerOrFallback(statValues.CONSTITUTION, 8),
+      Int: parseIntegerOrFallback(statValues.INTELLIGENCE, 8),
+      Wis: parseIntegerOrFallback(statValues.WISDOM, 8),
+      Cha: parseIntegerOrFallback(statValues.CHARISMA, 8),
     };
+
+    const extendedCharacterData = {
+      Race: selectedRace?.id || null,
+      Background: selectedBackground?.id || null,
+      Alignment: alignment || null,
+      Experience: parseIntegerOrNull(experience),
+      MaxHP: parseIntegerOrNull(maxHp),
+      CurrentHP: parseIntegerOrNull(currentHp),
+      TempHP: parseIntegerOrNull(tempHp),
+      ArmorClass: parseIntegerOrNull(armorClass),
+      InitiativeBonus: parseIntegerOrNull(initiativeBonus),
+      Speed: parseIntegerOrNull(speedOverride || selectedRace?.speed),
+      Inspiration: inspiration,
+      PassivePerception: parseIntegerOrNull(passivePerception),
+      Inventory: inventoryText || null,
+      Known_Equipment: selectedEquipmentIds.length > 0 ? selectedEquipmentIds.join(', ') : null,
+      Known_Spells: selectedSpellIds.length > 0 ? selectedSpellIds.join(', ') : null,
+      PersonalityTraits: personalityTraits || null,
+      Ideals: ideals || null,
+      Bonds: bonds || null,
+      Flaws: flaws || null,
+      Backstory: backstory || null,
+      Character_Notes: characterNotes || null,
+      Money_CP: parseIntegerOrNull(cp),
+      Money_SP: parseIntegerOrNull(sp),
+      Money_EP: parseIntegerOrNull(ep),
+      Money_GP: parseIntegerOrNull(gp),
+      Money_PP: parseIntegerOrNull(pp),
+    };
+
+    const fullCharacterData = { ...baseCharacterData, ...extendedCharacterData };
 
     try {
       let error;
+      let usedFallbackSchema = false;
 
       if (loadedCharacterId) {
-        // Update existing character
         const { error: updateError } = await supabase
           .from('DND_player_character')
-          .update(characterData)
+          .update(fullCharacterData)
           .eq('id', parseInt(loadedCharacterId, 10));
-        error = updateError;
+
+        if (updateError && isMissingCharacterColumnError(updateError)) {
+          usedFallbackSchema = true;
+          const { error: fallbackError } = await supabase
+            .from('DND_player_character')
+            .update(baseCharacterData)
+            .eq('id', parseInt(loadedCharacterId, 10));
+          error = fallbackError;
+        } else {
+          error = updateError;
+        }
       } else {
-        // Insert new character
-        const { error: insertError } = await supabase
+        const { data: insertData, error: insertError } = await supabase
           .from('DND_player_character')
-          .insert([characterData]);
-        error = insertError;
+          .insert([fullCharacterData])
+          .select('id')
+          .single();
+
+        if (insertError && isMissingCharacterColumnError(insertError)) {
+          usedFallbackSchema = true;
+          const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
+            .from('DND_player_character')
+            .insert([baseCharacterData])
+            .select('id')
+            .single();
+          error = fallbackInsertError;
+          if (!fallbackInsertError && fallbackInsertData?.id != null) {
+            localStorage.setItem('loadedCharacterId', String(fallbackInsertData.id));
+          }
+        } else {
+          error = insertError;
+          if (!insertError && insertData?.id != null) {
+            localStorage.setItem('loadedCharacterId', String(insertData.id));
+          }
+        }
       }
 
       if (error) throw error;
 
-      alert('Character saved successfully!');
-      console.log('Character saved to DND_player_character');
+      if (usedFallbackSchema) {
+        alert('Character saved with base fields only. Run the DND migration to store race/background/spells/equipment and notes.');
+      } else {
+        alert('Character saved successfully!');
+      }
     } catch (err) {
       console.error('Failed to save character:', err);
       alert('Failed to save character. Please try again.');
     }
   };
+
+  const SectionButton = ({ sectionKey, label }) => (
+    <button
+      onClick={() => setActiveSection(sectionKey)}
+      className={`px-4 py-2 rounded-lg font-semibold shadow transition ${
+        activeSection === sectionKey
+          ? 'bg-red-600 text-white hover:bg-red-700'
+          : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center px-4 py-10">
@@ -275,14 +709,51 @@ export default function DNDModCharacterCreator() {
               src={`/${initials}_Pictures/Logo.png`}
               alt={`${dndMod} Logo`}
               className="w-64 h-auto"
-              onLoad={() => console.log('[Logo Debug] Logo loaded successfully:', `/${initials}_Pictures/Logo.png`)}
-              onError={(e) => { 
-                console.error('[Logo Debug] Logo failed to load:', `/${initials}_Pictures/Logo.png`);
-                e.currentTarget.style.display = 'none'; 
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
               }}
             />
           )}
-          {!initials && <div style={{ color: 'red' }}>[Logo Debug] No initials set for dndMod: {dndMod}</div>}
+
+          <div className="w-full max-w-xl rounded-lg border p-4 bg-blue-50 border-blue-300">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1">
+                <label className="block text-sm font-bold text-gray-800" htmlFor="character-name">
+                  Character Name
+                </label>
+                <input
+                  id="character-name"
+                  type="text"
+                  value={characterName}
+                  onChange={(e) => setCharacterName(e.target.value)}
+                  className="mt-2 w-full box-border rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  placeholder="Enter character name"
+                />
+              </div>
+              <div className="w-full sm:w-52">
+                <label className="block text-sm font-bold text-gray-800">Alignment</label>
+                <select
+                  value={alignment}
+                  onChange={(e) => setAlignment(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Select alignment</option>
+                  {alignmentOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {(classError || dataWarnings.length > 0) && (
+            <div className="w-full max-w-xl rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              {classError && <p>{classError}</p>}
+              {dataWarnings.map((warning) => (
+                <p key={warning}>{warning}</p>
+              ))}
+            </div>
+          )}
 
           <button
             onClick={() => navigate('/select-ttrpg')}
@@ -291,42 +762,17 @@ export default function DNDModCharacterCreator() {
             Select TTRPG
           </button>
 
-          <div
-            className="w-full max-w-xl rounded-lg border p-4"
-            style={{ backgroundColor: '#dbeafe', borderColor: '#93c5fd' }}
-          >
-            <label className="block text-lg font-bold text-gray-800" htmlFor="character-name">
-              Character Name
-            </label>
-            <input
-              id="character-name"
-              type="text"
-              value={characterName}
-              onChange={(e) => setCharacterName(e.target.value)}
-              className="mt-2 w-full box-border rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              placeholder="Enter character name"
-            />
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <SectionButton sectionKey="basics" label="Basics" />
+            <SectionButton sectionKey="race" label="Race" />
+            <SectionButton sectionKey="background" label="Background" />
+            <SectionButton sectionKey="class" label="Class" />
+            <SectionButton sectionKey="stats" label="Stats" />
+            <SectionButton sectionKey="gear" label="Gear & Spells" />
+            <SectionButton sectionKey="notes" label="Notes" />
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => {
-                setShowClasses((prev) => !prev);
-                setShowStats(false);
-              }}
-              className="px-6 py-3 bg-red-400 text-white rounded-lg font-semibold shadow hover:bg-red-500 transition"
-            >
-              Class
-            </button>
-            <button
-              onClick={() => {
-                setShowStats((prev) => !prev);
-                setShowClasses(false);
-              }}
-              className="px-6 py-3 bg-red-400 text-white rounded-lg font-semibold shadow hover:bg-red-500 transition"
-            >
-              Stats
-            </button>
             <button
               onClick={saveCharacter}
               className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold shadow hover:bg-green-700 transition"
@@ -335,19 +781,406 @@ export default function DNDModCharacterCreator() {
             </button>
           </div>
 
-          {showStats && (
-            <div
-              className="w-full max-w-xl rounded-lg border p-4"
-              style={{ backgroundColor: '#fecaca', borderColor: '#fca5a5' }}
-            >
-              <h2 className="text-lg font-semibold text-gray-800">Stats</h2>
-              <div className="mt-2 mb-3">
-                <p className="text-sm font-semibold text-gray-800">Point Buy</p>
-                <p className="text-sm text-gray-700">{calculatePointsRemaining()} / 27</p>
+          {activeSection === 'basics' && (
+            <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 space-y-3">
+              <h2 className="text-2xl font-bold text-gray-800">Basics ({dndMod})</h2>
+              {loadingReferenceData && (
+                <p className="text-sm text-gray-600">Loading mod data...</p>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Experience</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={experience}
+                    onChange={(e) => setExperience(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Passive Perception</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={passivePerception}
+                    onChange={(e) => setPassivePerception(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Max HP</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={maxHp}
+                    onChange={(e) => setMaxHp(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Current HP</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={currentHp}
+                    onChange={(e) => setCurrentHp(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Temp HP</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={tempHp}
+                    onChange={(e) => setTempHp(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Armor Class</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={armorClass}
+                    onChange={(e) => setArmorClass(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Initiative Bonus</label>
+                  <input
+                    type="number"
+                    value={initiativeBonus}
+                    onChange={(e) => setInitiativeBonus(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">Speed</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={speedOverride}
+                    onChange={(e) => setSpeedOverride(e.target.value)}
+                    placeholder={selectedRace?.speed ? `Race default: ${selectedRace.speed}` : 'e.g. 30'}
+                    className="w-full rounded border border-gray-300 px-2 py-1"
+                  />
+                </div>
               </div>
-              <ul className="space-y-2 text-sm text-gray-700">
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">CP</label>
+                  <input type="number" value={cp} onChange={(e) => setCp(e.target.value)} className="w-full rounded border border-gray-300 px-2 py-1" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">SP</label>
+                  <input type="number" value={sp} onChange={(e) => setSp(e.target.value)} className="w-full rounded border border-gray-300 px-2 py-1" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">EP</label>
+                  <input type="number" value={ep} onChange={(e) => setEp(e.target.value)} className="w-full rounded border border-gray-300 px-2 py-1" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">GP</label>
+                  <input type="number" value={gp} onChange={(e) => setGp(e.target.value)} className="w-full rounded border border-gray-300 px-2 py-1" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">PP</label>
+                  <input type="number" value={pp} onChange={(e) => setPp(e.target.value)} className="w-full rounded border border-gray-300 px-2 py-1" />
+                </div>
+              </div>
+
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <input
+                  type="checkbox"
+                  checked={inspiration}
+                  onChange={(e) => setInspiration(e.target.checked)}
+                />
+                Inspiration
+              </label>
+            </div>
+          )}
+
+          {activeSection === 'race' && (
+            <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 space-y-3">
+              <h2 className="text-2xl font-bold text-gray-800">Race ({dndMod})</h2>
+              {selectedRace ? (
+                <div className="rounded border border-gray-300 p-3 bg-gray-50 text-sm text-gray-800 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-xl font-bold">{selectedRace.name}</h3>
+                    <button
+                      onClick={() => setSelectedRace(null)}
+                      className="px-3 py-1 text-xs rounded bg-gray-300 hover:bg-gray-400"
+                    >
+                      Change Race
+                    </button>
+                  </div>
+                  {selectedRace.description && <p className="whitespace-pre-wrap">{selectedRace.description}</p>}
+                  <p><span className="font-semibold">Size:</span> {selectedRace.size || '—'}</p>
+                  <p><span className="font-semibold">Speed:</span> {selectedRace.speed || '—'}</p>
+                  <p><span className="font-semibold">Languages:</span> {selectedRace.languages || '—'}</p>
+                  <p><span className="font-semibold">Traits:</span> {selectedRace.traits || '—'}</p>
+                  <div>
+                    <p className="font-semibold">Ability Bonuses</p>
+                    <p>
+                      STR {selectedRace.abilityBonuses.STRENGTH >= 0 ? '+' : ''}{selectedRace.abilityBonuses.STRENGTH},
+                      {' '}DEX {selectedRace.abilityBonuses.DEXTERITY >= 0 ? '+' : ''}{selectedRace.abilityBonuses.DEXTERITY},
+                      {' '}CON {selectedRace.abilityBonuses.CONSTITUTION >= 0 ? '+' : ''}{selectedRace.abilityBonuses.CONSTITUTION},
+                      {' '}INT {selectedRace.abilityBonuses.INTELLIGENCE >= 0 ? '+' : ''}{selectedRace.abilityBonuses.INTELLIGENCE},
+                      {' '}WIS {selectedRace.abilityBonuses.WISDOM >= 0 ? '+' : ''}{selectedRace.abilityBonuses.WISDOM},
+                      {' '}CHA {selectedRace.abilityBonuses.CHARISMA >= 0 ? '+' : ''}{selectedRace.abilityBonuses.CHARISMA}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {races.length === 0 && (
+                    <p className="text-sm text-gray-600">No races found for this mod.</p>
+                  )}
+                  <div className="space-y-2">
+                    {races.map((race) => (
+                      <div key={race.id} className="rounded border border-gray-300 p-3 bg-gray-50 text-sm">
+                        <button
+                          onClick={() => setExpandedRaceId((prev) => (prev === race.id ? null : race.id))}
+                          className="font-semibold text-left w-full"
+                        >
+                          {race.name}
+                        </button>
+                        {expandedRaceId === race.id && (
+                          <div className="mt-2 space-y-2">
+                            <p className="whitespace-pre-wrap">{race.description || 'No description provided.'}</p>
+                            <p><span className="font-semibold">Size:</span> {race.size || '—'} | <span className="font-semibold">Speed:</span> {race.speed || '—'}</p>
+                            <button
+                              onClick={() => {
+                                setSelectedRace(race);
+                                setExpandedRaceId(null);
+                              }}
+                              className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                              Select Race
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeSection === 'background' && (
+            <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 space-y-3">
+              <h2 className="text-2xl font-bold text-gray-800">Background ({dndMod})</h2>
+              {selectedBackground ? (
+                <div className="rounded border border-gray-300 p-3 bg-gray-50 text-sm text-gray-800 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-xl font-bold">{selectedBackground.name}</h3>
+                    <button
+                      onClick={() => setSelectedBackground(null)}
+                      className="px-3 py-1 text-xs rounded bg-gray-300 hover:bg-gray-400"
+                    >
+                      Change Background
+                    </button>
+                  </div>
+                  {selectedBackground.description && <p className="whitespace-pre-wrap">{selectedBackground.description}</p>}
+                  <p><span className="font-semibold">Skills:</span> {selectedBackground.skillProficiencies || '—'}</p>
+                  <p><span className="font-semibold">Tools:</span> {selectedBackground.toolProficiencies || '—'}</p>
+                  <p><span className="font-semibold">Languages:</span> {selectedBackground.languages || '—'}</p>
+                  <p><span className="font-semibold">Feature:</span> {selectedBackground.featureName || '—'}</p>
+                  <p className="whitespace-pre-wrap">{selectedBackground.featureText || ''}</p>
+                  <p><span className="font-semibold">Starting Equipment:</span> {selectedBackground.startingEquipment || '—'}</p>
+                </div>
+              ) : (
+                <>
+                  {backgrounds.length === 0 && (
+                    <p className="text-sm text-gray-600">No backgrounds found for this mod.</p>
+                  )}
+                  <div className="space-y-2">
+                    {backgrounds.map((background) => (
+                      <div key={background.id} className="rounded border border-gray-300 p-3 bg-gray-50 text-sm">
+                        <button
+                          onClick={() => setExpandedBackgroundId((prev) => (prev === background.id ? null : background.id))}
+                          className="font-semibold text-left w-full"
+                        >
+                          {background.name}
+                        </button>
+                        {expandedBackgroundId === background.id && (
+                          <div className="mt-2 space-y-2">
+                            <p className="whitespace-pre-wrap">{background.description || 'No description provided.'}</p>
+                            <button
+                              onClick={() => {
+                                setSelectedBackground(background);
+                                setExpandedBackgroundId(null);
+                              }}
+                              className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                              Select Background
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeSection === 'class' && (
+            <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 space-y-3">
+              <h2 className="text-2xl font-bold text-gray-800">Class ({dndMod})</h2>
+              {loadingClasses && <p className="text-sm text-gray-600">Loading classes...</p>}
+
+              {!loadingClasses && selectedClass && (
+                <div className="space-y-3 rounded border border-gray-300 p-3 bg-gray-50 text-sm text-gray-800">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-2xl font-bold">{selectedClass.name}</h3>
+                    <button
+                      onClick={() => {
+                        setSelectedClass(null);
+                        setExpandedClassId(null);
+                      }}
+                      className="px-3 py-1 text-xs rounded bg-gray-300 hover:bg-gray-400"
+                    >
+                      Change Class
+                    </button>
+                  </div>
+
+                  <div className="max-w-xs">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Class Level</label>
+                    <select
+                      value={classLevel}
+                      onChange={(e) => setClassLevel(e.target.value)}
+                      className="w-full rounded border-gray-300 text-sm"
+                    >
+                      {Array.from({ length: 20 }).map((_, index) => (
+                        <option key={`level-${index + 1}`} value={String(index + 1)}>
+                          {index + 1}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div><span className="font-semibold">Hit Dice:</span> {selectedClass.hitDice || '—'}</div>
+                    <div><span className="font-semibold">Prof. Armour:</span> {selectedClass.profArmour || '—'}</div>
+                    <div><span className="font-semibold">Prof. Weapons:</span> {selectedClass.profWeapons || '—'}</div>
+                    <div><span className="font-semibold">Prof. Saving Throws:</span> {selectedClass.profSavingThrows || '—'}</div>
+                    <div><span className="font-semibold">Points Name:</span> {selectedClass.pointsName || '—'}</div>
+                    <div><span className="font-semibold">Proficiency Bonus:</span> {selectedClassLevelData?.ProfBonus ?? '—'}</div>
+                    <div><span className="font-semibold">Cantrips:</span> {selectedClassLevelData?.Cantrips ?? '—'}</div>
+                    <div><span className="font-semibold">Spells Known:</span> {selectedClassLevelData?.SpellsKnown ?? '—'}</div>
+                    <div><span className="font-semibold">Class Points:</span> {selectedClassLevelData?.Points ?? '—'}</div>
+                  </div>
+
+                  {(() => {
+                    const skillChoice = parseSkillChoices(selectedClass.profSkills || '');
+                    if (!skillChoice.isChoice) {
+                      return <div><span className="font-semibold">Skill Proficiencies:</span> {selectedClass.profSkills || '—'}</div>;
+                    }
+
+                    return (
+                      <div className="space-y-2">
+                        <div className="font-semibold">Skill Choices (pick {skillChoice.count})</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {Array.from({ length: skillChoice.count }).map((_, index) => (
+                            <select
+                              key={`skill-choice-${index}`}
+                              value={skillChoices[index] || ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                const newChoices = [...skillChoices];
+                                newChoices[index] = value;
+                                setSkillChoices(newChoices);
+                              }}
+                              className="w-full rounded border-gray-300 text-sm"
+                            >
+                              <option value="">Select skill</option>
+                              {skillChoice.options.map((option) => (
+                                <option
+                                  key={`${option}-${index}`}
+                                  value={option}
+                                  disabled={skillChoices.includes(option) && skillChoices[index] !== option}
+                                >
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div>
+                    <p className="font-semibold">Class Features at Level {classLevel}</p>
+                    {selectedClassFeatures.length === 0 && (
+                      <p className="text-sm text-gray-600">No class features listed for this level.</p>
+                    )}
+                    {selectedClassFeatures.length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {selectedClassFeatures.map((feature) => (
+                          <div key={feature.id} className="rounded border border-gray-300 p-2 bg-white">
+                            <p className="font-semibold">{feature.name}</p>
+                            <p className="whitespace-pre-wrap">{feature.text || 'No description provided.'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!loadingClasses && !selectedClass && (
+                <>
+                  {classes.length === 0 && (
+                    <p className="text-sm text-gray-600">No classes found for this mod.</p>
+                  )}
+                  <div className="space-y-2">
+                    {classes.map((classRow) => (
+                      <div key={classRow.id} className="rounded border border-gray-300 p-3 bg-gray-50 text-sm">
+                        <button
+                          onClick={() => setExpandedClassId((prev) => (prev === classRow.id ? null : classRow.id))}
+                          className="font-semibold text-left w-full"
+                        >
+                          {classRow.name}
+                        </button>
+
+                        {expandedClassId === classRow.id && (
+                          <div className="mt-2 space-y-2">
+                            <p className="whitespace-pre-wrap">{classRow.description || 'No description provided.'}</p>
+                            <button
+                              onClick={() => {
+                                setSelectedClass(classRow);
+                                setExpandedClassId(null);
+                                localStorage.setItem('dndmod_selected_class_id', String(classRow.id));
+                              }}
+                              className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                              Select Class
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeSection === 'stats' && (
+            <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 space-y-3">
+              <h2 className="text-2xl font-bold text-gray-800">Ability Scores</h2>
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Point Buy Remaining: {calculatePointsRemaining()} / 27</p>
+              </div>
+              <div className="space-y-2 text-sm text-gray-700">
                 {statsList.map((stat) => {
-                  const currentCost = pointCosts[statValues[stat]] || 0;
                   const othersSpent = Object.entries(statValues).reduce((total, [key, val]) => {
                     if (key !== stat) {
                       total += pointCosts[val] || 0;
@@ -355,164 +1188,188 @@ export default function DNDModCharacterCreator() {
                     return total;
                   }, 0);
 
-                  return (
-                    <li key={stat} className="flex items-center justify-between gap-3">
-                      <span>{stat}</span>
-                      <select
-                        value={statValues[stat]}
-                        onChange={(e) => setStatValues({ ...statValues, [stat]: e.target.value })}
-                        className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
-                      >
-                        {['8', '9', '10', '11', '12', '13', '14', '15'].map((value) => {
-                          const optionCost = pointCosts[value] || 0;
-                          const totalCost = othersSpent + optionCost;
-                          const isDisabled = totalCost > 27;
-                          const costLabel = value === '8' ? '' : ` (-${optionCost} Point${optionCost > 1 ? 's' : ''})`;
+                  const raceBonus = raceAbilityBonus(stat);
+                  const total = totalStatValue(stat);
+                  const modifier = abilityModifier(total);
 
-                          return (
-                            <option key={value} value={value} disabled={isDisabled}>
-                              {value}{costLabel}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </li>
+                  return (
+                    <div key={stat} className="rounded border border-gray-300 p-2 bg-gray-50">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-semibold">{stat}</span>
+                        <select
+                          value={statValues[stat]}
+                          onChange={(e) => setStatValues({ ...statValues, [stat]: e.target.value })}
+                          className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+                        >
+                          {['8', '9', '10', '11', '12', '13', '14', '15'].map((value) => {
+                            const optionCost = pointCosts[value] || 0;
+                            const totalCost = othersSpent + optionCost;
+                            const isDisabled = totalCost > 27;
+                            const costLabel = value === '8' ? '' : ` (-${optionCost} Point${optionCost > 1 ? 's' : ''})`;
+
+                            return (
+                              <option key={`${stat}-${value}`} value={value} disabled={isDisabled}>
+                                {value}{costLabel}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-700">
+                        Base {statValues[stat]} {raceBonus !== 0 ? `+ Race ${raceBonus > 0 ? '+' : ''}${raceBonus}` : ''} = Total {total} ({modifier >= 0 ? '+' : ''}{modifier})
+                      </p>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
             </div>
           )}
 
-          {showClasses && (
-            <div
-              className="w-full max-w-xl rounded-lg border p-4 space-y-3"
-              style={{ backgroundColor: '#fecaca', borderColor: '#fca5a5' }}
-            >
-              <h2 className="text-2xl font-bold text-gray-800">Classes ({dndMod})</h2>
-              {loadingClasses && <p className="text-sm text-gray-600">Loading...</p>}
-              {classError && <p className="text-sm text-red-600">{classError}</p>}
+          {activeSection === 'gear' && (
+            <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 space-y-4">
+              <h2 className="text-2xl font-bold text-gray-800">Gear & Spells</h2>
 
-              {!loadingClasses && !classError && (
-                selectedClass ? (
-                  (() => {
-                    const skillChoice = parseSkillChoices(selectedClass.profSkills || '');
-                    return (
-                      <div className="space-y-2 bg-white border border-gray-200 rounded-md p-3 shadow-sm text-sm text-gray-800">
-                        <div className="flex items-center justify-between">
-                          <span className="text-4xl font-extrabold" style={{ fontSize: '28px', fontWeight: 800 }}>
-                            {selectedClass.name}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">Equipment</h3>
+                {equipmentOptions.length === 0 && (
+                  <p className="text-sm text-gray-600">No equipment found for this mod.</p>
+                )}
+                {equipmentOptions.length > 0 && (
+                  <div className="mt-2 max-h-72 overflow-auto border border-gray-300 rounded p-2 bg-gray-50 space-y-2">
+                    {equipmentOptions.map((item) => {
+                      const classRestrictions = normalizeList(item.allowedClasses).map((entry) => entry.toLowerCase());
+                      const isAllowedForClass = !selectedClass || classRestrictions.length === 0 || classRestrictions.includes(selectedClass.name.toLowerCase());
+                      if (!isAllowedForClass) return null;
+
+                      return (
+                        <label key={item.id} className="flex items-start gap-2 text-sm text-gray-800">
+                          <input
+                            type="checkbox"
+                            checked={selectedEquipmentIds.includes(item.id)}
+                            onChange={() => toggleEquipment(item.id)}
+                          />
+                          <span>
+                            <span className="font-semibold">{item.name}</span>
+                            {item.category ? ` (${item.category})` : ''}
+                            {item.cost ? ` — ${item.cost}` : ''}
+                            {item.description ? ` — ${item.description}` : ''}
                           </span>
-                          <button
-                            onClick={() => { setSelectedClass(null); setExpandedClassId(null); }}
-                            className="text-xs px-3 py-1 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-                          >
-                            Change Class
-                          </button>
-                        </div>
-                        <div className="border-b border-gray-300" />
-                        <div className="max-w-xs">
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Class Level</label>
-                          <select
-                            value={classLevel}
-                            onChange={(e) => setClassLevel(e.target.value)}
-                            className="w-full rounded border-gray-300 text-sm"
-                          >
-                            {Array.from({ length: 20 }).map((_, index) => (
-                              <option key={`level-${index + 1}`} value={String(index + 1)}>
-                                {index + 1}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2">
-                          <div><span className="font-semibold">Hit Dice:</span> {selectedClass.hitDice || '—'}</div>
-                          <div><span className="font-semibold">Prof. Armour:</span> {selectedClass.profArmour || '—'}</div>
-                          <div><span className="font-semibold">Prof. Weapons:</span> {selectedClass.profWeapons || '—'}</div>
-                          <div><span className="font-semibold">Prof. Saving Throws:</span> {selectedClass.profSavingThrows || '—'}</div>
-                          {skillChoice.isChoice ? (
-                            <div className="space-y-2">
-                              <div className="font-semibold">Skill Choices (pick {skillChoice.count})</div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {Array.from({ length: skillChoice.count }).map((_, index) => (
-                                  <select
-                                    key={`skill-choice-${index}`}
-                                    value={skillChoices[index] || ''}
-                                    onChange={(e) => {
-                                      const value = e.target.value;
-                                      const newChoices = [...skillChoices];
-                                      newChoices[index] = value;
-                                      setSkillChoices(newChoices);
-                                    }}
-                                    className="w-full rounded border-gray-300 text-sm"
-                                  >
-                                    <option value="">Select skill</option>
-                                    {skillChoice.options.map((opt) => (
-                                      <option 
-                                        key={`${opt}-${index}`} 
-                                        value={opt} 
-                                        disabled={skillChoices.includes(opt) && skillChoices[index] !== opt}
-                                      >
-                                        {opt}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div><span className="font-semibold">Skill Proficiencies:</span> {selectedClass.profSkills || '—'}</div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <>
-                    {classes.length === 0 && (
-                      <p className="text-sm text-gray-600">No classes found.</p>
-                    )}
-                    <div className="space-y-3">
-                      {classes.map((c) => (
-                        <div key={c.id} className="border border-gray-200 rounded-md p-3 bg-white shadow-sm">
-                          <button
-                            onClick={() => setExpandedClassId((prev) => prev === c.id ? null : c.id)}
-                            className="w-full text-left text-gray-800 font-semibold"
-                          >
-                            {c.name}
-                          </button>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-                          {expandedClassId === c.id && (
-                            <div className="mt-3 space-y-3 text-sm text-gray-700">
-                              <p className="whitespace-pre-wrap">{c.description || 'No description provided.'}</p>
-                              <div className="flex gap-3">
-                                <button
-                                  onClick={() => {
-                                    setSelectedClass(c);
-                                    setExpandedClassId(null);
-                                    localStorage.setItem('dndmod_selected_class_id', String(c.id));
-                                    console.log('Selected class id:', c.id);
-                                  }}
-                                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm font-semibold"
-                                >
-                                  Select Class
-                                </button>
-                                <button
-                                  onClick={() => setExpandedClassId(null)}
-                                  className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition text-sm font-semibold"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )
-              )}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">Spells</h3>
+                {selectedClassLevelData && (
+                  <p className="text-sm text-gray-700">
+                    Level limits: Cantrips {cantripLimit || '—'} / Spells Known {spellsKnownLimit || '—'}
+                  </p>
+                )}
+                {filteredSpellOptions.length === 0 && (
+                  <p className="text-sm text-gray-600">No spells found for this class/mod.</p>
+                )}
+                {filteredSpellOptions.length > 0 && (
+                  <div className="mt-2 max-h-80 overflow-auto border border-gray-300 rounded p-2 bg-gray-50 space-y-2">
+                    {filteredSpellOptions
+                      .slice()
+                      .sort((a, b) => a.spellLevel - b.spellLevel || a.name.localeCompare(b.name))
+                      .map((spell) => {
+                        const currentCharacterLevel = parseIntegerOrFallback(classLevel, 1);
+                        const spellLevel = parseIntegerOrFallback(spell.spellLevel, 0);
+                        if (spellLevel > currentCharacterLevel) return null;
+
+                        const checked = selectedSpellIds.includes(spell.id);
+                        return (
+                          <label key={spell.id} className="flex items-start gap-2 text-sm text-gray-800">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleSpell(spell.id)}
+                            />
+                            <span>
+                              <span className="font-semibold">{spell.name}</span>
+                              {` (Level ${spellLevel})`}
+                              {spell.school ? ` — ${spell.school}` : ''}
+                              {spell.castingTime ? ` — ${spell.castingTime}` : ''}
+                            </span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">Inventory / Carrying Notes</label>
+                <textarea
+                  value={inventoryText}
+                  onChange={(e) => setInventoryText(e.target.value)}
+                  rows={4}
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="List coins, backpack contents, consumables, and tracked gear notes"
+                />
+              </div>
             </div>
           )}
+
+          {activeSection === 'notes' && (
+            <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 space-y-3">
+              <h2 className="text-2xl font-bold text-gray-800">Roleplay Notes</h2>
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">Personality Traits</label>
+                <textarea value={personalityTraits} onChange={(e) => setPersonalityTraits(e.target.value)} rows={2} className="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">Ideals</label>
+                <textarea value={ideals} onChange={(e) => setIdeals(e.target.value)} rows={2} className="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">Bonds</label>
+                <textarea value={bonds} onChange={(e) => setBonds(e.target.value)} rows={2} className="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">Flaws</label>
+                <textarea value={flaws} onChange={(e) => setFlaws(e.target.value)} rows={2} className="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">Backstory</label>
+                <textarea value={backstory} onChange={(e) => setBackstory(e.target.value)} rows={4} className="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">General Notes</label>
+                <textarea value={characterNotes} onChange={(e) => setCharacterNotes(e.target.value)} rows={5} className="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+              </div>
+            </div>
+          )}
+
+          <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 text-sm text-gray-800">
+            <h3 className="text-lg font-semibold mb-2">Quick Summary</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div><span className="font-semibold">Class:</span> {selectedClass?.name || '—'}</div>
+              <div><span className="font-semibold">Level:</span> {classLevel}</div>
+              <div><span className="font-semibold">Race:</span> {selectedRace?.name || '—'}</div>
+              <div><span className="font-semibold">Background:</span> {selectedBackground?.name || '—'}</div>
+              <div><span className="font-semibold">HP:</span> {currentHp || '—'} / {maxHp || '—'}</div>
+              <div><span className="font-semibold">AC:</span> {armorClass || '—'}</div>
+              <div><span className="font-semibold">Equipment Picks:</span> {selectedEquipmentIds.length}</div>
+              <div><span className="font-semibold">Spell Picks:</span> {selectedSpellIds.length}</div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {statsList.map((stat) => {
+                const total = totalStatValue(stat);
+                const modifier = abilityModifier(total);
+                return (
+                  <div key={`summary-${stat}`} className="rounded border border-gray-300 px-2 py-1 bg-gray-50">
+                    <span className="font-semibold">{statColumnMap[stat]}:</span> {total} ({modifier >= 0 ? '+' : ''}{modifier})
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>
