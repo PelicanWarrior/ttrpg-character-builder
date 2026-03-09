@@ -11,6 +11,40 @@ const normalizeIdList = (value) => normalizeList(value)
   .map((item) => Number(item))
   .filter((item) => !Number.isNaN(item));
 
+const normalizeDndExtraLevelFields = (value) => {
+  const list = Array.isArray(value)
+    ? value
+    : normalizeList(value);
+
+  return [...new Set(list
+    .map((item) => String(item || '').trim())
+    .filter(Boolean))];
+};
+
+const normalizeDndExtraLevelValues = (value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return Object.entries(value).reduce((acc, [key, fieldValue]) => {
+      const normalizedKey = String(key || '').trim();
+      if (!normalizedKey) return acc;
+      acc[normalizedKey] = fieldValue == null ? '' : String(fieldValue);
+      return acc;
+    }, {});
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return normalizeDndExtraLevelValues(parsed);
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+};
+
 const toNumericString = (value, fallback = '0') => {
   const parsed = Number(value);
   return Number.isNaN(parsed) ? fallback : String(parsed);
@@ -28,6 +62,196 @@ const parseIntegerOrFallback = (value, fallback = 0) => {
   return Number.isNaN(parsed) ? fallback : parsed;
 };
 
+const DND_ABILITY_STATS = ['STRENGTH', 'DEXTERITY', 'CONSTITUTION', 'INTELLIGENCE', 'WISDOM', 'CHARISMA'];
+const DND_ABILITY_SHORT_LABEL = {
+  STRENGTH: 'STR',
+  DEXTERITY: 'DEX',
+  CONSTITUTION: 'CON',
+  INTELLIGENCE: 'INT',
+  WISDOM: 'WIS',
+  CHARISMA: 'CHA',
+};
+const DND_ABILITY_ALIAS = {
+  STR: 'STRENGTH',
+  DEX: 'DEXTERITY',
+  CON: 'CONSTITUTION',
+  INT: 'INTELLIGENCE',
+  WIS: 'WISDOM',
+  CHA: 'CHARISMA',
+  STRENGTH: 'STRENGTH',
+  DEXTERITY: 'DEXTERITY',
+  CONSTITUTION: 'CONSTITUTION',
+  INTELLIGENCE: 'INTELLIGENCE',
+  WISDOM: 'WISDOM',
+  CHARISMA: 'CHARISMA',
+};
+
+const normalizeDndAbilityStat = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  return DND_ABILITY_ALIAS[normalized] || '';
+};
+
+const normalizeRaceAbilityBonusRules = (value) => {
+  const parsed = (() => {
+    if (!value) return {};
+    if (typeof value === 'string') {
+      try {
+        const json = JSON.parse(value);
+        return json && typeof json === 'object' ? json : {};
+      } catch {
+        return {};
+      }
+    }
+    return value && typeof value === 'object' ? value : {};
+  })();
+
+  const fixed = Array.isArray(parsed.fixed)
+    ? parsed.fixed
+      .map((entry) => ({
+        stat: normalizeDndAbilityStat(entry?.stat),
+        amount: parseIntegerOrFallback(entry?.amount, 0),
+      }))
+      .filter((entry) => entry.stat && entry.amount !== 0)
+    : [];
+
+  const choices = Array.isArray(parsed.choices)
+    ? parsed.choices
+      .map((entry, index) => {
+        const count = Math.max(1, parseIntegerOrFallback(entry?.count, 1));
+        const amount = parseIntegerOrFallback(entry?.amount, 1);
+        const options = [...new Set(
+          (Array.isArray(entry?.options) ? entry.options : [])
+            .map((option) => normalizeDndAbilityStat(option))
+            .filter(Boolean)
+        )];
+        return {
+          id: String(entry?.id || `choice-${index + 1}`),
+          count,
+          amount,
+          options,
+        };
+      })
+      .filter((entry) => entry.options.length > 0 && entry.amount !== 0)
+    : [];
+
+  return { fixed, choices };
+};
+
+const raceAbilityRulesFromRow = (row) => {
+  const fromRules = normalizeRaceAbilityBonusRules(row?.AbilityBonusRules);
+  if (fromRules.fixed.length > 0 || fromRules.choices.length > 0) {
+    return fromRules;
+  }
+
+  const legacyFixed = [
+    { stat: 'STRENGTH', amount: parseIntegerOrFallback(row?.AbilityBonus_Str, 0) },
+    { stat: 'DEXTERITY', amount: parseIntegerOrFallback(row?.AbilityBonus_Dex, 0) },
+    { stat: 'CONSTITUTION', amount: parseIntegerOrFallback(row?.AbilityBonus_Con, 0) },
+    { stat: 'INTELLIGENCE', amount: parseIntegerOrFallback(row?.AbilityBonus_Int, 0) },
+    { stat: 'WISDOM', amount: parseIntegerOrFallback(row?.AbilityBonus_Wis, 0) },
+    { stat: 'CHARISMA', amount: parseIntegerOrFallback(row?.AbilityBonus_Cha, 0) },
+  ].filter((entry) => entry.amount !== 0);
+
+  return {
+    fixed: legacyFixed,
+    choices: [],
+  };
+};
+
+const calculateRaceAbilityBonuses = (rules, selections) => {
+  const totals = {
+    STRENGTH: 0,
+    DEXTERITY: 0,
+    CONSTITUTION: 0,
+    INTELLIGENCE: 0,
+    WISDOM: 0,
+    CHARISMA: 0,
+  };
+
+  (rules?.fixed || []).forEach((entry) => {
+    if (!entry?.stat || !Object.prototype.hasOwnProperty.call(totals, entry.stat)) return;
+    totals[entry.stat] += parseIntegerOrFallback(entry.amount, 0);
+  });
+
+  const unresolved = [];
+
+  (rules?.choices || []).forEach((choice) => {
+    const maxPicks = Math.max(1, parseIntegerOrFallback(choice.count, 1));
+    const amount = parseIntegerOrFallback(choice.amount, 0);
+    const options = Array.isArray(choice.options)
+      ? choice.options.map((option) => normalizeDndAbilityStat(option)).filter(Boolean)
+      : [];
+    const selectedRaw = Array.isArray(selections?.[choice.id]) ? selections[choice.id] : [];
+    const selectedValid = [...new Set(
+      selectedRaw
+        .map((option) => normalizeDndAbilityStat(option))
+        .filter((option) => options.includes(option))
+    )].slice(0, maxPicks);
+
+    selectedValid.forEach((stat) => {
+      if (!Object.prototype.hasOwnProperty.call(totals, stat)) return;
+      totals[stat] += amount;
+    });
+
+    if (selectedValid.length < maxPicks) {
+      unresolved.push({
+        id: choice.id,
+        count: maxPicks,
+        selectedCount: selectedValid.length,
+      });
+    }
+  });
+
+  return { totals, unresolved };
+};
+
+const normalizeRaceAbilityChoiceSelections = (value) => {
+  const parsed = (() => {
+    if (!value) return {};
+    if (typeof value === 'string') {
+      try {
+        const json = JSON.parse(value);
+        return json && typeof json === 'object' ? json : {};
+      } catch {
+        return {};
+      }
+    }
+    return value && typeof value === 'object' ? value : {};
+  })();
+
+  return Object.entries(parsed).reduce((acc, [choiceId, selectedValues]) => {
+    if (!choiceId) return acc;
+    const selected = Array.isArray(selectedValues)
+      ? [...new Set(selectedValues
+        .map((entry) => normalizeDndAbilityStat(entry))
+        .filter(Boolean))]
+      : [];
+    acc[String(choiceId)] = selected;
+    return acc;
+  }, {});
+};
+
+const buildRaceAbilityChoiceSelectionsForRules = (rules, selections) => {
+  const result = {};
+
+  (rules?.choices || []).forEach((choice) => {
+    if (!choice?.id) return;
+    const options = Array.isArray(choice.options)
+      ? choice.options.map((option) => normalizeDndAbilityStat(option)).filter(Boolean)
+      : [];
+    const maxPicks = Math.max(1, parseIntegerOrFallback(choice.count, 1));
+    const selectedRaw = Array.isArray(selections?.[choice.id]) ? selections[choice.id] : [];
+    const selectedValid = [...new Set(
+      selectedRaw
+        .map((option) => normalizeDndAbilityStat(option))
+        .filter((option) => options.includes(option))
+    )].slice(0, maxPicks);
+    result[choice.id] = selectedValid;
+  });
+
+  return result;
+};
+
 export default function DNDModCharacterCreator() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -37,6 +261,7 @@ export default function DNDModCharacterCreator() {
   const [classes, setClasses] = useState([]);
   const [races, setRaces] = useState([]);
   const [backgrounds, setBackgrounds] = useState([]);
+  const [dndPictures, setDndPictures] = useState([]);
   const [equipmentOptions, setEquipmentOptions] = useState([]);
   const [spellOptions, setSpellOptions] = useState([]);
   const [classLevels, setClassLevels] = useState([]);
@@ -52,6 +277,8 @@ export default function DNDModCharacterCreator() {
   const [expandedBackgroundId, setExpandedBackgroundId] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [selectedRace, setSelectedRace] = useState(null);
+  const [raceChoiceSelections, setRaceChoiceSelections] = useState({});
+  const [savedRaceChoiceSelections, setSavedRaceChoiceSelections] = useState(null);
   const [selectedBackground, setSelectedBackground] = useState(null);
 
   const [skillChoices, setSkillChoices] = useState([]);
@@ -141,13 +368,22 @@ export default function DNDModCharacterCreator() {
     setLoadingClasses(true);
     setClassError('');
     try {
-      const { data, error } = await supabase
+      const classesWithExtras = await supabase
         .from('DND_Classes')
-        .select('id, ClassName, DNDMod, Description, HitDice, Prof_Armour, Prof_Weapons, Prof_SavingThrows, Prof_Skills, PointsName');
+        .select('id, ClassName, DNDMod, Description, HitDice, Prof_Armour, Prof_Weapons, Prof_SavingThrows, Prof_Skills, PointsName, ExtraLevelFields');
 
-      if (error) throw error;
+      let classRows = [];
+      if (classesWithExtras.error) {
+        const classesFallback = await supabase
+          .from('DND_Classes')
+          .select('id, ClassName, DNDMod, Description, HitDice, Prof_Armour, Prof_Weapons, Prof_SavingThrows, Prof_Skills, PointsName');
+        if (classesFallback.error) throw classesFallback.error;
+        classRows = classesFallback.data || [];
+      } else {
+        classRows = classesWithExtras.data || [];
+      }
 
-      const filtered = (data || []).filter((row) => matchesMod(row.DNDMod));
+      const filtered = classRows.filter((row) => matchesMod(row.DNDMod));
 
       setClasses(filtered.map((row) => ({
         id: row.id,
@@ -159,6 +395,7 @@ export default function DNDModCharacterCreator() {
         profSavingThrows: row.Prof_SavingThrows || '',
         profSkills: row.Prof_Skills || '',
         pointsName: row.PointsName || 'Class Points',
+        extraLevelFields: normalizeDndExtraLevelFields(row.ExtraLevelFields),
       })));
     } catch (err) {
       console.error('Failed to load classes:', err);
@@ -173,10 +410,25 @@ export default function DNDModCharacterCreator() {
     const warnings = [];
 
     try {
-      const [raceResult, backgroundResult, equipmentResult, spellResult] = await Promise.all([
-        supabase
+      const raceWithRules = await supabase
+        .from('DND_Races')
+        .select('id, RaceName, DNDMod, Description, Size, Speed, Languages, Traits, AbilityBonusRules, AbilityBonus_Str, AbilityBonus_Dex, AbilityBonus_Con, AbilityBonus_Int, AbilityBonus_Wis, AbilityBonus_Cha');
+
+      let raceRows = [];
+      if (raceWithRules.error) {
+        const raceFallback = await supabase
           .from('DND_Races')
-          .select('id, RaceName, DNDMod, Description, Size, Speed, Languages, Traits, AbilityBonus_Str, AbilityBonus_Dex, AbilityBonus_Con, AbilityBonus_Int, AbilityBonus_Wis, AbilityBonus_Cha'),
+          .select('id, RaceName, DNDMod, Description, Size, Speed, Languages, Traits, AbilityBonus_Str, AbilityBonus_Dex, AbilityBonus_Con, AbilityBonus_Int, AbilityBonus_Wis, AbilityBonus_Cha');
+        if (raceFallback.error) {
+          warnings.push('DND_Races table is missing or unavailable.');
+        } else {
+          raceRows = raceFallback.data || [];
+        }
+      } else {
+        raceRows = raceWithRules.data || [];
+      }
+
+      const [backgroundResult, equipmentResult, spellResult, pictureResult] = await Promise.all([
         supabase
           .from('DND_Backgrounds')
           .select('id, BackgroundName, DNDMod, Description, SkillProficiencies, ToolProficiencies, Languages, FeatureName, FeatureText, StartingEquipment'),
@@ -186,13 +438,14 @@ export default function DNDModCharacterCreator() {
         supabase
           .from('DND_Spells')
           .select('id, SpellName, DNDMod, SpellLevel, School, CastingTime, Range, Components, Duration, Description, ClassList'),
+        supabase
+          .from('DND_Pictures')
+          .select('id, PictureID, Class, Race, DNDMod'),
       ]);
 
-      if (raceResult.error) {
-        warnings.push('DND_Races table is missing or unavailable.');
-      } else {
-        const raceRows = (raceResult.data || []).filter((row) => matchesMod(row.DNDMod));
-        setRaces(raceRows.map((row) => ({
+      if (raceRows.length > 0) {
+        const filteredRaceRows = raceRows.filter((row) => matchesMod(row.DNDMod));
+        setRaces(filteredRaceRows.map((row) => ({
           id: row.id,
           name: row.RaceName || 'Unnamed Race',
           description: row.Description || '',
@@ -200,15 +453,10 @@ export default function DNDModCharacterCreator() {
           speed: row.Speed != null ? String(row.Speed) : '',
           languages: row.Languages || '',
           traits: row.Traits || '',
-          abilityBonuses: {
-            STRENGTH: parseIntegerOrFallback(row.AbilityBonus_Str, 0),
-            DEXTERITY: parseIntegerOrFallback(row.AbilityBonus_Dex, 0),
-            CONSTITUTION: parseIntegerOrFallback(row.AbilityBonus_Con, 0),
-            INTELLIGENCE: parseIntegerOrFallback(row.AbilityBonus_Int, 0),
-            WISDOM: parseIntegerOrFallback(row.AbilityBonus_Wis, 0),
-            CHARISMA: parseIntegerOrFallback(row.AbilityBonus_Cha, 0),
-          },
+          abilityBonusRules: raceAbilityRulesFromRow(row),
         })));
+      } else {
+        setRaces([]);
       }
 
       if (backgroundResult.error) {
@@ -264,6 +512,18 @@ export default function DNDModCharacterCreator() {
           classList: row.ClassList || '',
         })));
       }
+
+      if (pictureResult.error) {
+        warnings.push('DND_Pictures table is missing or unavailable.');
+      } else {
+        const pictureRows = (pictureResult.data || []).filter((row) => matchesMod(row.DNDMod));
+        setDndPictures(pictureRows.map((row) => ({
+          id: row.id,
+          pictureId: parseIntegerOrFallback(row.PictureID, 0),
+          classId: parseIntegerOrFallback(row.Class, 0),
+          raceId: parseIntegerOrFallback(row.Race, 0),
+        })).filter((row) => row.pictureId > 0));
+      }
     } finally {
       setDataWarnings(warnings);
       setLoadingReferenceData(false);
@@ -277,19 +537,31 @@ export default function DNDModCharacterCreator() {
     }
 
     try {
-      const [featureResult, levelsResult] = await Promise.all([
+      const [featureResult, levelsWithExtras] = await Promise.all([
         supabase
           .from('DND_ClassFeatures')
           .select('id, FeatureName, FeatureText'),
         supabase
           .from('DND_Class_Levels')
-          .select('Level, ProfBonus, Features, Cantrips, SpellsKnown, Points')
+          .select('Level, ProfBonus, Features, Cantrips, SpellsKnown, Points, ExtraValues')
           .eq('Class', classId)
           .order('Level', { ascending: true }),
       ]);
 
       if (featureResult.error) throw featureResult.error;
-      if (levelsResult.error) throw levelsResult.error;
+
+      let levelRows = [];
+      if (levelsWithExtras.error) {
+        const levelsFallback = await supabase
+          .from('DND_Class_Levels')
+          .select('Level, ProfBonus, Features, Cantrips, SpellsKnown, Points')
+          .eq('Class', classId)
+          .order('Level', { ascending: true });
+        if (levelsFallback.error) throw levelsFallback.error;
+        levelRows = levelsFallback.data || [];
+      } else {
+        levelRows = levelsWithExtras.data || [];
+      }
 
       const featureMap = {};
       (featureResult.data || []).forEach((feature) => {
@@ -300,7 +572,10 @@ export default function DNDModCharacterCreator() {
       });
 
       setClassFeaturesById(featureMap);
-      setClassLevels(levelsResult.data || []);
+      setClassLevels(levelRows.map((row) => ({
+        ...row,
+        ExtraValues: normalizeDndExtraLevelValues(row.ExtraValues),
+      })));
     } catch (err) {
       console.error('Failed to load class progression:', err);
       setClassLevels([]);
@@ -404,6 +679,7 @@ export default function DNDModCharacterCreator() {
 
         setSelectedEquipmentIds(normalizeIdList(data?.Known_Equipment));
         setSelectedSpellIds(normalizeIdList(data?.Known_Spells));
+        setSavedRaceChoiceSelections(normalizeRaceAbilityChoiceSelections(data?.RaceAbilityChoices));
 
         setIsInitializingFromEdit(true);
         setStatValues({
@@ -447,6 +723,34 @@ export default function DNDModCharacterCreator() {
   }, [editingRaceId, races]);
 
   useEffect(() => {
+    if (!selectedRace) {
+      setRaceChoiceSelections({});
+      return;
+    }
+
+    const choiceRules = selectedRace.abilityBonusRules?.choices || [];
+    setRaceChoiceSelections((prev) => {
+      const sourceSelections = savedRaceChoiceSelections && typeof savedRaceChoiceSelections === 'object'
+        ? savedRaceChoiceSelections
+        : prev;
+      const next = {};
+      choiceRules.forEach((choice) => {
+        const options = Array.isArray(choice.options) ? choice.options : [];
+        const selected = Array.isArray(sourceSelections?.[choice.id]) ? sourceSelections[choice.id] : [];
+        next[choice.id] = [...new Set(
+          selected
+            .map((value) => normalizeDndAbilityStat(value))
+            .filter((value) => options.includes(value))
+        )].slice(0, Math.max(1, parseIntegerOrFallback(choice.count, 1)));
+      });
+      return next;
+    });
+    if (savedRaceChoiceSelections != null) {
+      setSavedRaceChoiceSelections(null);
+    }
+  }, [selectedRace, savedRaceChoiceSelections]);
+
+  useEffect(() => {
     if (!editingBackgroundId || backgrounds.length === 0) return;
     const found = backgrounds.find((background) => background.id === editingBackgroundId);
     if (found) {
@@ -454,7 +758,7 @@ export default function DNDModCharacterCreator() {
     }
   }, [editingBackgroundId, backgrounds]);
 
-  const statsList = ['STRENGTH', 'DEXTERITY', 'CONSTITUTION', 'INTELLIGENCE', 'WISDOM', 'CHARISMA'];
+  const statsList = DND_ABILITY_STATS;
   const statColumnMap = {
     STRENGTH: 'Str',
     DEXTERITY: 'Dex',
@@ -497,12 +801,61 @@ export default function DNDModCharacterCreator() {
   };
 
   const selectedClassLevelData = classLevels.find((row) => String(row.Level) === String(classLevel)) || null;
-  const selectedClassFeatureIds = normalizeIdList(selectedClassLevelData?.Features);
-  const selectedClassFeatures = selectedClassFeatureIds
+  const selectedClassLevelNumber = Math.max(1, parseIntegerOrFallback(classLevel, 1));
+  const selectedClassFeatureIds = classLevels
+    .filter((row) => parseIntegerOrFallback(row.Level, 0) <= selectedClassLevelNumber)
+    .flatMap((row) => normalizeIdList(row?.Features));
+  const uniqueSelectedClassFeatureIds = [...new Set(selectedClassFeatureIds)];
+  const selectedClassFeatures = uniqueSelectedClassFeatureIds
     .map((featureId) => ({ id: featureId, ...classFeaturesById[featureId] }))
     .filter((feature) => Boolean(feature.name));
+  const selectedClassExtraFieldNames = selectedClass?.extraLevelFields || [];
+  const selectedClassExtraValues = normalizeDndExtraLevelValues(selectedClassLevelData?.ExtraValues);
+  const selectedClassExtraEntries = selectedClassExtraFieldNames.map((fieldName) => ({
+    fieldName,
+    value: selectedClassExtraValues[fieldName] || '—',
+  }));
 
-  const raceAbilityBonus = (statName) => selectedRace?.abilityBonuses?.[statName] || 0;
+  const selectedRaceAbilityRules = selectedRace?.abilityBonusRules || { fixed: [], choices: [] };
+  const raceAbilityBonusState = calculateRaceAbilityBonuses(selectedRaceAbilityRules, raceChoiceSelections);
+  const raceAbilityRuleDescriptions = [
+    ...selectedRaceAbilityRules.fixed.map((entry) => (
+      `${DND_ABILITY_SHORT_LABEL[entry.stat]} ${entry.amount >= 0 ? '+' : ''}${entry.amount}`
+    )),
+    ...selectedRaceAbilityRules.choices.map((choice) => (
+      `Choose ${choice.count} from ${choice.options.map((stat) => DND_ABILITY_SHORT_LABEL[stat]).join('/')} ${choice.amount >= 0 ? `(+${choice.amount} each)` : `(${choice.amount} each)`}`
+    )),
+  ];
+  const raceBonusTotalsDescription = statsList
+    .filter((stat) => (raceAbilityBonusState.totals[stat] || 0) !== 0)
+    .map((stat) => `${DND_ABILITY_SHORT_LABEL[stat]} ${raceAbilityBonusState.totals[stat] >= 0 ? '+' : ''}${raceAbilityBonusState.totals[stat]}`)
+    .join(', ');
+
+  const raceAbilityBonus = (statName) => raceAbilityBonusState.totals?.[statName] || 0;
+
+  const selectedDndPicture = (() => {
+    if (!Array.isArray(dndPictures) || dndPictures.length === 0) return null;
+
+    const selectedClassId = parseIntegerOrFallback(selectedClass?.id, 0);
+    const selectedRaceId = parseIntegerOrFallback(selectedRace?.id, 0);
+
+    if (selectedClassId > 0 && selectedRaceId > 0) {
+      const exact = dndPictures.find((row) => row.classId === selectedClassId && row.raceId === selectedRaceId);
+      if (exact) return exact;
+    }
+
+    if (selectedRaceId > 0) {
+      const raceMatch = dndPictures.find((row) => row.raceId === selectedRaceId);
+      if (raceMatch) return raceMatch;
+    }
+
+    if (selectedClassId > 0) {
+      const classMatch = dndPictures.find((row) => row.classId === selectedClassId);
+      if (classMatch) return classMatch;
+    }
+
+    return null;
+  })();
 
   const totalStatValue = (statName) => {
     const baseValue = parseIntegerOrFallback(statValues[statName], 8);
@@ -537,6 +890,33 @@ export default function DNDModCharacterCreator() {
     ));
   };
 
+  const toggleRaceChoiceOption = (choice, stat) => {
+    const normalizedStat = normalizeDndAbilityStat(stat);
+    if (!choice?.id || !normalizedStat) return;
+
+    const maxPicks = Math.max(1, parseIntegerOrFallback(choice.count, 1));
+    setRaceChoiceSelections((prev) => {
+      const current = Array.isArray(prev?.[choice.id]) ? prev[choice.id] : [];
+      const exists = current.includes(normalizedStat);
+
+      if (exists) {
+        return {
+          ...prev,
+          [choice.id]: current.filter((item) => item !== normalizedStat),
+        };
+      }
+
+      if (current.length >= maxPicks) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [choice.id]: [...current, normalizedStat],
+      };
+    });
+  };
+
   const toggleSpell = (spellId) => {
     setSelectedSpellIds((prev) => {
       if (prev.includes(spellId)) {
@@ -564,6 +944,11 @@ export default function DNDModCharacterCreator() {
     return message.includes('column') && message.includes('dnd_player_character');
   };
 
+  const isMissingRaceAbilityChoicesColumnError = (error) => {
+    const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+    return message.includes('column') && message.includes('raceabilitychoices');
+  };
+
   const saveCharacter = async () => {
     if (!characterName.trim()) {
       alert('Please enter a character name.');
@@ -571,6 +956,10 @@ export default function DNDModCharacterCreator() {
     }
     if (!selectedClass) {
       alert('Please select a class.');
+      return;
+    }
+    if (raceAbilityBonusState.unresolved.length > 0) {
+      alert('Please finish selecting your race ability score choices before saving.');
       return;
     }
     if (!ttrpgId) {
@@ -581,6 +970,9 @@ export default function DNDModCharacterCreator() {
     const profSkills = skillChoices.filter(Boolean).join(', ');
     const loadedCharacterId = localStorage.getItem('loadedCharacterId');
     const userId = localStorage.getItem('userId');
+    const raceAbilityChoicesForSave = selectedRace
+      ? buildRaceAbilityChoiceSelectionsForRules(selectedRaceAbilityRules, raceChoiceSelections)
+      : null;
 
     const baseCharacterData = {
       Name: characterName,
@@ -613,6 +1005,7 @@ export default function DNDModCharacterCreator() {
       Inventory: inventoryText || null,
       Known_Equipment: selectedEquipmentIds.length > 0 ? selectedEquipmentIds.join(', ') : null,
       Known_Spells: selectedSpellIds.length > 0 ? selectedSpellIds.join(', ') : null,
+      RaceAbilityChoices: raceAbilityChoicesForSave,
       PersonalityTraits: personalityTraits || null,
       Ideals: ideals || null,
       Bonds: bonds || null,
@@ -627,10 +1020,16 @@ export default function DNDModCharacterCreator() {
     };
 
     const fullCharacterData = { ...baseCharacterData, ...extendedCharacterData };
+    const { RaceAbilityChoices: _RaceAbilityChoices, ...extendedCharacterDataWithoutRaceAbilityChoices } = extendedCharacterData;
+    const fullCharacterDataWithoutRaceAbilityChoices = {
+      ...baseCharacterData,
+      ...extendedCharacterDataWithoutRaceAbilityChoices,
+    };
 
     try {
       let error;
       let usedFallbackSchema = false;
+      let usedRaceChoiceColumnFallback = false;
 
       if (loadedCharacterId) {
         const { error: updateError } = await supabase
@@ -638,7 +1037,24 @@ export default function DNDModCharacterCreator() {
           .update(fullCharacterData)
           .eq('id', parseInt(loadedCharacterId, 10));
 
-        if (updateError && isMissingCharacterColumnError(updateError)) {
+        if (updateError && isMissingRaceAbilityChoicesColumnError(updateError)) {
+          usedRaceChoiceColumnFallback = true;
+          const { error: retryUpdateError } = await supabase
+            .from('DND_player_character')
+            .update(fullCharacterDataWithoutRaceAbilityChoices)
+            .eq('id', parseInt(loadedCharacterId, 10));
+
+          if (retryUpdateError && isMissingCharacterColumnError(retryUpdateError)) {
+            usedFallbackSchema = true;
+            const { error: fallbackError } = await supabase
+              .from('DND_player_character')
+              .update(baseCharacterData)
+              .eq('id', parseInt(loadedCharacterId, 10));
+            error = fallbackError;
+          } else {
+            error = retryUpdateError;
+          }
+        } else if (updateError && isMissingCharacterColumnError(updateError)) {
           usedFallbackSchema = true;
           const { error: fallbackError } = await supabase
             .from('DND_player_character')
@@ -655,7 +1071,32 @@ export default function DNDModCharacterCreator() {
           .select('id')
           .single();
 
-        if (insertError && isMissingCharacterColumnError(insertError)) {
+        if (insertError && isMissingRaceAbilityChoicesColumnError(insertError)) {
+          usedRaceChoiceColumnFallback = true;
+          const { data: retryInsertData, error: retryInsertError } = await supabase
+            .from('DND_player_character')
+            .insert([fullCharacterDataWithoutRaceAbilityChoices])
+            .select('id')
+            .single();
+
+          if (retryInsertError && isMissingCharacterColumnError(retryInsertError)) {
+            usedFallbackSchema = true;
+            const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
+              .from('DND_player_character')
+              .insert([baseCharacterData])
+              .select('id')
+              .single();
+            error = fallbackInsertError;
+            if (!fallbackInsertError && fallbackInsertData?.id != null) {
+              localStorage.setItem('loadedCharacterId', String(fallbackInsertData.id));
+            }
+          } else {
+            error = retryInsertError;
+            if (!retryInsertError && retryInsertData?.id != null) {
+              localStorage.setItem('loadedCharacterId', String(retryInsertData.id));
+            }
+          }
+        } else if (insertError && isMissingCharacterColumnError(insertError)) {
           usedFallbackSchema = true;
           const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
             .from('DND_player_character')
@@ -678,6 +1119,8 @@ export default function DNDModCharacterCreator() {
 
       if (usedFallbackSchema) {
         alert('Character saved with base fields only. Run the DND migration to store race/background/spells/equipment and notes.');
+      } else if (usedRaceChoiceColumnFallback) {
+        alert('Character saved, but race choice selections require the latest DND migration to persist.');
       } else {
         alert('Character saved successfully!');
       }
@@ -909,10 +1352,31 @@ export default function DNDModCharacterCreator() {
               <h2 className="text-2xl font-bold text-gray-800">Race ({dndMod})</h2>
               {selectedRace ? (
                 <div className="rounded border border-gray-300 p-3 bg-gray-50 text-sm text-gray-800 space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-xl font-bold">{selectedRace.name}</h3>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {selectedDndPicture && (
+                        <img
+                          src={`/F_Pictures/Picture ${selectedDndPicture.pictureId} Face.png`}
+                          alt={`Race portrait ${selectedDndPicture.pictureId}`}
+                          className="rounded"
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            objectFit: 'cover',
+                            border: 'none',
+                            borderRadius: '4px',
+                            display: 'block',
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <h3 className="text-xl font-bold truncate">{selectedRace.name}</h3>
+                    </div>
                     <button
-                      onClick={() => setSelectedRace(null)}
+                      onClick={() => {
+                        setSelectedRace(null);
+                        setRaceChoiceSelections({});
+                      }}
                       className="px-3 py-1 text-xs rounded bg-gray-300 hover:bg-gray-400"
                     >
                       Change Race
@@ -925,14 +1389,55 @@ export default function DNDModCharacterCreator() {
                   <p><span className="font-semibold">Traits:</span> {selectedRace.traits || '—'}</p>
                   <div>
                     <p className="font-semibold">Ability Bonuses</p>
-                    <p>
-                      STR {selectedRace.abilityBonuses.STRENGTH >= 0 ? '+' : ''}{selectedRace.abilityBonuses.STRENGTH},
-                      {' '}DEX {selectedRace.abilityBonuses.DEXTERITY >= 0 ? '+' : ''}{selectedRace.abilityBonuses.DEXTERITY},
-                      {' '}CON {selectedRace.abilityBonuses.CONSTITUTION >= 0 ? '+' : ''}{selectedRace.abilityBonuses.CONSTITUTION},
-                      {' '}INT {selectedRace.abilityBonuses.INTELLIGENCE >= 0 ? '+' : ''}{selectedRace.abilityBonuses.INTELLIGENCE},
-                      {' '}WIS {selectedRace.abilityBonuses.WISDOM >= 0 ? '+' : ''}{selectedRace.abilityBonuses.WISDOM},
-                      {' '}CHA {selectedRace.abilityBonuses.CHARISMA >= 0 ? '+' : ''}{selectedRace.abilityBonuses.CHARISMA}
-                    </p>
+                    {raceAbilityRuleDescriptions.length === 0 && (
+                      <p>No racial ability bonuses.</p>
+                    )}
+                    {raceAbilityRuleDescriptions.length > 0 && (
+                      <ul className="list-disc pl-5">
+                        {raceAbilityRuleDescriptions.map((line, index) => (
+                          <li key={`race-rule-${index}`}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {selectedRaceAbilityRules.choices.length > 0 && (
+                      <div className="mt-2 space-y-2">
+                        {selectedRaceAbilityRules.choices.map((choice) => (
+                          <div key={`race-choice-${choice.id}`} className="rounded border border-gray-300 bg-white p-2">
+                            <p className="font-semibold text-xs">
+                              Choose {choice.count} from {choice.options.map((stat) => DND_ABILITY_SHORT_LABEL[stat]).join(', ')}
+                              {' '}({choice.amount >= 0 ? '+' : ''}{choice.amount} each)
+                            </p>
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              {choice.options.map((stat) => {
+                                const selected = Array.isArray(raceChoiceSelections[choice.id])
+                                  && raceChoiceSelections[choice.id].includes(stat);
+                                const isMaxed = Array.isArray(raceChoiceSelections[choice.id])
+                                  && raceChoiceSelections[choice.id].length >= choice.count
+                                  && !selected;
+
+                                return (
+                                  <label key={`${choice.id}-${stat}`} className="inline-flex items-center gap-1 text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={selected}
+                                      disabled={isMaxed}
+                                      onChange={() => toggleRaceChoiceOption(choice, stat)}
+                                    />
+                                    {DND_ABILITY_SHORT_LABEL[stat]}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {raceBonusTotalsDescription && (
+                      <p className="mt-2 text-xs text-gray-700">Applied: {raceBonusTotalsDescription}</p>
+                    )}
+                    {raceAbilityBonusState.unresolved.length > 0 && (
+                      <p className="mt-1 text-xs text-amber-700">Complete all race ability choices to apply full bonuses.</p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -956,6 +1461,7 @@ export default function DNDModCharacterCreator() {
                             <button
                               onClick={() => {
                                 setSelectedRace(race);
+                                setRaceChoiceSelections({});
                                 setExpandedRaceId(null);
                               }}
                               className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700"
@@ -1037,8 +1543,26 @@ export default function DNDModCharacterCreator() {
 
               {!loadingClasses && selectedClass && (
                 <div className="space-y-3 rounded border border-gray-300 p-3 bg-gray-50 text-sm text-gray-800">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-bold">{selectedClass.name}</h3>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {selectedDndPicture && (
+                        <img
+                          src={`/F_Pictures/Picture ${selectedDndPicture.pictureId} Face.png`}
+                          alt={`Class portrait ${selectedDndPicture.pictureId}`}
+                          className="rounded"
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            objectFit: 'cover',
+                            border: 'none',
+                            borderRadius: '4px',
+                            display: 'block',
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <h3 className="text-2xl font-bold truncate">{selectedClass.name}</h3>
+                    </div>
                     <button
                       onClick={() => {
                         setSelectedClass(null);
@@ -1075,6 +1599,9 @@ export default function DNDModCharacterCreator() {
                     <div><span className="font-semibold">Cantrips:</span> {selectedClassLevelData?.Cantrips ?? '—'}</div>
                     <div><span className="font-semibold">Spells Known:</span> {selectedClassLevelData?.SpellsKnown ?? '—'}</div>
                     <div><span className="font-semibold">Class Points:</span> {selectedClassLevelData?.Points ?? '—'}</div>
+                    {selectedClassExtraEntries.map((entry) => (
+                      <div key={`selected-class-extra-${entry.fieldName}`}><span className="font-semibold">{entry.fieldName}:</span> {entry.value}</div>
+                    ))}
                   </div>
 
                   {(() => {
@@ -1117,9 +1644,9 @@ export default function DNDModCharacterCreator() {
                   })()}
 
                   <div>
-                    <p className="font-semibold">Class Features at Level {classLevel}</p>
+                    <p className="font-semibold">Class Features up to Level {classLevel}</p>
                     {selectedClassFeatures.length === 0 && (
-                      <p className="text-sm text-gray-600">No class features listed for this level.</p>
+                      <p className="text-sm text-gray-600">No class features listed up to this level.</p>
                     )}
                     {selectedClassFeatures.length > 0 && (
                       <div className="space-y-2 mt-2">
@@ -1176,6 +1703,11 @@ export default function DNDModCharacterCreator() {
           {activeSection === 'stats' && (
             <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 space-y-3">
               <h2 className="text-2xl font-bold text-gray-800">Ability Scores</h2>
+              {raceAbilityBonusState.unresolved.length > 0 && (
+                <p className="text-sm text-amber-700">
+                  Race bonus choices are incomplete. Finish selecting choices in the Race tab.
+                </p>
+              )}
               <div>
                 <p className="text-sm font-semibold text-gray-800">Point Buy Remaining: {calculatePointsRemaining()} / 27</p>
               </div>
@@ -1356,6 +1888,9 @@ export default function DNDModCharacterCreator() {
               <div><span className="font-semibold">AC:</span> {armorClass || '—'}</div>
               <div><span className="font-semibold">Equipment Picks:</span> {selectedEquipmentIds.length}</div>
               <div><span className="font-semibold">Spell Picks:</span> {selectedSpellIds.length}</div>
+              {selectedClassExtraEntries.map((entry) => (
+                <div key={`summary-extra-${entry.fieldName}`}><span className="font-semibold">{entry.fieldName}:</span> {entry.value}</div>
+              ))}
             </div>
 
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">

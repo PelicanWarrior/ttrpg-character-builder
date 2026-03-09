@@ -99,23 +99,40 @@ export default function Settings() {
   // -----------------------------------------------------------------
   const [showDndSection, setShowDndSection] = useState(false);
   const [showAddDndClassForm, setShowAddDndClassForm] = useState(false);
+  const [showAddDndSubclassForm, setShowAddDndSubclassForm] = useState(false);
+  const [showAddDndSubRaceForm, setShowAddDndSubRaceForm] = useState(false);
+  const [showDndRacePictures, setShowDndRacePictures] = useState(false);
+  const [showDndClassPictures, setShowDndClassPictures] = useState(false);
   const [showAddDndRaceForm, setShowAddDndRaceForm] = useState(false);
+  const [showAddDndPictureForm, setShowAddDndPictureForm] = useState(false);
   const [showAddDndBackgroundForm, setShowAddDndBackgroundForm] = useState(false);
   const [showAddDndEquipmentForm, setShowAddDndEquipmentForm] = useState(false);
   const [showAddDndSpellForm, setShowAddDndSpellForm] = useState(false);
   const [existingDndClasses, setExistingDndClasses] = useState([]); // All existing DND classes
+  const [existingDndSubclasses, setExistingDndSubclasses] = useState([]);
+  const [existingDndSubRaces, setExistingDndSubRaces] = useState([]);
   const [existingDndRaces, setExistingDndRaces] = useState([]);
+  const [existingDndPictures, setExistingDndPictures] = useState([]);
   const [existingDndBackgrounds, setExistingDndBackgrounds] = useState([]);
   const [existingDndEquipment, setExistingDndEquipment] = useState([]);
   const [existingDndSpells, setExistingDndSpells] = useState([]);
   const [selectedDndClassId, setSelectedDndClassId] = useState('__new__');
+  const [selectedDndSubclassId, setSelectedDndSubclassId] = useState('__new__');
+  const [selectedDndSubRaceId, setSelectedDndSubRaceId] = useState('__new__');
   const [selectedDndRaceId, setSelectedDndRaceId] = useState('__new__');
+  const [selectedDndPictureLinkId, setSelectedDndPictureLinkId] = useState('__new__');
+  const [selectedDndClassPerRacePicture, setSelectedDndClassPerRacePicture] = useState({});
+  const [selectedDndRacePerClassPicture, setSelectedDndRacePerClassPicture] = useState({});
   const [selectedDndBackgroundId, setSelectedDndBackgroundId] = useState('__new__');
   const [selectedDndEquipmentId, setSelectedDndEquipmentId] = useState('__new__');
   const [selectedDndSpellId, setSelectedDndSpellId] = useState('__new__');
   const [availableDndTTRPGs, setAvailableDndTTRPGs] = useState([]); // TTRPGs with DND_Mod = true
   const [selectedDndTTRPGs, setSelectedDndTTRPGs] = useState([]); // Selected TTRPG IDs
   const [dndClassName, setDndClassName] = useState('');
+  const [dndSubclassName, setDndSubclassName] = useState('');
+  const [dndSubclassDescription, setDndSubclassDescription] = useState('');
+  const [dndSubclassClassId, setDndSubclassClassId] = useState('');
+  const [savingDndSubclass, setSavingDndSubclass] = useState(false);
   const [dndClassDescription, setDndClassDescription] = useState('');
   const [dndHitDice, setDndHitDice] = useState('');
   const [dndProfArmour, setDndProfArmour] = useState('');
@@ -123,6 +140,9 @@ export default function Settings() {
   const [dndProfSavingThrows, setDndProfSavingThrows] = useState('');
   const [dndProfSkills, setDndProfSkills] = useState('');
   const [dndPointsName, setDndPointsName] = useState('');
+  const [dndAttire, setDndAttire] = useState('');
+  const [dndExtraLevelFieldInput, setDndExtraLevelFieldInput] = useState('');
+  const [dndExtraLevelFields, setDndExtraLevelFields] = useState([]);
   const [dndMod, setDndMod] = useState('');
   const [savingDndClass, setSavingDndClass] = useState(false);
   const createDndClassLevels = () => Array.from({ length: 20 }, () => ({
@@ -130,9 +150,14 @@ export default function Settings() {
     features: [],
     cantrips: '',
     spells: '',
-    points: ''
+    points: '',
+    extraValues: {}
   }));
   const [dndClassLevels, setDndClassLevels] = useState(createDndClassLevels);
+  const createDndSubclassLevels = () => Array.from({ length: 20 }, () => ({
+    features: [],
+  }));
+  const [dndSubclassLevels, setDndSubclassLevels] = useState(createDndSubclassLevels);
   const [dndClassFeatures, setDndClassFeatures] = useState([]);
   const [loadingDndClassFeatures, setLoadingDndClassFeatures] = useState(false);
   const [showAddFeatureForm, setShowAddFeatureForm] = useState(false);
@@ -141,20 +166,52 @@ export default function Settings() {
   const [savingDndFeature, setSavingDndFeature] = useState(false);
   const [activeFeaturePickerIndex, setActiveFeaturePickerIndex] = useState(null);
   const [featureTargetLevelIndex, setFeatureTargetLevelIndex] = useState(null);
+  const [showAddSubclassFeatureForm, setShowAddSubclassFeatureForm] = useState(false);
+  const [newSubclassFeatureName, setNewSubclassFeatureName] = useState('');
+  const [newSubclassFeatureText, setNewSubclassFeatureText] = useState('');
+  const [savingDndSubclassFeature, setSavingDndSubclassFeature] = useState(false);
+  const [activeSubclassFeaturePickerIndex, setActiveSubclassFeaturePickerIndex] = useState(null);
+  const [subclassFeatureTargetLevelIndex, setSubclassFeatureTargetLevelIndex] = useState(null);
 
   const [dndRaceName, setDndRaceName] = useState('');
   const [dndRaceDescription, setDndRaceDescription] = useState('');
+  const [dndRaceLook, setDndRaceLook] = useState('');
   const [dndRaceSize, setDndRaceSize] = useState('');
   const [dndRaceSpeed, setDndRaceSpeed] = useState('');
   const [dndRaceLanguages, setDndRaceLanguages] = useState('');
-  const [dndRaceTraits, setDndRaceTraits] = useState('');
-  const [dndRaceAbilityBonusStr, setDndRaceAbilityBonusStr] = useState('0');
-  const [dndRaceAbilityBonusDex, setDndRaceAbilityBonusDex] = useState('0');
-  const [dndRaceAbilityBonusCon, setDndRaceAbilityBonusCon] = useState('0');
-  const [dndRaceAbilityBonusInt, setDndRaceAbilityBonusInt] = useState('0');
-  const [dndRaceAbilityBonusWis, setDndRaceAbilityBonusWis] = useState('0');
-  const [dndRaceAbilityBonusCha, setDndRaceAbilityBonusCha] = useState('0');
+  const [dndRaceSelectedTraits, setDndRaceSelectedTraits] = useState([]);
+  const [dndRaceTraitPickerValue, setDndRaceTraitPickerValue] = useState('');
+  const [showAddDndRaceTraitForm, setShowAddDndRaceTraitForm] = useState(false);
+  const [newDndRaceTraitName, setNewDndRaceTraitName] = useState('');
+  const [newDndRaceTraitText, setNewDndRaceTraitText] = useState('');
+  const [savingDndRaceTrait, setSavingDndRaceTrait] = useState(false);
+  const createDefaultDndRaceAbilityBonusRules = () => ({
+    fixed: [],
+    choices: [],
+  });
+  const [dndRaceAbilityBonusRules, setDndRaceAbilityBonusRules] = useState(createDefaultDndRaceAbilityBonusRules);
   const [savingDndRace, setSavingDndRace] = useState(false);
+
+  const [dndSubRaceName, setDndSubRaceName] = useState('');
+  const [dndSubRaceDescription, setDndSubRaceDescription] = useState('');
+  const [dndSubRaceRaceId, setDndSubRaceRaceId] = useState('');
+  const [dndSubRaceSelectedTraits, setDndSubRaceSelectedTraits] = useState([]);
+  const [dndSubRaceTraitPickerValue, setDndSubRaceTraitPickerValue] = useState('');
+  const [showAddDndSubRaceTraitForm, setShowAddDndSubRaceTraitForm] = useState(false);
+  const [newDndSubRaceTraitName, setNewDndSubRaceTraitName] = useState('');
+  const [newDndSubRaceTraitText, setNewDndSubRaceTraitText] = useState('');
+  const [savingDndSubRaceTrait, setSavingDndSubRaceTrait] = useState(false);
+  const createDefaultDndSubRaceAbilityBonusRules = () => ({
+    fixed: [],
+    choices: [],
+  });
+  const [dndSubRaceAbilityBonusRules, setDndSubRaceAbilityBonusRules] = useState(createDefaultDndSubRaceAbilityBonusRules);
+  const [savingDndSubRace, setSavingDndSubRace] = useState(false);
+
+  const [dndPictureClassId, setDndPictureClassId] = useState('');
+  const [dndPictureRaceId, setDndPictureRaceId] = useState('');
+  const [dndPictureId, setDndPictureId] = useState('');
+  const [savingDndPicture, setSavingDndPicture] = useState(false);
 
   const [dndBackgroundName, setDndBackgroundName] = useState('');
   const [dndBackgroundDescription, setDndBackgroundDescription] = useState('');
@@ -1332,12 +1389,718 @@ export default function Settings() {
       : ''
   );
 
+  const DND_ABILITY_STATS = ['STRENGTH', 'DEXTERITY', 'CONSTITUTION', 'INTELLIGENCE', 'WISDOM', 'CHARISMA'];
+  const DND_ABILITY_STAT_LABELS = {
+    STRENGTH: 'STR',
+    DEXTERITY: 'DEX',
+    CONSTITUTION: 'CON',
+    INTELLIGENCE: 'INT',
+    WISDOM: 'WIS',
+    CHARISMA: 'CHA',
+  };
+  const DND_ABILITY_STAT_ALIASES = {
+    STR: 'STRENGTH',
+    DEX: 'DEXTERITY',
+    CON: 'CONSTITUTION',
+    INT: 'INTELLIGENCE',
+    WIS: 'WISDOM',
+    CHA: 'CHARISMA',
+    STRENGTH: 'STRENGTH',
+    DEXTERITY: 'DEXTERITY',
+    CONSTITUTION: 'CONSTITUTION',
+    INTELLIGENCE: 'INTELLIGENCE',
+    WISDOM: 'WISDOM',
+    CHARISMA: 'CHARISMA',
+  };
+
+  const normalizeDndAbilityStat = (value) => {
+    const normalized = String(value || '').trim().toUpperCase();
+    return DND_ABILITY_STAT_ALIASES[normalized] || '';
+  };
+
+  const normalizeDndRaceAbilityBonusRules = (value) => {
+    const parsed = (() => {
+      if (!value) return {};
+      if (typeof value === 'string') {
+        try {
+          const json = JSON.parse(value);
+          return json && typeof json === 'object' ? json : {};
+        } catch {
+          return {};
+        }
+      }
+      return value && typeof value === 'object' ? value : {};
+    })();
+
+    const fixed = Array.isArray(parsed.fixed)
+      ? parsed.fixed
+        .map((entry) => ({
+          stat: normalizeDndAbilityStat(entry?.stat),
+          amount: parseNumberOrNull(entry?.amount) ?? 0,
+        }))
+        .filter((entry) => entry.stat && entry.amount !== 0)
+      : [];
+
+    const choices = Array.isArray(parsed.choices)
+      ? parsed.choices
+        .map((entry, index) => {
+          const count = Math.max(1, parseNumberOrNull(entry?.count) ?? 1);
+          const amount = parseNumberOrNull(entry?.amount) ?? 1;
+          const options = [...new Set(
+            (Array.isArray(entry?.options) ? entry.options : [])
+              .map((option) => normalizeDndAbilityStat(option))
+              .filter(Boolean)
+          )];
+
+          return {
+            id: String(entry?.id || `choice-${index + 1}`),
+            count,
+            amount,
+            options,
+          };
+        })
+        .filter((entry) => entry.options.length > 0 && entry.amount !== 0)
+      : [];
+
+    return { fixed, choices };
+  };
+
+  const buildLegacyDndRaceAbilityBonuses = (rules) => {
+    const totals = {
+      STRENGTH: 0,
+      DEXTERITY: 0,
+      CONSTITUTION: 0,
+      INTELLIGENCE: 0,
+      WISDOM: 0,
+      CHARISMA: 0,
+    };
+
+    (rules?.fixed || []).forEach((entry) => {
+      if (!entry?.stat || !Object.prototype.hasOwnProperty.call(totals, entry.stat)) return;
+      totals[entry.stat] += parseNumberOrNull(entry.amount) ?? 0;
+    });
+
+    return {
+      AbilityBonus_Str: totals.STRENGTH,
+      AbilityBonus_Dex: totals.DEXTERITY,
+      AbilityBonus_Con: totals.CONSTITUTION,
+      AbilityBonus_Int: totals.INTELLIGENCE,
+      AbilityBonus_Wis: totals.WISDOM,
+      AbilityBonus_Cha: totals.CHARISMA,
+    };
+  };
+
+  const parseDndRaceAbilityBonusRules = (raceRow) => {
+    const fromRules = normalizeDndRaceAbilityBonusRules(raceRow?.AbilityBonusRules);
+    if (fromRules.fixed.length > 0 || fromRules.choices.length > 0) {
+      return fromRules;
+    }
+
+    const legacyFixed = [
+      { stat: 'STRENGTH', amount: parseNumberOrNull(raceRow?.AbilityBonus_Str) ?? 0 },
+      { stat: 'DEXTERITY', amount: parseNumberOrNull(raceRow?.AbilityBonus_Dex) ?? 0 },
+      { stat: 'CONSTITUTION', amount: parseNumberOrNull(raceRow?.AbilityBonus_Con) ?? 0 },
+      { stat: 'INTELLIGENCE', amount: parseNumberOrNull(raceRow?.AbilityBonus_Int) ?? 0 },
+      { stat: 'WISDOM', amount: parseNumberOrNull(raceRow?.AbilityBonus_Wis) ?? 0 },
+      { stat: 'CHARISMA', amount: parseNumberOrNull(raceRow?.AbilityBonus_Cha) ?? 0 },
+    ].filter((entry) => entry.amount !== 0);
+
+    return {
+      fixed: legacyFixed,
+      choices: [],
+    };
+  };
+
+  const buildEmptyDndRaceChoiceRule = (index = 0) => ({
+    id: `choice-${Date.now()}-${index}`,
+    count: 1,
+    amount: 1,
+    options: ['STRENGTH', 'DEXTERITY'],
+  });
+
+  const parseDndTraitList = (value) => [...new Set(
+    String(value || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  )];
+
+  const parseDndRaceTraits = (value) => parseDndTraitList(value);
+
+  const setDndRaceTraitsFromList = (value) => {
+    const normalized = [...new Set(
+      (Array.isArray(value) ? value : [value])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )];
+    setDndRaceSelectedTraits(normalized);
+    return normalized;
+  };
+
+  const addDndRaceTrait = (traitName) => {
+    const next = setDndRaceTraitsFromList([...dndRaceSelectedTraits, traitName]);
+    return next;
+  };
+
+  const removeDndRaceTrait = (traitName) => {
+    const next = dndRaceSelectedTraits.filter((item) => item !== traitName);
+    setDndRaceTraitsFromList(next);
+  };
+
+  const setDndSubRaceTraitsFromList = (value) => {
+    const normalized = [...new Set(
+      (Array.isArray(value) ? value : [value])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )];
+    setDndSubRaceSelectedTraits(normalized);
+    return normalized;
+  };
+
+  const addDndSubRaceTrait = (traitName) => {
+    const next = setDndSubRaceTraitsFromList([...dndSubRaceSelectedTraits, traitName]);
+    return next;
+  };
+
+  const removeDndSubRaceTrait = (traitName) => {
+    const next = dndSubRaceSelectedTraits.filter((item) => item !== traitName);
+    setDndSubRaceTraitsFromList(next);
+  };
+
+  const addDndRaceFixedBonus = () => {
+    setDndRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      fixed: [...(prev.fixed || []), { stat: 'STRENGTH', amount: 1 }],
+    }));
+  };
+
+  const updateDndRaceFixedBonus = (index, field, value) => {
+    setDndRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      fixed: (prev.fixed || []).map((entry, entryIndex) => {
+        if (entryIndex !== index) return entry;
+        if (field === 'stat') {
+          return {
+            ...entry,
+            stat: normalizeDndAbilityStat(value) || 'STRENGTH',
+          };
+        }
+        return {
+          ...entry,
+          amount: parseNumberOrNull(value) ?? 0,
+        };
+      }),
+    }));
+  };
+
+  const removeDndRaceFixedBonus = (index) => {
+    setDndRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      fixed: (prev.fixed || []).filter((_, entryIndex) => entryIndex !== index),
+    }));
+  };
+
+  const addDndRaceChoiceBonus = () => {
+    setDndRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      choices: [...(prev.choices || []), buildEmptyDndRaceChoiceRule((prev.choices || []).length)],
+    }));
+  };
+
+  const updateDndRaceChoiceBonus = (index, field, value) => {
+    setDndRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      choices: (prev.choices || []).map((entry, entryIndex) => {
+        if (entryIndex !== index) return entry;
+        if (field === 'count') {
+          return {
+            ...entry,
+            count: Math.max(1, parseNumberOrNull(value) ?? 1),
+          };
+        }
+        if (field === 'amount') {
+          return {
+            ...entry,
+            amount: parseNumberOrNull(value) ?? 0,
+          };
+        }
+        return entry;
+      }),
+    }));
+  };
+
+  const toggleDndRaceChoiceBonusOption = (index, stat) => {
+    const normalizedStat = normalizeDndAbilityStat(stat);
+    if (!normalizedStat) return;
+
+    setDndRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      choices: (prev.choices || []).map((entry, entryIndex) => {
+        if (entryIndex !== index) return entry;
+        const current = Array.isArray(entry.options) ? entry.options : [];
+        const exists = current.includes(normalizedStat);
+        return {
+          ...entry,
+          options: exists
+            ? current.filter((option) => option !== normalizedStat)
+            : [...current, normalizedStat],
+        };
+      }),
+    }));
+  };
+
+  const removeDndRaceChoiceBonus = (index) => {
+    setDndRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      choices: (prev.choices || []).filter((_, entryIndex) => entryIndex !== index),
+    }));
+  };
+
+  const addDndSubRaceFixedBonus = () => {
+    setDndSubRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      fixed: [...(prev.fixed || []), { stat: 'STRENGTH', amount: 1 }],
+    }));
+  };
+
+  const updateDndSubRaceFixedBonus = (index, field, value) => {
+    setDndSubRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      fixed: (prev.fixed || []).map((entry, entryIndex) => {
+        if (entryIndex !== index) return entry;
+        if (field === 'stat') {
+          return {
+            ...entry,
+            stat: normalizeDndAbilityStat(value) || 'STRENGTH',
+          };
+        }
+        return {
+          ...entry,
+          amount: parseNumberOrNull(value) ?? 0,
+        };
+      }),
+    }));
+  };
+
+  const removeDndSubRaceFixedBonus = (index) => {
+    setDndSubRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      fixed: (prev.fixed || []).filter((_, entryIndex) => entryIndex !== index),
+    }));
+  };
+
+  const addDndSubRaceChoiceBonus = () => {
+    setDndSubRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      choices: [...(prev.choices || []), buildEmptyDndRaceChoiceRule((prev.choices || []).length)],
+    }));
+  };
+
+  const updateDndSubRaceChoiceBonus = (index, field, value) => {
+    setDndSubRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      choices: (prev.choices || []).map((entry, entryIndex) => {
+        if (entryIndex !== index) return entry;
+        if (field === 'count') {
+          return {
+            ...entry,
+            count: Math.max(1, parseNumberOrNull(value) ?? 1),
+          };
+        }
+        if (field === 'amount') {
+          return {
+            ...entry,
+            amount: parseNumberOrNull(value) ?? 0,
+          };
+        }
+        return entry;
+      }),
+    }));
+  };
+
+  const toggleDndSubRaceChoiceBonusOption = (index, stat) => {
+    const normalizedStat = normalizeDndAbilityStat(stat);
+    if (!normalizedStat) return;
+
+    setDndSubRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      choices: (prev.choices || []).map((entry, entryIndex) => {
+        if (entryIndex !== index) return entry;
+        const current = Array.isArray(entry.options) ? entry.options : [];
+        const exists = current.includes(normalizedStat);
+        return {
+          ...entry,
+          options: exists
+            ? current.filter((option) => option !== normalizedStat)
+            : [...current, normalizedStat],
+        };
+      }),
+    }));
+  };
+
+  const removeDndSubRaceChoiceBonus = (index) => {
+    setDndSubRaceAbilityBonusRules((prev) => ({
+      ...prev,
+      choices: (prev.choices || []).filter((_, entryIndex) => entryIndex !== index),
+    }));
+  };
+
+  const isMissingDndRaceAbilityBonusRulesColumnError = (err) => {
+    const message = `${err?.message || ''} ${err?.details || ''}`.toLowerCase();
+    return message.includes('abilitybonusrules') && message.includes('column');
+  };
+
+  const isMissingDndRaceLookColumnError = (err) => {
+    const message = `${err?.message || ''} ${err?.details || ''}`.toLowerCase();
+    return message.includes('racelook') && message.includes('column');
+  };
+
+  const isMissingDndSubRaceAbilityBonusRulesColumnError = (err) => {
+    const message = `${err?.message || ''} ${err?.details || ''}`.toLowerCase();
+    return message.includes('abilitybonusrules') && message.includes('column');
+  };
+
+  const DND_SUBCLASS_LEVELS_TABLE = 'DND_Subclass_Levels';
+
+  const getDndModValueForClass = (classId) => {
+    const parsedId = Number(classId);
+    if (Number.isNaN(parsedId)) return '';
+    const classRow = existingDndClasses.find((row) => Number(row.id) === parsedId);
+    return classRow?.DNDMod || '';
+  };
+
+  const getDndModValueForRace = (raceId) => {
+    const parsedId = Number(raceId);
+    if (Number.isNaN(parsedId)) return '';
+    const raceRow = existingDndRaces.find((row) => Number(row.id) === parsedId);
+    return raceRow?.DNDMod || '';
+  };
+
+  const getDndClassNameById = (classId) => {
+    const parsedId = Number(classId);
+    if (Number.isNaN(parsedId)) return '';
+    const classRow = existingDndClasses.find((row) => Number(row.id) === parsedId);
+    return classRow?.ClassName || '';
+  };
+
+  const getDndRaceNameById = (raceId) => {
+    const parsedId = Number(raceId);
+    if (Number.isNaN(parsedId)) return '';
+    const raceRow = existingDndRaces.find((row) => Number(row.id) === parsedId);
+    return raceRow?.RaceName || '';
+  };
+
+  const runSubclassLevelsQuery = async (queryFactory) => {
+    const primaryResult = await queryFactory(DND_SUBCLASS_LEVELS_TABLE);
+    return primaryResult;
+  };
+
+  const normalizeDndExtraFieldNames = (value) => {
+    const list = Array.isArray(value)
+      ? value
+      : String(value || '').split(/[\n,;|]+/);
+
+    return [...new Set(list
+      .map((item) => String(item || '').trim())
+      .filter(Boolean))];
+  };
+
+  const normalizeDndExtraValues = (value, fieldNames) => {
+    const source = value && typeof value === 'object' && !Array.isArray(value)
+      ? value
+      : {};
+
+    const result = {};
+    fieldNames.forEach((fieldName) => {
+      const fieldValue = source[fieldName];
+      result[fieldName] = fieldValue == null ? '' : String(fieldValue);
+    });
+    return result;
+  };
+
+  const setDndExtraFieldNames = (value) => {
+    const normalized = normalizeDndExtraFieldNames(value);
+    setDndExtraLevelFields(normalized);
+    setDndExtraLevelFieldInput(normalized.join(', '));
+    setDndClassLevels((prev) => prev.map((row) => ({
+      ...row,
+      extraValues: normalizeDndExtraValues(row.extraValues, normalized),
+    })));
+    return normalized;
+  };
+
+  const addDndExtraFieldNamesFromInput = () => {
+    const toAdd = normalizeDndExtraFieldNames(dndExtraLevelFieldInput);
+    if (toAdd.length === 0) return dndExtraLevelFields;
+    const merged = normalizeDndExtraFieldNames([...dndExtraLevelFields, ...toAdd]);
+    setDndExtraLevelFields(merged);
+    setDndExtraLevelFieldInput('');
+    setDndClassLevels((prev) => prev.map((row) => ({
+      ...row,
+      extraValues: normalizeDndExtraValues(row.extraValues, merged),
+    })));
+    return merged;
+  };
+
+  const removeDndExtraFieldName = (fieldName) => {
+    const next = dndExtraLevelFields.filter((name) => name !== fieldName);
+    setDndExtraFieldNames(next);
+  };
+
+  const parseDndModNames = (value) => String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const buildGroupedDndRows = (rows, nameKey) => {
+    const groups = new Map();
+
+    availableDndTTRPGs
+      .map((item) => String(item.TTRPG_name || '').trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+      .forEach((name) => groups.set(name, []));
+
+    const unassigned = [];
+
+    rows.forEach((row) => {
+      const modNames = parseDndModNames(row.DNDMod);
+
+      if (modNames.length === 0) {
+        unassigned.push(row);
+        return;
+      }
+
+      const groupName = modNames[0];
+      if (!groups.has(groupName)) {
+        groups.set(groupName, []);
+      }
+      groups.get(groupName).push(row);
+    });
+
+    const sortedGroups = Array.from(groups.entries())
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
+      .map(([label, items]) => ({
+        label,
+        items: [...items].sort((a, b) => String(a[nameKey] || '').localeCompare(String(b[nameKey] || ''), undefined, { sensitivity: 'base' })),
+      }))
+      .filter((group) => group.items.length > 0);
+
+    if (unassigned.length > 0) {
+      sortedGroups.push({
+        label: 'Unassigned',
+        items: [...unassigned].sort((a, b) => String(a[nameKey] || '').localeCompare(String(b[nameKey] || ''), undefined, { sensitivity: 'base' })),
+      });
+    }
+
+    return sortedGroups;
+  };
+
   const closeDndForms = () => {
+    setShowDndRacePictures(false);
+    setShowDndClassPictures(false);
     setShowAddDndClassForm(false);
+    setShowAddDndSubclassForm(false);
+    setShowAddDndSubRaceForm(false);
     setShowAddDndRaceForm(false);
+    setShowAddDndPictureForm(false);
     setShowAddDndBackgroundForm(false);
     setShowAddDndEquipmentForm(false);
     setShowAddDndSpellForm(false);
+  };
+
+  const buildDndPicturePromptText = ({ raceName, raceLook, className, classAttire, pictureId, gender }) => {
+    const normalizedRaceLook = String(raceLook || '').trim();
+    const normalizedAttire = String(classAttire || '').trim();
+    const raceLookText = normalizedRaceLook || 'not specified';
+    const attireText = normalizedAttire || 'not specified';
+    return `write a portrait prompt for a ${raceName} ${className} in an action pose. gender is ${gender}. Race Look: ${raceLookText}. Class Attire: ${attireText}.`;
+  };
+
+  const getRandomDndPromptGender = () => (Math.random() < 0.5 ? 'Male' : 'Female');
+
+  const getNextDndPictureId = () => {
+    const maxId = existingDndPictures.reduce((acc, row) => {
+      const parsed = parseNumberOrNull(row?.PictureID) || 0;
+      return Math.max(acc, parsed);
+    }, 0);
+    return maxId + 1;
+  };
+
+  const handleShowDndRacePictures = () => {
+    closeDndForms();
+    setShowDndRacePictures(true);
+    loadDndRaces();
+    loadDndClasses();
+    loadDndPictures();
+  };
+
+  const handleShowDndClassPictures = () => {
+    closeDndForms();
+    setShowDndClassPictures(true);
+    loadDndRaces();
+    loadDndClasses();
+    loadDndPictures();
+  };
+
+  const handleGenerateDndPromptForRace = async (raceRow, classId) => {
+    const classRow = existingDndClasses.find((row) => Number(row.id) === Number(classId));
+    if (!classRow) {
+      alert('Please select a class first.');
+      return;
+    }
+    try {
+      const pictureId = getNextDndPictureId();
+      const gender = getRandomDndPromptGender();
+      const prompt = buildDndPicturePromptText({
+        raceName: raceRow.RaceName,
+        raceLook: raceRow.RaceLook,
+        className: classRow.ClassName,
+        classAttire: classRow.Attire,
+        pictureId,
+        gender,
+      });
+      await navigator.clipboard.writeText(prompt);
+      alert(`Prompt copied to clipboard!\n\nRace: ${raceRow.RaceName}\nClass: ${classRow.ClassName}\nGender: ${gender}\nNext Picture ID: ${pictureId}`);
+    } catch (err) {
+      console.error('Failed generating DND race prompt:', err);
+      alert(`Failed to copy prompt: ${err.message}`);
+    }
+  };
+
+  const handleGenerateDndPromptForClass = async (classRow, raceId) => {
+    const raceRow = existingDndRaces.find((row) => Number(row.id) === Number(raceId));
+    if (!raceRow) {
+      alert('Please select a race first.');
+      return;
+    }
+    try {
+      const pictureId = getNextDndPictureId();
+      const gender = getRandomDndPromptGender();
+      const prompt = buildDndPicturePromptText({
+        raceName: raceRow.RaceName,
+        raceLook: raceRow.RaceLook,
+        className: classRow.ClassName,
+        classAttire: classRow.Attire,
+        pictureId,
+        gender,
+      });
+      await navigator.clipboard.writeText(prompt);
+      alert(`Prompt copied to clipboard!\n\nClass: ${classRow.ClassName}\nRace: ${raceRow.RaceName}\nGender: ${gender}\nNext Picture ID: ${pictureId}`);
+    } catch (err) {
+      console.error('Failed generating DND class prompt:', err);
+      alert(`Failed to copy prompt: ${err.message}`);
+    }
+  };
+
+  const handleCreateDndPictureForRace = async (raceRow, classId) => {
+    const classRow = existingDndClasses.find((row) => Number(row.id) === Number(classId));
+    if (!classRow) {
+      alert('Please select a class first.');
+      return;
+    }
+
+    const duplicate = existingDndPictures.some((row) => Number(row.Race) === Number(raceRow.id) && Number(row.Class) === Number(classRow.id));
+    if (duplicate) {
+      alert('This race/class picture mapping already exists.');
+      return;
+    }
+
+    try {
+      const pictureId = getNextDndPictureId();
+      const { error } = await supabase
+        .from('DND_Pictures')
+        .insert([
+          {
+            Race: raceRow.id,
+            Class: classRow.id,
+            PictureID: pictureId,
+            DNDMod: classRow.DNDMod || raceRow.DNDMod || null,
+          },
+        ]);
+      if (error) throw error;
+
+      await loadDndPictures();
+      alert(`Created DND picture mapping.\n\nRace: ${raceRow.RaceName}\nClass: ${classRow.ClassName}\nPicture ID: ${pictureId}`);
+    } catch (err) {
+      console.error('Failed creating DND race picture mapping:', err);
+      alert(`Failed to create mapping: ${err.message}`);
+    }
+  };
+
+  const handleCreateDndPictureForClass = async (classRow, raceId) => {
+    const raceRow = existingDndRaces.find((row) => Number(row.id) === Number(raceId));
+    if (!raceRow) {
+      alert('Please select a race first.');
+      return;
+    }
+
+    const duplicate = existingDndPictures.some((row) => Number(row.Race) === Number(raceRow.id) && Number(row.Class) === Number(classRow.id));
+    if (duplicate) {
+      alert('This class/race picture mapping already exists.');
+      return;
+    }
+
+    try {
+      const pictureId = getNextDndPictureId();
+      const { error } = await supabase
+        .from('DND_Pictures')
+        .insert([
+          {
+            Race: raceRow.id,
+            Class: classRow.id,
+            PictureID: pictureId,
+            DNDMod: classRow.DNDMod || raceRow.DNDMod || null,
+          },
+        ]);
+      if (error) throw error;
+
+      await loadDndPictures();
+      alert(`Created DND picture mapping.\n\nClass: ${classRow.ClassName}\nRace: ${raceRow.RaceName}\nPicture ID: ${pictureId}`);
+    } catch (err) {
+      console.error('Failed creating DND class picture mapping:', err);
+      alert(`Failed to create mapping: ${err.message}`);
+    }
+  };
+
+  const getAvailableDndClassesForRace = (raceId) => {
+    const raceRow = existingDndRaces.find((row) => Number(row.id) === Number(raceId));
+    const raceModNames = new Set(parseDndModNames(raceRow?.DNDMod).map((name) => name.toLowerCase()));
+    const usedClassIds = new Set(
+      existingDndPictures
+        .filter((row) => Number(row.Race) === Number(raceId))
+        .map((row) => Number(row.Class))
+    );
+
+    return existingDndClasses.filter((row) => {
+      if (usedClassIds.has(Number(row.id))) return false;
+
+      const classModNames = new Set(parseDndModNames(row.DNDMod).map((name) => name.toLowerCase()));
+      if (raceModNames.size === 0 || classModNames.size === 0) {
+        return raceModNames.size === classModNames.size;
+      }
+      return Array.from(raceModNames).some((name) => classModNames.has(name));
+    });
+  };
+
+  const getAvailableDndRacesForClass = (classId) => {
+    const classRow = existingDndClasses.find((row) => Number(row.id) === Number(classId));
+    const classModNames = new Set(parseDndModNames(classRow?.DNDMod).map((name) => name.toLowerCase()));
+    const usedRaceIds = new Set(
+      existingDndPictures
+        .filter((row) => Number(row.Class) === Number(classId))
+        .map((row) => Number(row.Race))
+    );
+
+    return existingDndRaces.filter((row) => {
+      if (usedRaceIds.has(Number(row.id))) return false;
+
+      const raceModNames = new Set(parseDndModNames(row.DNDMod).map((name) => name.toLowerCase()));
+      if (classModNames.size === 0 || raceModNames.size === 0) {
+        return classModNames.size === raceModNames.size;
+      }
+      return Array.from(classModNames).some((name) => raceModNames.has(name));
+    });
   };
 
   const handleAddDndClass = () => {
@@ -1349,12 +2112,40 @@ export default function Settings() {
     loadDndClassFeatures();
   };
 
+  const handleAddDndSubclass = () => {
+    closeDndForms();
+    setShowAddDndSubclassForm(true);
+    resetDndSubclassForm();
+    loadDndClasses();
+    loadDndSubclasses();
+    loadDndClassFeatures();
+  };
+
   const handleAddDndRace = () => {
     closeDndForms();
     setShowAddDndRaceForm(true);
     resetDndRaceForm();
     loadDndTTRPGs();
     loadDndRaces();
+    loadDndClassFeatures();
+  };
+
+  const handleAddDndSubRace = () => {
+    closeDndForms();
+    setShowAddDndSubRaceForm(true);
+    resetDndSubRaceForm();
+    loadDndRaces();
+    loadDndSubRaces();
+    loadDndClassFeatures();
+  };
+
+  const handleAddDndPicture = () => {
+    closeDndForms();
+    setShowAddDndPictureForm(true);
+    resetDndPictureForm();
+    loadDndClasses();
+    loadDndRaces();
+    loadDndPictures();
   };
 
   const handleAddDndBackground = () => {
@@ -1402,7 +2193,7 @@ export default function Settings() {
     try {
       const { data, error } = await supabase
         .from('DND_Classes')
-        .select('id, ClassName')
+        .select('id, ClassName, Attire, DNDMod')
         .order('ClassName');
 
       if (error) throw error;
@@ -1414,11 +2205,27 @@ export default function Settings() {
     }
   };
 
+  const loadDndSubclasses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Subclasses')
+        .select('id, SubclassName, Class, DNDMod')
+        .order('SubclassName');
+
+      if (error) throw error;
+
+      setExistingDndSubclasses(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Subclasses:', err);
+      setError('Failed to load DND Subclasses');
+    }
+  };
+
   const loadDndRaces = async () => {
     try {
       const { data, error } = await supabase
         .from('DND_Races')
-        .select('id, RaceName')
+        .select('id, RaceName, RaceLook, DNDMod')
         .order('RaceName');
 
       if (error) throw error;
@@ -1427,6 +2234,38 @@ export default function Settings() {
     } catch (err) {
       console.error('Failed to fetch DND Races:', err);
       setError('Failed to load DND Races');
+    }
+  };
+
+  const loadDndSubRaces = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_SubRaces')
+        .select('id, SubRaceName, Race, DNDMod')
+        .order('SubRaceName');
+
+      if (error) throw error;
+
+      setExistingDndSubRaces(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Sub Races:', err);
+      setError('Failed to load DND Sub Races');
+    }
+  };
+
+  const loadDndPictures = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Pictures')
+        .select('id, PictureID, Class, Race, DNDMod')
+        .order('PictureID');
+
+      if (error) throw error;
+
+      setExistingDndPictures(data || []);
+    } catch (err) {
+      console.error('Failed to fetch DND Pictures:', err);
+      setError('Failed to load DND Pictures');
     }
   };
 
@@ -1516,6 +2355,8 @@ export default function Settings() {
         setDndProfSavingThrows(data.Prof_SavingThrows || '');
         setDndProfSkills(data.Prof_Skills || '');
         setDndPointsName(data.PointsName || '');
+        setDndAttire(data.Attire || '');
+        const extraFieldNames = setDndExtraFieldNames(data.ExtraLevelFields);
 
         // Parse DNDMod to get TTRPG IDs
         if (data.DNDMod) {
@@ -1545,13 +2386,24 @@ export default function Settings() {
 
         const featureById = new Map(featureSource.map((feature) => [feature.id, feature.FeatureName]));
 
-        const { data: levelData, error: levelError } = await supabase
+        let levelData = [];
+        const levelWithExtras = await supabase
           .from('DND_Class_Levels')
-          .select('Level, ProfBonus, Features, Cantrips, SpellsKnown, Points')
+          .select('Level, ProfBonus, Features, Cantrips, SpellsKnown, Points, ExtraValues')
           .eq('Class', classId)
           .order('Level', { ascending: true });
 
-        if (levelError) throw levelError;
+        if (levelWithExtras.error) {
+          const levelFallback = await supabase
+            .from('DND_Class_Levels')
+            .select('Level, ProfBonus, Features, Cantrips, SpellsKnown, Points')
+            .eq('Class', classId)
+            .order('Level', { ascending: true });
+          if (levelFallback.error) throw levelFallback.error;
+          levelData = levelFallback.data || [];
+        } else {
+          levelData = levelWithExtras.data || [];
+        }
 
         if (levelData && levelData.length > 0) {
           const baseLevels = createDndClassLevels();
@@ -1571,7 +2423,8 @@ export default function Settings() {
               features: featureList,
               cantrips: row.Cantrips != null ? String(row.Cantrips) : '',
               spells: row.SpellsKnown != null ? String(row.SpellsKnown) : '',
-              points: row.Points != null ? String(row.Points) : ''
+              points: row.Points != null ? String(row.Points) : '',
+              extraValues: normalizeDndExtraValues(row.ExtraValues, extraFieldNames),
             };
           });
           setDndClassLevels(baseLevels);
@@ -1582,6 +2435,73 @@ export default function Settings() {
     } catch (err) {
       console.error('Failed to fetch DND Class data:', err);
       setError('Failed to load class data');
+    }
+  };
+
+  const loadDndSubclassData = async (subclassId) => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Subclasses')
+        .select('*')
+        .eq('id', subclassId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDndSubclassName(data.SubclassName || '');
+        setDndSubclassDescription(data.Description || '');
+        setDndSubclassClassId(data.Class != null ? String(data.Class) : '');
+
+        let featureSource = dndClassFeatures;
+        if (featureSource.length === 0) {
+          const { data: featureData, error: featureError } = await supabase
+            .from('DND_ClassFeatures')
+            .select('id, FeatureName, FeatureText')
+            .order('FeatureName');
+          if (featureError) throw featureError;
+          featureSource = featureData || [];
+          setDndClassFeatures(featureSource);
+        }
+
+        const featureById = new Map(featureSource.map((feature) => [feature.id, feature.FeatureName]));
+
+        const levelResult = await runSubclassLevelsQuery((tableName) => (
+          supabase
+            .from(tableName)
+            .select('Level, Features')
+            .eq('Subclass', subclassId)
+            .order('Level', { ascending: true })
+        ));
+        if (levelResult.error) throw levelResult.error;
+        const levelData = levelResult.data || [];
+
+        if (levelData.length > 0) {
+          const baseLevels = createDndSubclassLevels();
+          levelData.forEach((row) => {
+            const index = Math.max(0, Math.min(19, (row.Level || 1) - 1));
+            const featureIds = String(row.Features || '')
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean)
+              .map((value) => Number(value))
+              .filter((value) => !Number.isNaN(value));
+            const featureList = featureIds
+              .map((id) => featureById.get(id))
+              .filter(Boolean);
+
+            baseLevels[index] = {
+              features: featureList,
+            };
+          });
+          setDndSubclassLevels(baseLevels);
+        } else {
+          setDndSubclassLevels(createDndSubclassLevels());
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch DND Subclass data:', err);
+      setError('Failed to load subclass data');
     }
   };
 
@@ -1598,21 +2518,62 @@ export default function Settings() {
       if (data) {
         setDndRaceName(data.RaceName || '');
         setDndRaceDescription(data.Description || '');
+        setDndRaceLook(data.RaceLook || '');
         setDndRaceSize(data.Size || '');
         setDndRaceSpeed(data.Speed != null ? String(data.Speed) : '');
         setDndRaceLanguages(data.Languages || '');
-        setDndRaceTraits(data.Traits || '');
-        setDndRaceAbilityBonusStr(String(data.AbilityBonus_Str ?? 0));
-        setDndRaceAbilityBonusDex(String(data.AbilityBonus_Dex ?? 0));
-        setDndRaceAbilityBonusCon(String(data.AbilityBonus_Con ?? 0));
-        setDndRaceAbilityBonusInt(String(data.AbilityBonus_Int ?? 0));
-        setDndRaceAbilityBonusWis(String(data.AbilityBonus_Wis ?? 0));
-        setDndRaceAbilityBonusCha(String(data.AbilityBonus_Cha ?? 0));
+        setDndRaceTraitsFromList(parseDndRaceTraits(data.Traits));
+        setDndRaceAbilityBonusRules(parseDndRaceAbilityBonusRules(data));
         setSelectedDndTTRPGs(parseDndTtrpgIdsFromMod(data.DNDMod));
       }
     } catch (err) {
       console.error('Failed to fetch DND Race data:', err);
       setError('Failed to load race data');
+    }
+  };
+
+  const loadDndSubRaceData = async (subRaceId) => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_SubRaces')
+        .select('*')
+        .eq('id', subRaceId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDndSubRaceName(data.SubRaceName || '');
+        setDndSubRaceDescription(data.Description || '');
+        setDndSubRaceRaceId(data.Race != null ? String(data.Race) : '');
+        setDndSubRaceTraitsFromList(parseDndTraitList(data.Traits));
+        setDndSubRaceAbilityBonusRules(parseDndRaceAbilityBonusRules(data));
+        setSelectedDndTTRPGs(parseDndTtrpgIdsFromMod(data.DNDMod));
+      }
+    } catch (err) {
+      console.error('Failed to fetch DND Sub Race data:', err);
+      setError('Failed to load sub race data');
+    }
+  };
+
+  const loadDndPictureData = async (pictureLinkId) => {
+    try {
+      const { data, error } = await supabase
+        .from('DND_Pictures')
+        .select('*')
+        .eq('id', pictureLinkId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setDndPictureClassId(data.Class != null ? String(data.Class) : '');
+        setDndPictureRaceId(data.Race != null ? String(data.Race) : '');
+        setDndPictureId(data.PictureID != null ? String(data.PictureID) : '');
+      }
+    } catch (err) {
+      console.error('Failed to fetch DND Picture mapping data:', err);
+      setError('Failed to load DND picture mapping data');
     }
   };
 
@@ -1710,6 +2671,9 @@ export default function Settings() {
     setDndProfSavingThrows('');
     setDndProfSkills('');
     setDndPointsName('');
+    setDndAttire('');
+    setDndExtraLevelFieldInput('');
+    setDndExtraLevelFields([]);
     setDndMod('');
     setSelectedDndTTRPGs([]);
     setDndClassLevels(createDndClassLevels());
@@ -1720,21 +2684,55 @@ export default function Settings() {
     setFeatureTargetLevelIndex(null);
   };
 
+  const resetDndSubclassForm = () => {
+    setSelectedDndSubclassId('__new__');
+    setDndSubclassName('');
+    setDndSubclassDescription('');
+    setDndSubclassClassId('');
+    setDndSubclassLevels(createDndSubclassLevels());
+    setActiveSubclassFeaturePickerIndex(null);
+    setShowAddSubclassFeatureForm(false);
+    setNewSubclassFeatureName('');
+    setNewSubclassFeatureText('');
+    setSubclassFeatureTargetLevelIndex(null);
+  };
+
   const resetDndRaceForm = () => {
     setSelectedDndRaceId('__new__');
     setSelectedDndTTRPGs([]);
     setDndRaceName('');
     setDndRaceDescription('');
+    setDndRaceLook('');
     setDndRaceSize('');
     setDndRaceSpeed('');
     setDndRaceLanguages('');
-    setDndRaceTraits('');
-    setDndRaceAbilityBonusStr('0');
-    setDndRaceAbilityBonusDex('0');
-    setDndRaceAbilityBonusCon('0');
-    setDndRaceAbilityBonusInt('0');
-    setDndRaceAbilityBonusWis('0');
-    setDndRaceAbilityBonusCha('0');
+    setDndRaceSelectedTraits([]);
+    setDndRaceTraitPickerValue('');
+    setShowAddDndRaceTraitForm(false);
+    setNewDndRaceTraitName('');
+    setNewDndRaceTraitText('');
+    setDndRaceAbilityBonusRules(createDefaultDndRaceAbilityBonusRules());
+  };
+
+  const resetDndSubRaceForm = () => {
+    setSelectedDndSubRaceId('__new__');
+    setSelectedDndTTRPGs([]);
+    setDndSubRaceName('');
+    setDndSubRaceDescription('');
+    setDndSubRaceRaceId('');
+    setDndSubRaceSelectedTraits([]);
+    setDndSubRaceTraitPickerValue('');
+    setShowAddDndSubRaceTraitForm(false);
+    setNewDndSubRaceTraitName('');
+    setNewDndSubRaceTraitText('');
+    setDndSubRaceAbilityBonusRules(createDefaultDndSubRaceAbilityBonusRules());
+  };
+
+  const resetDndPictureForm = () => {
+    setSelectedDndPictureLinkId('__new__');
+    setDndPictureClassId('');
+    setDndPictureRaceId('');
+    setDndPictureId('');
   };
 
   const resetDndBackgroundForm = () => {
@@ -1785,6 +2783,19 @@ export default function Settings() {
     )));
   };
 
+  const updateDndClassLevelExtra = (index, fieldName, value) => {
+    setDndClassLevels((prev) => prev.map((row, rowIndex) => {
+      if (rowIndex !== index) return row;
+      return {
+        ...row,
+        extraValues: {
+          ...(row.extraValues || {}),
+          [fieldName]: value,
+        },
+      };
+    }));
+  };
+
   const addFeatureToLevel = (index, featureName) => {
     if (!featureName) return;
     setDndClassLevels((prev) => prev.map((row, rowIndex) => {
@@ -1794,8 +2805,25 @@ export default function Settings() {
     }));
   };
 
+  const addFeatureToSubclassLevel = (index, featureName) => {
+    if (!featureName) return;
+    setDndSubclassLevels((prev) => prev.map((row, rowIndex) => {
+      if (rowIndex !== index) return row;
+      if (row.features.includes(featureName)) return row;
+      return { ...row, features: [...row.features, featureName] };
+    }));
+  };
+
   const removeFeatureFromLevel = (index, featureName) => {
     setDndClassLevels((prev) => prev.map((row, rowIndex) => (
+      rowIndex === index
+        ? { ...row, features: row.features.filter((item) => item !== featureName) }
+        : row
+    )));
+  };
+
+  const removeFeatureFromSubclassLevel = (index, featureName) => {
+    setDndSubclassLevels((prev) => prev.map((row, rowIndex) => (
       rowIndex === index
         ? { ...row, features: row.features.filter((item) => item !== featureName) }
         : row
@@ -1841,6 +2869,115 @@ export default function Settings() {
     }
   };
 
+  const handleSaveDndRaceTrait = async () => {
+    if (!newDndRaceTraitName.trim()) {
+      setError('Trait name is required');
+      return;
+    }
+    setSavingDndRaceTrait(true);
+    try {
+      const { data, error } = await supabase
+        .from('DND_ClassFeatures')
+        .insert([
+          {
+            FeatureName: newDndRaceTraitName.trim(),
+            FeatureText: newDndRaceTraitText.trim()
+          }
+        ])
+        .select('id, FeatureName, FeatureText')
+        .single();
+
+      if (error) throw error;
+
+      const created = data || { FeatureName: newDndRaceTraitName.trim(), FeatureText: newDndRaceTraitText.trim() };
+      setDndClassFeatures((prev) => [...prev, created].sort((a, b) => a.FeatureName.localeCompare(b.FeatureName)));
+      addDndRaceTrait(created.FeatureName);
+      setShowAddDndRaceTraitForm(false);
+      setNewDndRaceTraitName('');
+      setNewDndRaceTraitText('');
+      setDndRaceTraitPickerValue('');
+    } catch (err) {
+      console.error('Failed to save DND Race Trait:', err);
+      setError('Failed to save DND Race Trait. Please try again.');
+    } finally {
+      setSavingDndRaceTrait(false);
+    }
+  };
+
+  const handleSaveDndSubRaceTrait = async () => {
+    if (!newDndSubRaceTraitName.trim()) {
+      setError('Trait name is required');
+      return;
+    }
+    setSavingDndSubRaceTrait(true);
+    try {
+      const { data, error } = await supabase
+        .from('DND_ClassFeatures')
+        .insert([
+          {
+            FeatureName: newDndSubRaceTraitName.trim(),
+            FeatureText: newDndSubRaceTraitText.trim()
+          }
+        ])
+        .select('id, FeatureName, FeatureText')
+        .single();
+
+      if (error) throw error;
+
+      const created = data || { FeatureName: newDndSubRaceTraitName.trim(), FeatureText: newDndSubRaceTraitText.trim() };
+      setDndClassFeatures((prev) => [...prev, created].sort((a, b) => a.FeatureName.localeCompare(b.FeatureName)));
+      addDndSubRaceTrait(created.FeatureName);
+      setShowAddDndSubRaceTraitForm(false);
+      setNewDndSubRaceTraitName('');
+      setNewDndSubRaceTraitText('');
+      setDndSubRaceTraitPickerValue('');
+    } catch (err) {
+      console.error('Failed to save DND Sub Race Trait:', err);
+      setError('Failed to save DND Sub Race Trait. Please try again.');
+    } finally {
+      setSavingDndSubRaceTrait(false);
+    }
+  };
+
+  const handleSaveDndSubclassFeature = async () => {
+    if (!newSubclassFeatureName.trim()) {
+      setError('Feature name is required');
+      return;
+    }
+    setSavingDndSubclassFeature(true);
+    try {
+      const { data, error } = await supabase
+        .from('DND_ClassFeatures')
+        .insert([
+          {
+            FeatureName: newSubclassFeatureName.trim(),
+            FeatureText: newSubclassFeatureText.trim()
+          }
+        ])
+        .select('id, FeatureName, FeatureText')
+        .single();
+
+      if (error) throw error;
+
+      const created = data || { FeatureName: newSubclassFeatureName.trim(), FeatureText: newSubclassFeatureText.trim() };
+      setDndClassFeatures((prev) => [...prev, created].sort((a, b) => a.FeatureName.localeCompare(b.FeatureName)));
+
+      if (subclassFeatureTargetLevelIndex != null) {
+        addFeatureToSubclassLevel(subclassFeatureTargetLevelIndex, created.FeatureName);
+      }
+
+      setShowAddSubclassFeatureForm(false);
+      setNewSubclassFeatureName('');
+      setNewSubclassFeatureText('');
+      setSubclassFeatureTargetLevelIndex(null);
+    } catch (err) {
+      console.error('Failed to save DND Subclass Feature:', err);
+      setError('Failed to save DND Feature. Please try again.');
+    } finally {
+      setSavingDndSubclassFeature(false);
+    }
+  };
+
   const handleSaveDndClass = async () => {
     setSavingDndClass(true);
     try {
@@ -1851,49 +2988,80 @@ export default function Settings() {
       }
 
       const dndModValue = getSelectedDndModValue();
+      const normalizedExtraFields = setDndExtraFieldNames([
+        ...dndExtraLevelFields,
+        ...normalizeDndExtraFieldNames(dndExtraLevelFieldInput),
+      ]);
+      let savedWithoutExtraClassColumns = false;
+      let savedWithoutExtraLevelColumns = false;
 
       let classIdToUse = selectedDndClassId;
 
       if (selectedDndClassId === '__new__') {
         // Insert new class
+        const classInsertPayload = {
+          ClassName: dndClassName,
+          Description: dndClassDescription,
+          HitDice: dndHitDice,
+          Prof_Armour: dndProfArmour,
+          Prof_Weapons: dndProfWeapons,
+          Prof_SavingThrows: dndProfSavingThrows,
+          Prof_Skills: dndProfSkills,
+          PointsName: dndPointsName,
+          Attire: dndAttire,
+          ExtraLevelFields: normalizedExtraFields,
+          DNDMod: dndModValue
+        };
         const { data: insertData, error } = await supabase
           .from('DND_Classes')
-          .insert([
-            {
-              ClassName: dndClassName,
-              Description: dndClassDescription,
-              HitDice: dndHitDice,
-              Prof_Armour: dndProfArmour,
-              Prof_Weapons: dndProfWeapons,
-              Prof_SavingThrows: dndProfSavingThrows,
-              Prof_Skills: dndProfSkills,
-              PointsName: dndPointsName,
-              DNDMod: dndModValue
-            }
-          ])
+          .insert([classInsertPayload])
           .select('id')
           .single();
 
-        if (error) throw error;
-        classIdToUse = insertData?.id;
+        if (error) {
+          const { ExtraLevelFields, Attire, ...legacyClassPayload } = classInsertPayload;
+          const legacyInsertResult = await supabase
+            .from('DND_Classes')
+            .insert([legacyClassPayload])
+            .select('id')
+            .single();
+
+          if (legacyInsertResult.error) throw legacyInsertResult.error;
+          savedWithoutExtraClassColumns = true;
+          classIdToUse = legacyInsertResult.data?.id;
+        } else {
+          classIdToUse = insertData?.id;
+        }
       } else {
         // Update existing class
+        const classUpdatePayload = {
+          ClassName: dndClassName,
+          Description: dndClassDescription,
+          HitDice: dndHitDice,
+          Prof_Armour: dndProfArmour,
+          Prof_Weapons: dndProfWeapons,
+          Prof_SavingThrows: dndProfSavingThrows,
+          Prof_Skills: dndProfSkills,
+          PointsName: dndPointsName,
+          Attire: dndAttire,
+          ExtraLevelFields: normalizedExtraFields,
+          DNDMod: dndModValue
+        };
+
         const { error } = await supabase
           .from('DND_Classes')
-          .update({
-            ClassName: dndClassName,
-            Description: dndClassDescription,
-            HitDice: dndHitDice,
-            Prof_Armour: dndProfArmour,
-            Prof_Weapons: dndProfWeapons,
-            Prof_SavingThrows: dndProfSavingThrows,
-            Prof_Skills: dndProfSkills,
-            PointsName: dndPointsName,
-            DNDMod: dndModValue
-          })
+          .update(classUpdatePayload)
           .eq('id', selectedDndClassId);
 
-        if (error) throw error;
+        if (error) {
+          const { ExtraLevelFields, Attire, ...legacyClassPayload } = classUpdatePayload;
+          const legacyUpdateResult = await supabase
+            .from('DND_Classes')
+            .update(legacyClassPayload)
+            .eq('id', selectedDndClassId);
+          if (legacyUpdateResult.error) throw legacyUpdateResult.error;
+          savedWithoutExtraClassColumns = true;
+        }
       }
 
       if (!classIdToUse) {
@@ -1914,7 +3082,13 @@ export default function Settings() {
           : null,
         Cantrips: parseNumberOrNull(row.cantrips),
         SpellsKnown: parseNumberOrNull(row.spells),
-        Points: parseNumberOrNull(row.points)
+        Points: parseNumberOrNull(row.points),
+        ExtraValues: normalizedExtraFields.reduce((acc, fieldName) => {
+          const fieldValue = row.extraValues?.[fieldName];
+          if (fieldValue == null || String(fieldValue).trim() === '') return acc;
+          acc[fieldName] = String(fieldValue);
+          return acc;
+        }, {})
       }));
 
       const { error: deleteError } = await supabase
@@ -1928,9 +3102,20 @@ export default function Settings() {
         .from('DND_Class_Levels')
         .insert(levelRows);
 
-      if (levelInsertError) throw levelInsertError;
+      if (levelInsertError) {
+        const legacyLevelRows = levelRows.map(({ ExtraValues, ...legacyRow }) => legacyRow);
+        const legacyInsertResult = await supabase
+          .from('DND_Class_Levels')
+          .insert(legacyLevelRows);
+        if (legacyInsertResult.error) throw legacyInsertResult.error;
+        savedWithoutExtraLevelColumns = true;
+      }
 
-      setSuccess('DND Class saved successfully');
+      if (savedWithoutExtraClassColumns || savedWithoutExtraLevelColumns) {
+        setSuccess('DND Class saved, but custom level columns require the latest DND migration to persist.');
+      } else {
+        setSuccess('DND Class saved successfully');
+      }
       resetDndClassForm();
       setShowAddDndClassForm(false);
     } catch (err) {
@@ -1938,6 +3123,98 @@ export default function Settings() {
       setError('Failed to save DND Class. Please try again.');
     } finally {
       setSavingDndClass(false);
+    }
+  };
+
+  const handleSaveDndSubclass = async () => {
+    setSavingDndSubclass(true);
+    try {
+      if (!dndSubclassName.trim()) {
+        setError('Subclass name is required');
+        setSavingDndSubclass(false);
+        return;
+      }
+
+      if (!dndSubclassClassId) {
+        setError('Please select the parent class for this subclass');
+        setSavingDndSubclass(false);
+        return;
+      }
+
+      const dndModValue = getDndModValueForClass(dndSubclassClassId);
+      let subclassIdToUse = selectedDndSubclassId;
+
+      if (selectedDndSubclassId === '__new__') {
+        const subclassInsertPayload = {
+          SubclassName: dndSubclassName,
+          Description: dndSubclassDescription,
+          Class: parseInt(dndSubclassClassId, 10),
+          DNDMod: dndModValue || null,
+        };
+
+        const { data: insertData, error } = await supabase
+          .from('DND_Subclasses')
+          .insert([subclassInsertPayload])
+          .select('id')
+          .single();
+        if (error) throw error;
+        subclassIdToUse = insertData?.id;
+      } else {
+        const subclassUpdatePayload = {
+          SubclassName: dndSubclassName,
+          Description: dndSubclassDescription,
+          Class: parseInt(dndSubclassClassId, 10),
+          DNDMod: dndModValue || null,
+        };
+
+        const { error } = await supabase
+          .from('DND_Subclasses')
+          .update(subclassUpdatePayload)
+          .eq('id', selectedDndSubclassId);
+        if (error) throw error;
+      }
+
+      if (!subclassIdToUse) {
+        throw new Error('Failed to resolve Subclass ID for level save');
+      }
+
+      const featureNameToId = new Map(dndClassFeatures.map((feature) => [feature.FeatureName, feature.id]));
+
+      const levelRows = dndSubclassLevels.map((row, index) => ({
+        Subclass: subclassIdToUse,
+        Level: index + 1,
+        Features: row.features.length
+          ? row.features
+            .map((name) => featureNameToId.get(name))
+            .filter((id) => id != null)
+            .join(', ')
+          : null,
+      }));
+
+      const deleteResult = await runSubclassLevelsQuery((tableName) => (
+        supabase
+          .from(tableName)
+          .delete()
+          .eq('Subclass', subclassIdToUse)
+      ));
+      if (deleteResult.error) throw deleteResult.error;
+
+      const insertResult = await runSubclassLevelsQuery((tableName) => (
+        supabase
+          .from(tableName)
+          .insert(levelRows)
+      ));
+      if (insertResult.error) throw insertResult.error;
+
+      setSuccess('DND Subclass saved successfully');
+      resetDndSubclassForm();
+      setShowAddDndSubclassForm(false);
+      loadDndSubclasses();
+    } catch (err) {
+      console.error('Failed to save DND Subclass:', err);
+      setError('Failed to save DND Subclass. Please try again.');
+    } finally {
+      setSavingDndSubclass(false);
     }
   };
 
@@ -1949,34 +3226,53 @@ export default function Settings() {
 
     setSavingDndRace(true);
     try {
+      const normalizedAbilityRules = normalizeDndRaceAbilityBonusRules(dndRaceAbilityBonusRules);
+      const legacyAbilityBonuses = buildLegacyDndRaceAbilityBonuses(normalizedAbilityRules);
       const payload = {
         RaceName: dndRaceName,
         DNDMod: getSelectedDndModValue(),
         Description: dndRaceDescription,
+        RaceLook: dndRaceLook,
         Size: dndRaceSize,
         Speed: parseNumberOrNull(dndRaceSpeed),
         Languages: dndRaceLanguages,
-        Traits: dndRaceTraits,
-        AbilityBonus_Str: parseNumberOrNull(dndRaceAbilityBonusStr) ?? 0,
-        AbilityBonus_Dex: parseNumberOrNull(dndRaceAbilityBonusDex) ?? 0,
-        AbilityBonus_Con: parseNumberOrNull(dndRaceAbilityBonusCon) ?? 0,
-        AbilityBonus_Int: parseNumberOrNull(dndRaceAbilityBonusInt) ?? 0,
-        AbilityBonus_Wis: parseNumberOrNull(dndRaceAbilityBonusWis) ?? 0,
-        AbilityBonus_Cha: parseNumberOrNull(dndRaceAbilityBonusCha) ?? 0,
+        Traits: dndRaceSelectedTraits.join(', '),
+        AbilityBonusRules: JSON.stringify(normalizedAbilityRules),
+        ...legacyAbilityBonuses,
       };
+
+      const legacyPayload = { ...payload };
+      delete legacyPayload.AbilityBonusRules;
+      delete legacyPayload.RaceLook;
 
       if (selectedDndRaceId === '__new__') {
         const { error } = await supabase.from('DND_Races').insert([payload]);
-        if (error) throw error;
+        if (error) {
+          if (!isMissingDndRaceAbilityBonusRulesColumnError(error) && !isMissingDndRaceLookColumnError(error)) throw error;
+          const fallbackInsert = await supabase.from('DND_Races').insert([legacyPayload]);
+          if (fallbackInsert.error) throw fallbackInsert.error;
+          setSuccess('DND Race saved, but Race Look and/or bonus-choice rules require the latest DND migration to persist.');
+        } else {
+          setSuccess('DND Race saved successfully');
+        }
       } else {
         const { error } = await supabase
           .from('DND_Races')
           .update(payload)
           .eq('id', selectedDndRaceId);
-        if (error) throw error;
+        if (error) {
+          if (!isMissingDndRaceAbilityBonusRulesColumnError(error) && !isMissingDndRaceLookColumnError(error)) throw error;
+          const fallbackUpdate = await supabase
+            .from('DND_Races')
+            .update(legacyPayload)
+            .eq('id', selectedDndRaceId);
+          if (fallbackUpdate.error) throw fallbackUpdate.error;
+          setSuccess('DND Race saved, but Race Look and/or bonus-choice rules require the latest DND migration to persist.');
+        } else {
+          setSuccess('DND Race saved successfully');
+        }
       }
 
-      setSuccess('DND Race saved successfully');
       resetDndRaceForm();
       setShowAddDndRaceForm(false);
       loadDndRaces();
@@ -1985,6 +3281,123 @@ export default function Settings() {
       setError('Failed to save DND Race. Please try again.');
     } finally {
       setSavingDndRace(false);
+    }
+  };
+
+  const handleSaveDndSubRace = async () => {
+    if (!dndSubRaceName.trim()) {
+      setError('Sub race name is required');
+      return;
+    }
+
+    if (!dndSubRaceRaceId) {
+      setError('Associated race is required');
+      return;
+    }
+
+    setSavingDndSubRace(true);
+    try {
+      const normalizedAbilityRules = normalizeDndRaceAbilityBonusRules(dndSubRaceAbilityBonusRules);
+      const legacyAbilityBonuses = buildLegacyDndRaceAbilityBonuses(normalizedAbilityRules);
+      const payload = {
+        SubRaceName: dndSubRaceName,
+        Description: dndSubRaceDescription,
+        Race: parseInt(dndSubRaceRaceId, 10),
+        DNDMod: getDndModValueForRace(dndSubRaceRaceId) || null,
+        Traits: dndSubRaceSelectedTraits.join(', '),
+        AbilityBonusRules: JSON.stringify(normalizedAbilityRules),
+        ...legacyAbilityBonuses,
+      };
+
+      const legacyPayload = { ...payload };
+      delete legacyPayload.AbilityBonusRules;
+
+      if (selectedDndSubRaceId === '__new__') {
+        const { error } = await supabase.from('DND_SubRaces').insert([payload]);
+        if (error) {
+          if (!isMissingDndSubRaceAbilityBonusRulesColumnError(error)) throw error;
+          const fallbackInsert = await supabase.from('DND_SubRaces').insert([legacyPayload]);
+          if (fallbackInsert.error) throw fallbackInsert.error;
+          setSuccess('DND Sub Race saved, but bonus-choice rules require the latest DND migration to persist.');
+        } else {
+          setSuccess('DND Sub Race saved successfully');
+        }
+      } else {
+        const { error } = await supabase
+          .from('DND_SubRaces')
+          .update(payload)
+          .eq('id', selectedDndSubRaceId);
+        if (error) {
+          if (!isMissingDndSubRaceAbilityBonusRulesColumnError(error)) throw error;
+          const fallbackUpdate = await supabase
+            .from('DND_SubRaces')
+            .update(legacyPayload)
+            .eq('id', selectedDndSubRaceId);
+          if (fallbackUpdate.error) throw fallbackUpdate.error;
+          setSuccess('DND Sub Race saved, but bonus-choice rules require the latest DND migration to persist.');
+        } else {
+          setSuccess('DND Sub Race saved successfully');
+        }
+      }
+
+      resetDndSubRaceForm();
+      setShowAddDndSubRaceForm(false);
+      loadDndSubRaces();
+    } catch (err) {
+      console.error('Failed to save DND Sub Race:', err);
+      setError('Failed to save DND Sub Race. Please try again.');
+    } finally {
+      setSavingDndSubRace(false);
+    }
+  };
+
+  const handleSaveDndPicture = async () => {
+    const parsedPictureId = parseNumberOrNull(dndPictureId);
+
+    if (!dndPictureClassId) {
+      setError('Class is required for picture mapping');
+      return;
+    }
+
+    if (!dndPictureRaceId) {
+      setError('Race is required for picture mapping');
+      return;
+    }
+
+    if (parsedPictureId == null || parsedPictureId <= 0) {
+      setError('Picture ID must be a positive number');
+      return;
+    }
+
+    setSavingDndPicture(true);
+    try {
+      const payload = {
+        Class: parseInt(dndPictureClassId, 10),
+        Race: parseInt(dndPictureRaceId, 10),
+        PictureID: parsedPictureId,
+        DNDMod: getDndModValueForClass(dndPictureClassId) || getDndModValueForRace(dndPictureRaceId) || null,
+      };
+
+      if (selectedDndPictureLinkId === '__new__') {
+        const { error } = await supabase.from('DND_Pictures').insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('DND_Pictures')
+          .update(payload)
+          .eq('id', selectedDndPictureLinkId);
+        if (error) throw error;
+      }
+
+      setSuccess('DND Picture mapping saved successfully');
+      resetDndPictureForm();
+      setShowAddDndPictureForm(false);
+      loadDndPictures();
+    } catch (err) {
+      console.error('Failed to save DND Picture mapping:', err);
+      setError('Failed to save DND Picture mapping. Please try again.');
+    } finally {
+      setSavingDndPicture(false);
     }
   };
 
@@ -2148,6 +3561,36 @@ export default function Settings() {
     }
   };
 
+  const handleDeleteDndSubclass = async () => {
+    if (selectedDndSubclassId === '__new__') return;
+    if (!confirm('Delete this DND subclass and all subclass levels?')) return;
+
+    try {
+      const subclassId = parseInt(selectedDndSubclassId, 10);
+
+      const levelDeleteResult = await runSubclassLevelsQuery((tableName) => (
+        supabase
+          .from(tableName)
+          .delete()
+          .eq('Subclass', subclassId)
+      ));
+      if (levelDeleteResult.error) throw levelDeleteResult.error;
+
+      const { error } = await supabase
+        .from('DND_Subclasses')
+        .delete()
+        .eq('id', subclassId);
+      if (error) throw error;
+
+      setSuccess('DND Subclass deleted successfully');
+      resetDndSubclassForm();
+      loadDndSubclasses();
+    } catch (err) {
+      console.error('Failed to delete DND Subclass:', err);
+      setError('Failed to delete DND Subclass. It may still be referenced by characters.');
+    }
+  };
+
   const handleDeleteDndRace = async () => {
     if (selectedDndRaceId === '__new__') return;
     if (!confirm('Delete this DND race?')) return;
@@ -2165,6 +3608,46 @@ export default function Settings() {
     } catch (err) {
       console.error('Failed to delete DND Race:', err);
       setError('Failed to delete DND Race. It may still be referenced by characters.');
+    }
+  };
+
+  const handleDeleteDndSubRace = async () => {
+    if (selectedDndSubRaceId === '__new__') return;
+    if (!confirm('Delete this DND sub race?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('DND_SubRaces')
+        .delete()
+        .eq('id', parseInt(selectedDndSubRaceId, 10));
+      if (error) throw error;
+
+      setSuccess('DND Sub Race deleted successfully');
+      resetDndSubRaceForm();
+      loadDndSubRaces();
+    } catch (err) {
+      console.error('Failed to delete DND Sub Race:', err);
+      setError('Failed to delete DND Sub Race. It may still be referenced by characters.');
+    }
+  };
+
+  const handleDeleteDndPicture = async () => {
+    if (selectedDndPictureLinkId === '__new__') return;
+    if (!confirm('Delete this DND picture mapping?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('DND_Pictures')
+        .delete()
+        .eq('id', parseInt(selectedDndPictureLinkId, 10));
+      if (error) throw error;
+
+      setSuccess('DND Picture mapping deleted successfully');
+      resetDndPictureForm();
+      loadDndPictures();
+    } catch (err) {
+      console.error('Failed to delete DND Picture mapping:', err);
+      setError('Failed to delete DND Picture mapping.');
     }
   };
 
@@ -4295,38 +5778,301 @@ export default function Settings() {
 
           {showDndSection && (
             <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+              <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
+                <button
+                  onClick={handleShowDndRacePictures}
+                  className={`flex-none whitespace-nowrap px-4 py-2 rounded transition font-medium ${showDndRacePictures ? 'bg-teal-700 text-white' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
+                >
+                  Race Pictures
+                </button>
+                <button
+                  onClick={handleShowDndClassPictures}
+                  className={`flex-none whitespace-nowrap px-4 py-2 rounded transition font-medium ${showDndClassPictures ? 'bg-orange-700 text-white' : 'bg-orange-600 text-white hover:bg-orange-700'}`}
+                >
+                  Class Pictures
+                </button>
+              </div>
+
+              <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
                 <button
                   onClick={handleAddDndClass}
-                  className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-medium"
+                  className="flex-none whitespace-nowrap px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-medium"
                 >
                   DND Classes
                 </button>
                 <button
+                  onClick={handleAddDndSubclass}
+                  className="flex-none whitespace-nowrap px-4 py-2 bg-fuchsia-600 text-white rounded hover:bg-fuchsia-700 transition font-medium"
+                >
+                  DND Subclasses
+                </button>
+                <button
                   onClick={handleAddDndRace}
-                  className="w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition font-medium"
+                  className="flex-none whitespace-nowrap px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition font-medium"
                 >
                   DND Races
                 </button>
                 <button
+                  onClick={handleAddDndSubRace}
+                  className="flex-none whitespace-nowrap px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 transition font-medium"
+                >
+                  DND Sub Races
+                </button>
+                <button
+                  onClick={handleAddDndPicture}
+                  className="flex-none whitespace-nowrap px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition font-medium"
+                >
+                  DND Pictures
+                </button>
+                <button
                   onClick={handleAddDndBackground}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium"
+                  className="flex-none whitespace-nowrap px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium"
                 >
                   DND Backgrounds
                 </button>
                 <button
                   onClick={handleAddDndEquipment}
-                  className="w-full px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition font-medium"
+                  className="flex-none whitespace-nowrap px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition font-medium"
                 >
                   DND Equipment
                 </button>
                 <button
                   onClick={handleAddDndSpell}
-                  className="w-full px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition font-medium"
+                  className="flex-none whitespace-nowrap px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition font-medium"
                 >
                   DND Spells
                 </button>
               </div>
+
+              {showDndRacePictures && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">DND Race Pictures</h3>
+
+                  {existingDndRaces.length === 0 ? (
+                    <p className="text-gray-600">No DND races found.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 text-sm">
+                        <thead className="bg-gray-200">
+                          <tr>
+                            <th className="border border-gray-300 px-3 py-2 text-left">Race</th>
+                            <th className="border border-gray-300 px-3 py-2 text-left">Pictures</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {buildGroupedDndRows(existingDndRaces, 'RaceName').map((group) => (
+                            <Fragment key={`dnd-race-picture-group-${group.label}`}>
+                              <tr className="bg-slate-200">
+                                <td colSpan={2} className="border border-gray-300 px-3 py-2 text-sm font-bold text-slate-900">
+                                  {group.label}
+                                </td>
+                              </tr>
+                              {group.items.map((race) => {
+                                const racePictures = existingDndPictures.filter((row) => Number(row.Race) === Number(race.id));
+                                const availableClasses = getAvailableDndClassesForRace(race.id);
+                                const selectedClassIdCandidate = String(selectedDndClassPerRacePicture[race.id] || '');
+                                const selectedClassId = availableClasses.some((row) => String(row.id) === selectedClassIdCandidate)
+                                  ? selectedClassIdCandidate
+                                  : String(availableClasses[0]?.id || '');
+
+                                return (
+                                  <tr key={`dnd-race-picture-row-${race.id}`} className="bg-white align-top">
+                                    <td className="border border-gray-300 px-3 py-2 min-w-[220px]">
+                                      <p className="text-base font-semibold text-gray-800">{race.RaceName}</p>
+                                    </td>
+                                    <td className="border border-gray-300 px-3 py-2">
+                                      <div className="flex flex-wrap gap-3">
+                                        {racePictures.length > 0 ? (
+                                          racePictures.map((row) => (
+                                            <div key={`dnd-race-picture-${race.id}-${row.id}`} className="flex flex-col items-center border border-gray-300 rounded p-2 bg-white shadow-sm min-w-[100px] w-[100px]">
+                                              <img
+                                                src={`/F_Pictures/Picture ${row.PictureID} Face.png`}
+                                                alt={`Picture ${row.PictureID} Face`}
+                                                className="w-[100px] h-[100px] object-cover rounded"
+                                                onError={(e) => {
+                                                  e.currentTarget.style.display = 'none';
+                                                }}
+                                              />
+                                              <p className="mt-1 text-xs font-medium text-gray-700 text-center break-words max-w-full">
+                                                {getDndClassNameById(row.Class) || `Class ${row.Class}`}
+                                              </p>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <span className="text-gray-500 text-sm">No pictures yet.</span>
+                                        )}
+                                      </div>
+
+                                      {availableClasses.length > 0 ? (
+                                        <div className="mt-4 border border-blue-400 rounded p-4 bg-blue-50">
+                                          <label className="block text-sm font-semibold text-gray-800 mb-2">Generate Prompt for Missing Class:</label>
+                                          <select
+                                            value={selectedClassId}
+                                            onChange={(e) => {
+                                              const value = e.target.value;
+                                              setSelectedDndClassPerRacePicture((prev) => ({ ...prev, [race.id]: value }));
+                                            }}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                          >
+                                            {availableClasses.map((row) => (
+                                              <option key={`dnd-race-missing-class-${race.id}-${row.id}`} value={row.id}>{row.ClassName}</option>
+                                            ))}
+                                          </select>
+
+                                          <div className="mt-3 flex flex-wrap gap-2">
+                                            <button
+                                              onClick={() => {
+                                                const randomClass = availableClasses[Math.floor(Math.random() * availableClasses.length)];
+                                                setSelectedDndClassPerRacePicture((prev) => ({ ...prev, [race.id]: String(randomClass.id) }));
+                                              }}
+                                              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-medium"
+                                            >
+                                              Random
+                                            </button>
+                                            <button
+                                              onClick={() => handleGenerateDndPromptForRace(race, selectedClassId)}
+                                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium"
+                                            >
+                                              Generate Prompt
+                                            </button>
+                                            <button
+                                              onClick={() => handleCreateDndPictureForRace(race, selectedClassId)}
+                                              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
+                                            >
+                                              Create Picture
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <p className="mt-4 text-xs text-gray-600">All matching classes already have a picture mapping for this race.</p>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showDndClassPictures && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">DND Class Pictures</h3>
+
+                  {existingDndClasses.length === 0 ? (
+                    <p className="text-gray-600">No DND classes found.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 text-sm">
+                        <thead className="bg-gray-200">
+                          <tr>
+                            <th className="border border-gray-300 px-3 py-2 text-left">Class</th>
+                            <th className="border border-gray-300 px-3 py-2 text-left">Pictures</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {buildGroupedDndRows(existingDndClasses, 'ClassName').map((group) => (
+                            <Fragment key={`dnd-class-picture-group-${group.label}`}>
+                              <tr className="bg-slate-200">
+                                <td colSpan={2} className="border border-gray-300 px-3 py-2 text-sm font-bold text-slate-900">
+                                  {group.label}
+                                </td>
+                              </tr>
+                              {group.items.map((classRow) => {
+                                const classPictures = existingDndPictures.filter((row) => Number(row.Class) === Number(classRow.id));
+                                const availableRaces = getAvailableDndRacesForClass(classRow.id);
+                                const selectedRaceIdCandidate = String(selectedDndRacePerClassPicture[classRow.id] || '');
+                                const selectedRaceId = availableRaces.some((row) => String(row.id) === selectedRaceIdCandidate)
+                                  ? selectedRaceIdCandidate
+                                  : String(availableRaces[0]?.id || '');
+
+                                return (
+                                  <tr key={`dnd-class-picture-row-${classRow.id}`} className="bg-white align-top">
+                                    <td className="border border-gray-300 px-3 py-2 min-w-[220px]">
+                                      <p className="text-base font-semibold text-gray-800">{classRow.ClassName}</p>
+                                    </td>
+                                    <td className="border border-gray-300 px-3 py-2">
+                                      <div className="flex flex-wrap gap-3">
+                                        {classPictures.length > 0 ? (
+                                          classPictures.map((row) => (
+                                            <div key={`dnd-class-picture-${classRow.id}-${row.id}`} className="flex flex-col items-center border border-gray-300 rounded p-2 bg-white shadow-sm min-w-[100px] w-[100px]">
+                                              <img
+                                                src={`/F_Pictures/Picture ${row.PictureID} Face.png`}
+                                                alt={`Picture ${row.PictureID} Face`}
+                                                className="w-[100px] h-[100px] object-cover rounded"
+                                                onError={(e) => {
+                                                  e.currentTarget.style.display = 'none';
+                                                }}
+                                              />
+                                              <p className="mt-1 text-xs font-medium text-gray-700 text-center break-words max-w-full">
+                                                {getDndRaceNameById(row.Race) || `Race ${row.Race}`}
+                                              </p>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <span className="text-gray-500 text-sm">No pictures yet.</span>
+                                        )}
+                                      </div>
+
+                                      {availableRaces.length > 0 ? (
+                                        <div className="mt-4 border border-blue-400 rounded p-4 bg-blue-50">
+                                          <label className="block text-sm font-semibold text-gray-800 mb-2">Generate Prompt for Missing Race:</label>
+                                          <select
+                                            value={selectedRaceId}
+                                            onChange={(e) => {
+                                              const value = e.target.value;
+                                              setSelectedDndRacePerClassPicture((prev) => ({ ...prev, [classRow.id]: value }));
+                                            }}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                          >
+                                            {availableRaces.map((row) => (
+                                              <option key={`dnd-class-missing-race-${classRow.id}-${row.id}`} value={row.id}>{row.RaceName}</option>
+                                            ))}
+                                          </select>
+
+                                          <div className="mt-3 flex flex-wrap gap-2">
+                                            <button
+                                              onClick={() => {
+                                                const randomRace = availableRaces[Math.floor(Math.random() * availableRaces.length)];
+                                                setSelectedDndRacePerClassPicture((prev) => ({ ...prev, [classRow.id]: String(randomRace.id) }));
+                                              }}
+                                              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-medium"
+                                            >
+                                              Random
+                                            </button>
+                                            <button
+                                              onClick={() => handleGenerateDndPromptForClass(classRow, selectedRaceId)}
+                                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium"
+                                            >
+                                              Generate Prompt
+                                            </button>
+                                            <button
+                                              onClick={() => handleCreateDndPictureForClass(classRow, selectedRaceId)}
+                                              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-medium"
+                                            >
+                                              Create Picture
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <p className="mt-4 text-xs text-gray-600">All matching races already have a picture mapping for this class.</p>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {showAddDndClassForm && (
                 <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
@@ -4351,10 +6097,14 @@ export default function Settings() {
                           className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                         >
                           <option value="__new__">-- Create New Class --</option>
-                          {existingDndClasses.map((cls) => (
-                            <option key={cls.id} value={cls.id}>
-                              {cls.ClassName}
-                            </option>
+                          {buildGroupedDndRows(existingDndClasses, 'ClassName').map((group) => (
+                            <optgroup key={`dnd-class-group-${group.label}`} label={group.label}>
+                              {group.items.map((cls) => (
+                                <option key={`dnd-class-${group.label}-${cls.id}`} value={cls.id}>
+                                  {cls.ClassName}
+                                </option>
+                              ))}
+                            </optgroup>
                           ))}
                         </select>
                       </div>
@@ -4482,6 +6232,63 @@ export default function Settings() {
                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                           />
                         </div>
+
+                        <div className="md:col-span-2">
+                          <div className="mb-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Attire</label>
+                            <textarea
+                              value={dndAttire}
+                              onChange={(e) => setDndAttire(e.target.value)}
+                              placeholder="Enter class attire"
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                              rows={2}
+                            />
+                          </div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Extra Level Columns</label>
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <input
+                              type="text"
+                              value={dndExtraLevelFieldInput}
+                              onChange={(e) => setDndExtraLevelFieldInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addDndExtraFieldNamesFromInput();
+                                }
+                              }}
+                              placeholder="Type one or more names (comma/new line), then Add"
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={addDndExtraFieldNamesFromInput}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition font-medium whitespace-nowrap"
+                            >
+                              Add Columns
+                            </button>
+                          </div>
+                          {dndExtraLevelFields.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {dndExtraLevelFields.map((fieldName) => (
+                                <span
+                                  key={`extra-column-chip-${fieldName}`}
+                                  className="inline-flex items-center gap-1 rounded bg-indigo-100 px-2 py-1 text-xs text-indigo-900"
+                                >
+                                  {fieldName}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeDndExtraFieldName(fieldName)}
+                                    className="text-indigo-700 hover:text-indigo-900"
+                                    aria-label={`Remove ${fieldName}`}
+                                  >
+                                    x
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="mt-1 text-xs text-gray-600">Add as many as needed. They appear in the level table and character creator for this class.</p>
+                        </div>
                       </div>
 
                       <div className="mt-4 flex gap-3">
@@ -4527,6 +6334,9 @@ export default function Settings() {
                                 {dndPointsName.trim() && (
                                   <th className="border border-gray-300 px-2 py-1 text-left">{dndPointsName} Points</th>
                                 )}
+                                {dndExtraLevelFields.map((fieldName) => (
+                                  <th key={`dnd-level-extra-header-${fieldName}`} className="border border-gray-300 px-2 py-1 text-left">{fieldName}</th>
+                                ))}
                               </tr>
                             </thead>
                             <tbody>
@@ -4628,11 +6438,21 @@ export default function Settings() {
                                         />
                                       </td>
                                     )}
+                                    {dndExtraLevelFields.map((fieldName) => (
+                                      <td key={`dnd-level-extra-${index + 1}-${fieldName}`} className="border border-gray-300 px-2 py-1">
+                                        <input
+                                          type="text"
+                                          value={row.extraValues?.[fieldName] || ''}
+                                          onChange={(e) => updateDndClassLevelExtra(index, fieldName, e.target.value)}
+                                          className="w-full bg-transparent outline-none"
+                                        />
+                                      </td>
+                                    ))}
                                   </tr>
                                   {showAddFeatureForm && featureTargetLevelIndex === index && (
                                     <tr className="bg-white">
                                       <td
-                                        colSpan={dndPointsName.trim() ? 6 : 5}
+                                        colSpan={5 + (dndPointsName.trim() ? 1 : 0) + dndExtraLevelFields.length}
                                         className="border border-gray-300 px-2 py-2"
                                       >
                                         <div className="p-3 bg-white border border-gray-300 rounded">
@@ -4694,6 +6514,746 @@ export default function Settings() {
                 </div>
               )}
 
+              {showAddDndSubclassForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Subclass</h3>
+
+                  <div className="flex flex-row gap-6 items-start overflow-x-auto">
+                    <div className="flex-1 min-w-[360px]">
+                      <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Subclass Name</label>
+                        <select
+                          value={selectedDndSubclassId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '__new__') {
+                              resetDndSubclassForm();
+                              setSelectedDndSubclassId('__new__');
+                            } else {
+                              setSelectedDndSubclassId(val);
+                              loadDndSubclassData(parseInt(val, 10));
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="__new__">-- Create New Subclass --</option>
+                          {buildGroupedDndRows(existingDndSubclasses, 'SubclassName').map((group) => (
+                            <optgroup key={`dnd-subclass-group-${group.label}`} label={group.label}>
+                              {group.items.map((subclass) => (
+                                <option key={`dnd-subclass-${group.label}-${subclass.id}`} value={subclass.id}>
+                                  {subclass.SubclassName}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Subclass Name</label>
+                          <input
+                            type="text"
+                            value={dndSubclassName}
+                            onChange={(e) => setDndSubclassName(e.target.value)}
+                            placeholder="Enter subclass name"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Parent Class</label>
+                          <select
+                            value={dndSubclassClassId}
+                            onChange={(e) => setDndSubclassClassId(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          >
+                            <option value="">-- Select Parent Class --</option>
+                            {buildGroupedDndRows(existingDndClasses, 'ClassName').map((group) => (
+                              <optgroup key={`dnd-parent-class-group-${group.label}`} label={group.label}>
+                                {group.items.map((cls) => (
+                                  <option key={`dnd-parent-class-${group.label}-${cls.id}`} value={cls.id}>
+                                    {cls.ClassName}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                          <textarea
+                            value={dndSubclassDescription}
+                            onChange={(e) => setDndSubclassDescription(e.target.value)}
+                            placeholder="Enter subclass description"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            rows={3}
+                          />
+                        </div>
+
+                      </div>
+
+                      <div className="mt-4 flex gap-3">
+                        <button
+                          onClick={handleSaveDndSubclass}
+                          disabled={savingDndSubclass}
+                          className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                        >
+                          {savingDndSubclass ? 'Saving...' : 'Save'}
+                        </button>
+                        {selectedDndSubclassId !== '__new__' && (
+                          <button
+                            onClick={handleDeleteDndSubclass}
+                            className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                          >
+                            Delete
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            resetDndSubclassForm();
+                            setShowAddDndSubclassForm(false);
+                          }}
+                          className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="w-full min-w-[360px] lg:w-1/2">
+                      <div className="p-3 bg-gray-50 rounded border border-gray-300">
+                        <h4 className="text-lg font-semibold text-gray-800 mb-3">Subclass Levels</h4>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-xs text-gray-800 border border-gray-300">
+                            <thead className="bg-gray-200">
+                              <tr>
+                                <th className="border border-gray-300 px-2 py-1 text-left">Level</th>
+                                <th className="border border-gray-300 px-2 py-1 text-left">Features</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dndSubclassLevels.map((row, index) => (
+                                <Fragment key={`subclass-level-${index + 1}`}>
+                                  <tr className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                    <td className="border border-gray-300 px-2 py-1">{index + 1}</td>
+                                    <td className="border border-gray-300 px-2 py-1 align-top">
+                                      <div className="flex flex-col gap-2">
+                                        <div className="flex items-start gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setActiveSubclassFeaturePickerIndex(index)}
+                                            className="px-2 py-0.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                                          >
+                                            +
+                                          </button>
+                                          <div className="flex flex-wrap gap-1">
+                                            {row.features.length === 0 && (
+                                              <span className="text-gray-400 text-xs">No features</span>
+                                            )}
+                                            {row.features.map((feature) => (
+                                              <span key={`${feature}-subclass-${index}`} className="inline-flex items-center gap-1 bg-gray-200 text-gray-800 px-2 py-0.5 rounded text-xs">
+                                                {feature}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => removeFeatureFromSubclassLevel(index, feature)}
+                                                  className="text-gray-600 hover:text-gray-900"
+                                                >
+                                                  x
+                                                </button>
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {activeSubclassFeaturePickerIndex === index && (
+                                          <select
+                                            value=""
+                                            onChange={(e) => {
+                                              const value = e.target.value;
+                                              if (!value) return;
+                                              if (value === '__add__') {
+                                                setShowAddSubclassFeatureForm(true);
+                                                setSubclassFeatureTargetLevelIndex(index);
+                                                setActiveSubclassFeaturePickerIndex(null);
+                                                return;
+                                              }
+                                              addFeatureToSubclassLevel(index, value);
+                                              setActiveSubclassFeaturePickerIndex(null);
+                                            }}
+                                            className="w-full rounded border-gray-300 text-xs"
+                                          >
+                                            <option value="">Select feature</option>
+                                            <option value="__add__">Add Feature</option>
+                                            {loadingDndClassFeatures && (
+                                              <option disabled>Loading...</option>
+                                            )}
+                                            {!loadingDndClassFeatures && dndClassFeatures.map((feature) => (
+                                              <option key={`subclass-feature-option-${feature.id}`} value={feature.FeatureName}>
+                                                {feature.FeatureName}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  {showAddSubclassFeatureForm && subclassFeatureTargetLevelIndex === index && (
+                                    <tr className="bg-white">
+                                      <td
+                                        colSpan={2}
+                                        className="border border-gray-300 px-2 py-2"
+                                      >
+                                        <div className="p-3 bg-white border border-gray-300 rounded">
+                                          <h5 className="text-sm font-semibold text-gray-800 mb-2">Add Feature</h5>
+                                          <div className="grid grid-cols-1 gap-2">
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-700 mb-1">Feature Name</label>
+                                              <input
+                                                type="text"
+                                                value={newSubclassFeatureName}
+                                                onChange={(e) => setNewSubclassFeatureName(e.target.value)}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-700 mb-1">Feature Text</label>
+                                              <textarea
+                                                value={newSubclassFeatureText}
+                                                onChange={(e) => setNewSubclassFeatureText(e.target.value)}
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                                rows={3}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="mt-3 flex gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={handleSaveDndSubclassFeature}
+                                              disabled={savingDndSubclassFeature}
+                                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-60"
+                                            >
+                                              {savingDndSubclassFeature ? 'Saving...' : 'Save'}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setShowAddSubclassFeatureForm(false);
+                                                setNewSubclassFeatureName('');
+                                                setNewSubclassFeatureText('');
+                                                setSubclassFeatureTargetLevelIndex(null);
+                                              }}
+                                              className="px-3 py-1 bg-gray-400 text-white rounded text-xs hover:bg-gray-500"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </Fragment>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showAddDndSubRaceForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Sub Race</h3>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Sub Race</label>
+                    <select
+                      value={selectedDndSubRaceId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__new__') {
+                          resetDndSubRaceForm();
+                          setSelectedDndSubRaceId('__new__');
+                        } else {
+                          setSelectedDndSubRaceId(value);
+                          loadDndSubRaceData(parseInt(value, 10));
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Sub Race --</option>
+                      {buildGroupedDndRows(existingDndSubRaces, 'SubRaceName').map((group) => (
+                        <optgroup key={`dnd-sub-race-group-${group.label}`} label={group.label}>
+                          {group.items.map((row) => (
+                            <option key={`dnd-sub-race-${group.label}-${row.id}`} value={row.id}>{row.SubRaceName}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sub Race Name</label>
+                      <input
+                        type="text"
+                        value={dndSubRaceName}
+                        onChange={(e) => setDndSubRaceName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Associated Race</label>
+                      <select
+                        value={dndSubRaceRaceId}
+                        onChange={(e) => setDndSubRaceRaceId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select Race --</option>
+                        {buildGroupedDndRows(existingDndRaces, 'RaceName').map((group) => (
+                          <optgroup key={`dnd-sub-race-parent-${group.label}`} label={group.label}>
+                            {group.items.map((row) => (
+                              <option key={`dnd-sub-race-parent-opt-${group.label}-${row.id}`} value={row.id}>{row.RaceName}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={dndSubRaceDescription}
+                        onChange={(e) => setDndSubRaceDescription(e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Traits</label>
+                      <select
+                        value={dndSubRaceTraitPickerValue}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setDndSubRaceTraitPickerValue(value);
+                          if (!value) return;
+                          if (value === '__add__') {
+                            setShowAddDndSubRaceTraitForm(true);
+                            return;
+                          }
+                          addDndSubRaceTrait(value);
+                          setDndSubRaceTraitPickerValue('');
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select Trait --</option>
+                        <option value="__add__">Add New Trait</option>
+                        {loadingDndClassFeatures && <option disabled>Loading traits...</option>}
+                        {!loadingDndClassFeatures && dndClassFeatures.map((feature) => (
+                          <option key={`dnd-sub-race-trait-${feature.id}`} value={feature.FeatureName}>{feature.FeatureName}</option>
+                        ))}
+                      </select>
+                      {dndSubRaceSelectedTraits.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {dndSubRaceSelectedTraits.map((traitName) => (
+                            <span
+                              key={`dnd-sub-race-trait-chip-${traitName}`}
+                              className="inline-flex items-center gap-1 rounded bg-violet-100 px-2 py-1 text-xs text-violet-900"
+                            >
+                              {traitName}
+                              <button
+                                type="button"
+                                onClick={() => removeDndSubRaceTrait(traitName)}
+                                className="text-violet-700 hover:text-violet-900"
+                                aria-label={`Remove ${traitName}`}
+                              >
+                                x
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {showAddDndSubRaceTraitForm && (
+                        <div className="mt-2 p-3 bg-white border border-gray-300 rounded">
+                          <div className="grid grid-cols-1 gap-2">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Trait Name</label>
+                              <input
+                                type="text"
+                                value={newDndSubRaceTraitName}
+                                onChange={(e) => setNewDndSubRaceTraitName(e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Trait Text</label>
+                              <textarea
+                                value={newDndSubRaceTraitText}
+                                onChange={(e) => setNewDndSubRaceTraitText(e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                rows={3}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleSaveDndSubRaceTrait}
+                              disabled={savingDndSubRaceTrait}
+                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-60"
+                            >
+                              {savingDndSubRaceTrait ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAddDndSubRaceTraitForm(false);
+                                setNewDndSubRaceTraitName('');
+                                setNewDndSubRaceTraitText('');
+                                setDndSubRaceTraitPickerValue('');
+                              }}
+                              className="px-3 py-1 bg-gray-400 text-white rounded text-xs hover:bg-gray-500"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-2 p-3 bg-white border border-gray-300 rounded space-y-3">
+                      <h4 className="text-sm font-semibold text-gray-800">Ability Score Bonus Rules</h4>
+
+                      <div
+                        className="grid grid-cols-2 gap-3"
+                        style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
+                      >
+                        <div className="rounded border border-gray-200 p-2 bg-gray-50 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h5 className="text-xs font-semibold text-gray-800">Fixed Bonus Scores</h5>
+                            <button
+                              type="button"
+                              onClick={addDndSubRaceFixedBonus}
+                              className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                            >
+                              Add Fixed
+                            </button>
+                          </div>
+
+                          {dndSubRaceAbilityBonusRules.fixed.length === 0 && (
+                            <p className="text-xs text-gray-600">No fixed bonuses yet.</p>
+                          )}
+
+                          <div className="space-y-2">
+                            {dndSubRaceAbilityBonusRules.fixed.map((entry, index) => (
+                              <div key={`dnd-sub-race-fixed-${index}`} className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Stat</label>
+                                  <select
+                                    value={entry.stat}
+                                    onChange={(e) => updateDndSubRaceFixedBonus(index, 'stat', e.target.value)}
+                                    className="w-full sm:max-w-24 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                                  >
+                                    {DND_ABILITY_STATS.map((stat) => (
+                                      <option key={`sub-race-fixed-stat-${index}-${stat}`} value={stat}>{DND_ABILITY_STAT_LABELS[stat]}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Bonus</label>
+                                  <input
+                                    type="number"
+                                    value={entry.amount}
+                                    onChange={(e) => updateDndSubRaceFixedBonus(index, 'amount', e.target.value)}
+                                    className="w-full sm:max-w-20 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeDndSubRaceFixedBonus(index)}
+                                    className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="rounded border border-gray-200 p-2 bg-gray-50 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h5 className="text-xs font-semibold text-gray-800">Choice Rules</h5>
+                            <button
+                              type="button"
+                              onClick={addDndSubRaceChoiceBonus}
+                              className="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700"
+                            >
+                              Add Choice
+                            </button>
+                          </div>
+
+                          {dndSubRaceAbilityBonusRules.choices.length === 0 && (
+                            <p className="text-xs text-gray-600">No choose-one style bonuses yet.</p>
+                          )}
+
+                          <div className="space-y-2">
+                            {dndSubRaceAbilityBonusRules.choices.map((choice, choiceIndex) => (
+                              <div key={choice.id || `sub-race-choice-${choiceIndex}`} className="rounded border border-gray-200 p-2 bg-white space-y-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Pick Count</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={choice.count}
+                                      onChange={(e) => updateDndSubRaceChoiceBonus(choiceIndex, 'count', e.target.value)}
+                                      className="w-full sm:max-w-20 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Bonus Each</label>
+                                    <input
+                                      type="number"
+                                      value={choice.amount}
+                                      onChange={(e) => updateDndSubRaceChoiceBonus(choiceIndex, 'amount', e.target.value)}
+                                      className="w-full sm:max-w-20 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeDndSubRaceChoiceBonus(choiceIndex)}
+                                      className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                    >
+                                      Remove Rule
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <p className="text-xs font-medium text-gray-700 mb-1">Choose from:</p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                    {DND_ABILITY_STATS.map((stat) => {
+                                      const checked = (choice.options || []).includes(stat);
+                                      return (
+                                        <label key={`${choice.id || `sub-race-${choiceIndex}`}-${stat}`} className="inline-flex items-center gap-1 text-xs text-gray-800">
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggleDndSubRaceChoiceBonusOption(choiceIndex, stat)}
+                                          />
+                                          {DND_ABILITY_STAT_LABELS[stat]}
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                  {choice.count > (choice.options || []).length && (
+                                    <p className="mt-1 text-xs text-amber-700">
+                                      This rule picks {choice.count}, but only {(choice.options || []).length} option{(choice.options || []).length === 1 ? '' : 's'} selected.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      onClick={handleSaveDndSubRace}
+                      disabled={savingDndSubRace}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                    >
+                      {savingDndSubRace ? 'Saving...' : 'Save'}
+                    </button>
+                    {selectedDndSubRaceId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteDndSubRace}
+                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        resetDndSubRaceForm();
+                        setShowAddDndSubRaceForm(false);
+                      }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddDndPictureForm && (
+                <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">DND Picture Links</h3>
+
+                  <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Picture Mapping</label>
+                    <select
+                      value={selectedDndPictureLinkId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__new__') {
+                          resetDndPictureForm();
+                          setSelectedDndPictureLinkId('__new__');
+                        } else {
+                          setSelectedDndPictureLinkId(value);
+                          loadDndPictureData(parseInt(value, 10));
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Picture Mapping --</option>
+                      {existingDndPictures.map((row) => (
+                        <option key={`dnd-picture-map-${row.id}`} value={row.id}>
+                          Picture {row.PictureID} - {getDndRaceNameById(row.Race) || `Race ${row.Race}`} / {getDndClassNameById(row.Class) || `Class ${row.Class}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Race</label>
+                      <select
+                        value={dndPictureRaceId}
+                        onChange={(e) => setDndPictureRaceId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select Race --</option>
+                        {buildGroupedDndRows(existingDndRaces, 'RaceName').map((group) => (
+                          <optgroup key={`dnd-picture-race-group-${group.label}`} label={group.label}>
+                            {group.items.map((row) => (
+                              <option key={`dnd-picture-race-${group.label}-${row.id}`} value={row.id}>{row.RaceName}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Class (Career)</label>
+                      <select
+                        value={dndPictureClassId}
+                        onChange={(e) => setDndPictureClassId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="">-- Select Class --</option>
+                        {buildGroupedDndRows(existingDndClasses, 'ClassName').map((group) => (
+                          <optgroup key={`dnd-picture-class-group-${group.label}`} label={group.label}>
+                            {group.items.map((row) => (
+                              <option key={`dnd-picture-class-${group.label}-${row.id}`} value={row.id}>{row.ClassName}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Picture ID</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={dndPictureId}
+                        onChange={(e) => setDndPictureId(e.target.value)}
+                        placeholder="e.g. 1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-600">Uses files like <code>public/F_Pictures/Picture N.png</code> and <code>Picture N Face.png</code>.</p>
+                    </div>
+                  </div>
+
+                  {dndPictureId && parseNumberOrNull(dndPictureId) != null && parseNumberOrNull(dndPictureId) > 0 && (
+                    <div className="mt-4 p-3 bg-white border border-gray-300 rounded">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">Preview</p>
+                      <img
+                        src={`/F_Pictures/Picture ${parseNumberOrNull(dndPictureId)} Face.png`}
+                        alt={`Picture ${parseNumberOrNull(dndPictureId)} Face`}
+                        className="w-28 h-28 object-cover rounded border border-gray-300"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      onClick={handleSaveDndPicture}
+                      disabled={savingDndPicture}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold disabled:opacity-60"
+                    >
+                      {savingDndPicture ? 'Saving...' : 'Save'}
+                    </button>
+                    {selectedDndPictureLinkId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteDndPicture}
+                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        resetDndPictureForm();
+                        setShowAddDndPictureForm(false);
+                      }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  <div className="mt-6 overflow-x-auto">
+                    <table className="min-w-full border border-gray-300 text-sm">
+                      <thead className="bg-gray-200">
+                        <tr>
+                          <th className="border border-gray-300 px-3 py-2 text-left">Picture ID</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left">Race</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left">Class</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left">Face Preview</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {existingDndPictures.length === 0 && (
+                          <tr>
+                            <td className="border border-gray-300 px-3 py-2 text-gray-500" colSpan={4}>No DND picture mappings yet.</td>
+                          </tr>
+                        )}
+                        {existingDndPictures.map((row) => (
+                          <tr key={`dnd-picture-row-${row.id}`} className="bg-white">
+                            <td className="border border-gray-300 px-3 py-2">{row.PictureID}</td>
+                            <td className="border border-gray-300 px-3 py-2">{getDndRaceNameById(row.Race) || `Race ${row.Race}`}</td>
+                            <td className="border border-gray-300 px-3 py-2">{getDndClassNameById(row.Class) || `Class ${row.Class}`}</td>
+                            <td className="border border-gray-300 px-3 py-2">
+                              <img
+                                src={`/F_Pictures/Picture ${row.PictureID} Face.png`}
+                                alt={`Picture ${row.PictureID} Face`}
+                                className="w-14 h-14 object-cover rounded border border-gray-300"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {showAddDndRaceForm && (
                 <div className="p-6 bg-gray-100 rounded-lg border border-gray-300">
                   <h3 className="text-xl font-bold mb-4 text-gray-800">Add DND Race</h3>
@@ -4715,8 +7275,12 @@ export default function Settings() {
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                     >
                       <option value="__new__">-- Create New Race --</option>
-                      {existingDndRaces.map((row) => (
-                        <option key={row.id} value={row.id}>{row.RaceName}</option>
+                      {buildGroupedDndRows(existingDndRaces, 'RaceName').map((group) => (
+                        <optgroup key={`dnd-race-group-${group.label}`} label={group.label}>
+                          {group.items.map((row) => (
+                            <option key={`dnd-race-${group.label}-${row.id}`} value={row.id}>{row.RaceName}</option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </div>
@@ -4746,6 +7310,15 @@ export default function Settings() {
                         type="text"
                         value={dndRaceName}
                         onChange={(e) => setDndRaceName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Race Look</label>
+                      <input
+                        type="text"
+                        value={dndRaceLook}
+                        onChange={(e) => setDndRaceLook(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                       />
                     </div>
@@ -4794,37 +7367,233 @@ export default function Settings() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Traits</label>
-                      <textarea
-                        value={dndRaceTraits}
-                        onChange={(e) => setDndRaceTraits(e.target.value)}
-                        rows={2}
+                      <select
+                        value={dndRaceTraitPickerValue}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setDndRaceTraitPickerValue(value);
+                          if (!value) return;
+                          if (value === '__add__') {
+                            setShowAddDndRaceTraitForm(true);
+                            return;
+                          }
+                          addDndRaceTrait(value);
+                          setDndRaceTraitPickerValue('');
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                      />
+                      >
+                        <option value="">-- Select Trait --</option>
+                        <option value="__add__">Add New Trait</option>
+                        {loadingDndClassFeatures && <option disabled>Loading traits...</option>}
+                        {!loadingDndClassFeatures && dndClassFeatures.map((feature) => (
+                          <option key={`dnd-race-trait-${feature.id}`} value={feature.FeatureName}>{feature.FeatureName}</option>
+                        ))}
+                      </select>
+                      {dndRaceSelectedTraits.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {dndRaceSelectedTraits.map((traitName) => (
+                            <span
+                              key={`dnd-race-trait-chip-${traitName}`}
+                              className="inline-flex items-center gap-1 rounded bg-indigo-100 px-2 py-1 text-xs text-indigo-900"
+                            >
+                              {traitName}
+                              <button
+                                type="button"
+                                onClick={() => removeDndRaceTrait(traitName)}
+                                className="text-indigo-700 hover:text-indigo-900"
+                                aria-label={`Remove ${traitName}`}
+                              >
+                                x
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {showAddDndRaceTraitForm && (
+                        <div className="mt-2 p-3 bg-white border border-gray-300 rounded">
+                          <div className="grid grid-cols-1 gap-2">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Trait Name</label>
+                              <input
+                                type="text"
+                                value={newDndRaceTraitName}
+                                onChange={(e) => setNewDndRaceTraitName(e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Trait Text</label>
+                              <textarea
+                                value={newDndRaceTraitText}
+                                onChange={(e) => setNewDndRaceTraitText(e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                rows={3}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleSaveDndRaceTrait}
+                              disabled={savingDndRaceTrait}
+                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-60"
+                            >
+                              {savingDndRaceTrait ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAddDndRaceTraitForm(false);
+                                setNewDndRaceTraitName('');
+                                setNewDndRaceTraitText('');
+                                setDndRaceTraitPickerValue('');
+                              }}
+                              className="px-3 py-1 bg-gray-400 text-white rounded text-xs hover:bg-gray-500"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-6 gap-2">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">STR</label>
-                        <input type="number" value={dndRaceAbilityBonusStr} onChange={(e) => setDndRaceAbilityBonusStr(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">DEX</label>
-                        <input type="number" value={dndRaceAbilityBonusDex} onChange={(e) => setDndRaceAbilityBonusDex(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">CON</label>
-                        <input type="number" value={dndRaceAbilityBonusCon} onChange={(e) => setDndRaceAbilityBonusCon(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">INT</label>
-                        <input type="number" value={dndRaceAbilityBonusInt} onChange={(e) => setDndRaceAbilityBonusInt(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">WIS</label>
-                        <input type="number" value={dndRaceAbilityBonusWis} onChange={(e) => setDndRaceAbilityBonusWis(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">CHA</label>
-                        <input type="number" value={dndRaceAbilityBonusCha} onChange={(e) => setDndRaceAbilityBonusCha(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded" />
+                    <div className="md:col-span-2 p-3 bg-white border border-gray-300 rounded space-y-3">
+                      <h4 className="text-sm font-semibold text-gray-800">Ability Score Bonus Rules</h4>
+
+                      <div
+                        className="grid grid-cols-2 gap-3"
+                        style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
+                      >
+                        <div className="rounded border border-gray-200 p-2 bg-gray-50 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h5 className="text-xs font-semibold text-gray-800">Fixed Bonus Scores</h5>
+                            <button
+                              type="button"
+                              onClick={addDndRaceFixedBonus}
+                              className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                            >
+                              Add Fixed
+                            </button>
+                          </div>
+
+                          {dndRaceAbilityBonusRules.fixed.length === 0 && (
+                            <p className="text-xs text-gray-600">No fixed bonuses yet.</p>
+                          )}
+
+                          <div className="space-y-2">
+                            {dndRaceAbilityBonusRules.fixed.map((entry, index) => (
+                              <div key={`dnd-race-fixed-${index}`} className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Stat</label>
+                                  <select
+                                    value={entry.stat}
+                                    onChange={(e) => updateDndRaceFixedBonus(index, 'stat', e.target.value)}
+                                    className="w-full sm:max-w-24 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                                  >
+                                    {DND_ABILITY_STATS.map((stat) => (
+                                      <option key={`fixed-stat-${index}-${stat}`} value={stat}>{DND_ABILITY_STAT_LABELS[stat]}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Bonus</label>
+                                  <input
+                                    type="number"
+                                    value={entry.amount}
+                                    onChange={(e) => updateDndRaceFixedBonus(index, 'amount', e.target.value)}
+                                    className="w-full sm:max-w-20 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeDndRaceFixedBonus(index)}
+                                    className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="rounded border border-gray-200 p-2 bg-gray-50 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h5 className="text-xs font-semibold text-gray-800">Choice Rules</h5>
+                            <button
+                              type="button"
+                              onClick={addDndRaceChoiceBonus}
+                              className="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700"
+                            >
+                              Add Choice
+                            </button>
+                          </div>
+
+                          {dndRaceAbilityBonusRules.choices.length === 0 && (
+                            <p className="text-xs text-gray-600">No choose-one style bonuses yet.</p>
+                          )}
+
+                          <div className="space-y-2">
+                            {dndRaceAbilityBonusRules.choices.map((choice, choiceIndex) => (
+                              <div key={choice.id || `choice-${choiceIndex}`} className="rounded border border-gray-200 p-2 bg-white space-y-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Pick Count</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={choice.count}
+                                      onChange={(e) => updateDndRaceChoiceBonus(choiceIndex, 'count', e.target.value)}
+                                      className="w-full sm:max-w-20 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Bonus Each</label>
+                                    <input
+                                      type="number"
+                                      value={choice.amount}
+                                      onChange={(e) => updateDndRaceChoiceBonus(choiceIndex, 'amount', e.target.value)}
+                                      className="w-full sm:max-w-20 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeDndRaceChoiceBonus(choiceIndex)}
+                                      className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                    >
+                                      Remove Rule
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <p className="text-xs font-medium text-gray-700 mb-1">Choose from:</p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                    {DND_ABILITY_STATS.map((stat) => {
+                                      const checked = (choice.options || []).includes(stat);
+                                      return (
+                                        <label key={`${choice.id}-${stat}`} className="inline-flex items-center gap-1 text-xs text-gray-800">
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggleDndRaceChoiceBonusOption(choiceIndex, stat)}
+                                          />
+                                          {DND_ABILITY_STAT_LABELS[stat]}
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                  {choice.count > (choice.options || []).length && (
+                                    <p className="mt-1 text-xs text-amber-700">
+                                      This rule picks {choice.count}, but only {(choice.options || []).length} option{(choice.options || []).length === 1 ? '' : 's'} selected.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
