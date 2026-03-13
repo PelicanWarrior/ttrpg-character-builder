@@ -176,6 +176,7 @@ export default function Settings() {
   const [dndRaceName, setDndRaceName] = useState('');
   const [dndRaceDescription, setDndRaceDescription] = useState('');
   const [dndRaceLook, setDndRaceLook] = useState('');
+  const [dndRaceSkinColour, setDndRaceSkinColour] = useState('');
   const [dndRaceSize, setDndRaceSize] = useState('');
   const [dndRaceSpeed, setDndRaceSpeed] = useState('');
   const [dndRaceLanguages, setDndRaceLanguages] = useState('');
@@ -1755,6 +1756,11 @@ export default function Settings() {
     return message.includes('racelook') && message.includes('column');
   };
 
+  const isMissingDndRaceSkinColourColumnError = (err) => {
+    const message = `${err?.message || ''} ${err?.details || ''}`.toLowerCase();
+    return message.includes('skincolour') && message.includes('column');
+  };
+
   const isMissingDndSubRaceAbilityBonusRulesColumnError = (err) => {
     const message = `${err?.message || ''} ${err?.details || ''}`.toLowerCase();
     return message.includes('abilitybonusrules') && message.includes('column');
@@ -1909,15 +1915,35 @@ export default function Settings() {
     setShowAddDndSpellForm(false);
   };
 
-  const buildDndPicturePromptText = ({ raceName, raceLook, className, classAttire, pictureId, gender }) => {
+  const buildDndPicturePromptText = ({ raceName, raceLook, skinColour, className, classAttire, pictureId, gender }) => {
     const normalizedRaceLook = String(raceLook || '').trim();
+    const normalizedSkinColour = String(skinColour || '').trim();
     const normalizedAttire = String(classAttire || '').trim();
     const raceLookText = normalizedRaceLook || 'not specified';
+    const skinColourText = normalizedSkinColour || 'not specified';
     const attireText = normalizedAttire || 'not specified';
-    return `write a portrait prompt for a ${raceName} ${className} in an action pose. gender is ${gender}. Race Look: ${raceLookText}. Class Attire: ${attireText}.`;
+    return `write a portrait prompt for a ${raceName} ${className} in an action pose. gender is ${gender}. skin colour is ${skinColourText}. Race Look: ${raceLookText}. Class Attire: ${attireText}.`;
   };
 
   const getRandomDndPromptGender = () => (Math.random() < 0.5 ? 'Male' : 'Female');
+
+  const parseDndSkinColourOptions = (skinColourSource) => (
+    String(skinColourSource || '')
+      .split(/[\n,;|]+/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
+
+  const getRandomDndPromptSkinColour = (skinColourSource) => {
+    const options = parseDndSkinColourOptions(skinColourSource);
+
+    if (options.length === 0) {
+      return 'not specified';
+    }
+
+    const randomIndex = Math.floor(Math.random() * options.length);
+    return options[randomIndex];
+  };
 
   const getNextDndPictureId = () => {
     const maxId = existingDndPictures.reduce((acc, row) => {
@@ -1952,16 +1978,18 @@ export default function Settings() {
     try {
       const pictureId = getNextDndPictureId();
       const gender = getRandomDndPromptGender();
+      const skinColour = getRandomDndPromptSkinColour(raceRow.SkinColour);
       const prompt = buildDndPicturePromptText({
         raceName: raceRow.RaceName,
         raceLook: raceRow.RaceLook,
+        skinColour,
         className: classRow.ClassName,
         classAttire: classRow.Attire,
         pictureId,
         gender,
       });
       await navigator.clipboard.writeText(prompt);
-      alert(`Prompt copied to clipboard!\n\nRace: ${raceRow.RaceName}\nClass: ${classRow.ClassName}\nGender: ${gender}\nNext Picture ID: ${pictureId}`);
+      alert(`Prompt copied to clipboard!\n\nRace: ${raceRow.RaceName}\nClass: ${classRow.ClassName}\nGender: ${gender}\nSkin Colour: ${skinColour}\nNext Picture ID: ${pictureId}`);
     } catch (err) {
       console.error('Failed generating DND race prompt:', err);
       alert(`Failed to copy prompt: ${err.message}`);
@@ -1977,16 +2005,18 @@ export default function Settings() {
     try {
       const pictureId = getNextDndPictureId();
       const gender = getRandomDndPromptGender();
+      const skinColour = getRandomDndPromptSkinColour(raceRow.SkinColour);
       const prompt = buildDndPicturePromptText({
         raceName: raceRow.RaceName,
         raceLook: raceRow.RaceLook,
+        skinColour,
         className: classRow.ClassName,
         classAttire: classRow.Attire,
         pictureId,
         gender,
       });
       await navigator.clipboard.writeText(prompt);
-      alert(`Prompt copied to clipboard!\n\nClass: ${classRow.ClassName}\nRace: ${raceRow.RaceName}\nGender: ${gender}\nNext Picture ID: ${pictureId}`);
+      alert(`Prompt copied to clipboard!\n\nClass: ${classRow.ClassName}\nRace: ${raceRow.RaceName}\nGender: ${gender}\nSkin Colour: ${skinColour}\nNext Picture ID: ${pictureId}`);
     } catch (err) {
       console.error('Failed generating DND class prompt:', err);
       alert(`Failed to copy prompt: ${err.message}`);
@@ -2225,7 +2255,7 @@ export default function Settings() {
     try {
       const { data, error } = await supabase
         .from('DND_Races')
-        .select('id, RaceName, RaceLook, DNDMod')
+        .select('id, RaceName, RaceLook, SkinColour, DNDMod')
         .order('RaceName');
 
       if (error) throw error;
@@ -2519,6 +2549,7 @@ export default function Settings() {
         setDndRaceName(data.RaceName || '');
         setDndRaceDescription(data.Description || '');
         setDndRaceLook(data.RaceLook || '');
+        setDndRaceSkinColour(data.SkinColour || '');
         setDndRaceSize(data.Size || '');
         setDndRaceSpeed(data.Speed != null ? String(data.Speed) : '');
         setDndRaceLanguages(data.Languages || '');
@@ -2703,6 +2734,7 @@ export default function Settings() {
     setDndRaceName('');
     setDndRaceDescription('');
     setDndRaceLook('');
+    setDndRaceSkinColour('');
     setDndRaceSize('');
     setDndRaceSpeed('');
     setDndRaceLanguages('');
@@ -3233,6 +3265,7 @@ export default function Settings() {
         DNDMod: getSelectedDndModValue(),
         Description: dndRaceDescription,
         RaceLook: dndRaceLook,
+        SkinColour: dndRaceSkinColour,
         Size: dndRaceSize,
         Speed: parseNumberOrNull(dndRaceSpeed),
         Languages: dndRaceLanguages,
@@ -3244,14 +3277,15 @@ export default function Settings() {
       const legacyPayload = { ...payload };
       delete legacyPayload.AbilityBonusRules;
       delete legacyPayload.RaceLook;
+      delete legacyPayload.SkinColour;
 
       if (selectedDndRaceId === '__new__') {
         const { error } = await supabase.from('DND_Races').insert([payload]);
         if (error) {
-          if (!isMissingDndRaceAbilityBonusRulesColumnError(error) && !isMissingDndRaceLookColumnError(error)) throw error;
+          if (!isMissingDndRaceAbilityBonusRulesColumnError(error) && !isMissingDndRaceLookColumnError(error) && !isMissingDndRaceSkinColourColumnError(error)) throw error;
           const fallbackInsert = await supabase.from('DND_Races').insert([legacyPayload]);
           if (fallbackInsert.error) throw fallbackInsert.error;
-          setSuccess('DND Race saved, but Race Look and/or bonus-choice rules require the latest DND migration to persist.');
+          setSuccess('DND Race saved, but Race Look/Skin Colour and/or bonus-choice rules require the latest DND migration to persist.');
         } else {
           setSuccess('DND Race saved successfully');
         }
@@ -3261,13 +3295,13 @@ export default function Settings() {
           .update(payload)
           .eq('id', selectedDndRaceId);
         if (error) {
-          if (!isMissingDndRaceAbilityBonusRulesColumnError(error) && !isMissingDndRaceLookColumnError(error)) throw error;
+          if (!isMissingDndRaceAbilityBonusRulesColumnError(error) && !isMissingDndRaceLookColumnError(error) && !isMissingDndRaceSkinColourColumnError(error)) throw error;
           const fallbackUpdate = await supabase
             .from('DND_Races')
             .update(legacyPayload)
             .eq('id', selectedDndRaceId);
           if (fallbackUpdate.error) throw fallbackUpdate.error;
-          setSuccess('DND Race saved, but Race Look and/or bonus-choice rules require the latest DND migration to persist.');
+          setSuccess('DND Race saved, but Race Look/Skin Colour and/or bonus-choice rules require the latest DND migration to persist.');
         } else {
           setSuccess('DND Race saved successfully');
         }
@@ -7321,6 +7355,19 @@ export default function Settings() {
                         onChange={(e) => setDndRaceLook(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skin Colours (comma or new line separated)</label>
+                      <textarea
+                        value={dndRaceSkinColour}
+                        onChange={(e) => setDndRaceSkinColour(e.target.value)}
+                        placeholder={"pale\ntan\nolive\ndark brown"}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Add multiple options and the prompt generator will randomly choose one.
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>

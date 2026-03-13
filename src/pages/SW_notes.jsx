@@ -32,6 +32,8 @@ export default function SWNotes() {
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const [uploadingPictureId, setUploadingPictureId] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
   const [showInlineAddNote, setShowInlineAddNote] = useState(null); // ID of place to add note to
   const [inlinePlaceName, setInlinePlaceName] = useState('');
   const [inlineDescription, setInlineDescription] = useState('');
@@ -74,6 +76,63 @@ export default function SWNotes() {
 
   // Helper: can the current user upload pictures?
   const canUploadPictures = () => isAdmin || uploadPicturesEnabled;
+
+  const getSwPictureUrl = (pictureId) => `/SW_Pictures/Picture ${pictureId}.png?t=${Date.now()}`;
+
+  const openImagePreview = (src, alt) => {
+    if (!src) return;
+    setPreviewZoom(1);
+    setPreviewImage({ src, alt: alt || 'Image preview' });
+  };
+
+  const closeImagePreview = () => {
+    setPreviewImage(null);
+    setPreviewZoom(1);
+  };
+
+  const zoomPreviewIn = () => {
+    setPreviewZoom((prev) => Math.min(4, Number((prev + 0.25).toFixed(2))));
+  };
+
+  const zoomPreviewOut = () => {
+    setPreviewZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))));
+  };
+
+  const resetPreviewZoom = () => {
+    setPreviewZoom(1);
+  };
+
+  useEffect(() => {
+    if (!previewImage) return;
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setPreviewImage(null);
+        setPreviewZoom(1);
+        return;
+      }
+
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault();
+        setPreviewZoom((prev) => Math.min(4, Number((prev + 0.25).toFixed(2))));
+        return;
+      }
+
+      if (event.key === '-') {
+        event.preventDefault();
+        setPreviewZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))));
+        return;
+      }
+
+      if (event.key === '0') {
+        event.preventDefault();
+        setPreviewZoom(1);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [previewImage]);
 
   // NPC dropdown and edit state
   const [showNPCDropdown, setShowNPCDropdown] = useState(null); // ID of NPC with open dropdown
@@ -650,73 +709,139 @@ export default function SWNotes() {
     }
   };
 
-  const handleUploadPicture = async (place) => {
-    // Get the username from localStorage
+  const getCurrentUserId = async () => {
     const username = localStorage.getItem('username');
     if (!username) {
-      alert('User not logged in');
-      return;
+      throw new Error('User not logged in');
     }
 
-    // Get the user ID from the database
     const { data: userData, error: userError } = await supabase
       .from('user')
       .select('id')
       .eq('username', username)
       .single();
 
-    if (userError || !userData) {
-      alert('Failed to get user information');
-      return;
+    if (userError || !userData?.id) {
+      throw new Error('Failed to get user information');
     }
 
-    const userId = userData.id;
+    return userData.id;
+  };
 
-    // Create a file input element
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.png';
-    fileInput.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+  const handleUploadPicture = async (place) => {
+    if (!place?.id) return;
 
-      // Validate file is PNG
-      if (!file.name.toLowerCase().endsWith('.png')) {
-        alert('Please select a PNG file');
-        return;
-      }
+    try {
+      const userId = await getCurrentUserId();
 
-      try {
-        // Step 1: Upload the file to the server's SW_Pictures directory
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('placeId', place.id);
-        formData.append('userId', userId);
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.png';
+      fileInput.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-        const uploadResponse = await fetch('http://localhost:3001/SW_Pictures/api/upload-picture', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          alert('Failed to upload picture: ' + (errorData.error || uploadResponse.statusText));
+        if (!file.name.toLowerCase().endsWith('.png')) {
+          alert('Please select a PNG file');
           return;
         }
 
-        await uploadResponse.json();
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('placeId', String(place.id));
+          formData.append('userId', String(userId));
 
-        alert('Picture uploaded successfully!');
-        setShowDropdown(null);
-        // Refresh parent note so user sees the new picture immediately
-        await refreshSingleNote(place.id);
-      } catch (err) {
-        console.error('Error uploading picture:', err);
-        alert('Error uploading picture: ' + err.message);
-      }
-    };
+          const uploadResponse = await fetch('/SW_Pictures/api/upload-picture', {
+            method: 'POST',
+            body: formData,
+          });
 
-    fileInput.click();
+          const responseData = await uploadResponse.json().catch(() => null);
+
+          if (!uploadResponse.ok) {
+            throw new Error(responseData?.error || uploadResponse.statusText || 'Upload failed');
+          }
+
+          alert('Picture uploaded successfully!');
+          setShowDropdown(null);
+          await refreshSingleNote(place.id);
+          await loadPlaces();
+        } catch (err) {
+          console.error('Error uploading picture:', err);
+          if (err instanceof TypeError && String(err.message || '').toLowerCase().includes('fetch')) {
+            alert('Could not reach the upload server. Please ensure backend is running on port 3001.');
+          } else {
+            alert('Error uploading picture: ' + (err.message || 'Unknown error'));
+          }
+        }
+      };
+
+      fileInput.click();
+    } catch (err) {
+      alert(err.message || 'Failed to prepare upload');
+    }
+  };
+
+  const handleUploadNPCPicture = async (npc) => {
+    if (!npc?.id) return;
+
+    try {
+      const userId = await getCurrentUserId();
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.png';
+      fileInput.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.png')) {
+          alert('Please select a PNG file');
+          return;
+        }
+
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('npcId', String(npc.id));
+          formData.append('userId', String(userId));
+
+          const uploadResponse = await fetch('/SW_Pictures/api/upload-npc-picture', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const responseData = await uploadResponse.json().catch(() => null);
+
+          if (!uploadResponse.ok) {
+            throw new Error(responseData?.error || uploadResponse.statusText || 'Upload failed');
+          }
+
+          alert('NPC picture uploaded successfully!');
+          setShowNPCDropdown(null);
+          setSelectedNPC((prev) => {
+            if (!prev || prev.id !== npc.id) return prev;
+            return {
+              ...prev,
+              PictureID: responseData?.pictureId || prev.PictureID,
+            };
+          });
+          await loadNPCs();
+        } catch (err) {
+          console.error('Error uploading NPC picture:', err);
+          if (err instanceof TypeError && String(err.message || '').toLowerCase().includes('fetch')) {
+            alert('Could not reach the upload server. Please ensure backend is running on port 3001.');
+          } else {
+            alert('Error uploading NPC picture: ' + (err.message || 'Unknown error'));
+          }
+        }
+      };
+
+      fileInput.click();
+    } catch (err) {
+      alert(err.message || 'Failed to prepare NPC upload');
+    }
   };
 
   const handleSelectPlace = (place, parentIndex) => {
@@ -1639,10 +1764,20 @@ export default function SWNotes() {
               {index === selectedHierarchy.length - 1 && place.PictureID && !selectedNPC && (
                 <div className="shrink-0 w-64 h-80 bg-gray-50 border-r border-gray-300 p-1 flex flex-col items-center justify-center overflow-hidden" style={{ width: '256px', height: '320px', minWidth: '256px', minHeight: '320px' }}>
                   <img
-                    src={`/SW_Pictures/Picture ${place.PictureID}.png`}
+                    src={getSwPictureUrl(place.PictureID)}
                     alt={place.Place_Name}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain cursor-zoom-in"
                     style={{ maxWidth: '100%', maxHeight: '100%' }}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openImagePreview(getSwPictureUrl(place.PictureID), place.Place_Name)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openImagePreview(getSwPictureUrl(place.PictureID), place.Place_Name);
+                      }
+                    }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                 </div>
               )}
@@ -1694,6 +1829,14 @@ export default function SWNotes() {
                     left: `${npcDropdownPos.left}px`,
                   }}
                 >
+                  {canUploadPictures() && (
+                    <button
+                      onClick={() => handleUploadNPCPicture(selectedNPC)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 transition"
+                    >
+                      Upload Picture
+                    </button>
+                  )}
                   {/* Add Picture to Database (Admin only) */}
                   {isAdmin && (
                     <button
@@ -2000,10 +2143,19 @@ export default function SWNotes() {
                       if (selectedNPC.PictureID) {
                         return (
                           <img
-                            src={`/SW_Pictures/Picture ${selectedNPC.PictureID}.png`}
+                            src={getSwPictureUrl(selectedNPC.PictureID)}
                             alt={selectedNPC.Name}
                             className="rounded"
                             style={{ width: '200px', height: '240px', float: 'right', marginLeft: '1rem', marginBottom: '1rem', objectFit: 'contain', display: 'block' }}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openImagePreview(getSwPictureUrl(selectedNPC.PictureID), selectedNPC.Name)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                openImagePreview(getSwPictureUrl(selectedNPC.PictureID), selectedNPC.Name);
+                              }
+                            }}
                             onError={e => { e.target.style.display = 'none'; }}
                           />
                         );
@@ -3033,6 +3185,148 @@ export default function SWNotes() {
             setDicePopup={setDicePopup}
             selectedNPC={selectedNPC}
           />
+        </div>
+      )}
+
+      {previewImage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2147483647,
+            background: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={closeImagePreview}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: '620px',
+              maxWidth: '92vw',
+              borderRadius: '0.5rem',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              background: 'rgba(15, 23, 42, 0.95)',
+              padding: '12px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: '8px',
+                left: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                zIndex: 1,
+              }}
+            >
+              <button
+                onClick={zoomPreviewOut}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '0.375rem',
+                  border: '1px solid rgba(255, 255, 255, 0.6)',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  color: 'white',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+                aria-label="Zoom out"
+              >
+                -
+              </button>
+              <button
+                onClick={resetPreviewZoom}
+                style={{
+                  minWidth: '56px',
+                  height: '32px',
+                  borderRadius: '0.375rem',
+                  border: '1px solid rgba(255, 255, 255, 0.6)',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  color: 'white',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: '0 8px',
+                }}
+                aria-label="Reset zoom"
+              >
+                {Math.round(previewZoom * 100)}%
+              </button>
+              <button
+                onClick={zoomPreviewIn}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '0.375rem',
+                  border: '1px solid rgba(255, 255, 255, 0.6)',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  color: 'white',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+            </div>
+            <button
+              onClick={closeImagePreview}
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '0.375rem',
+                border: '1px solid rgba(255, 255, 255, 0.6)',
+                background: 'rgba(0, 0, 0, 0.5)',
+                color: 'white',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+              aria-label="Close image preview"
+            >
+              X
+            </button>
+            <div
+              style={{
+                maxHeight: '80vh',
+                borderRadius: '0.375rem',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                overflow: 'auto',
+                marginTop: '40px',
+              }}
+              onWheel={(e) => {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                  zoomPreviewIn();
+                } else {
+                  zoomPreviewOut();
+                }
+              }}
+            >
+              <img
+                src={previewImage.src}
+                alt={previewImage.alt}
+                style={{
+                  display: 'block',
+                  width: `${Math.round(previewZoom * 100)}%`,
+                  maxWidth: 'none',
+                  minWidth: '40%',
+                  height: 'auto',
+                  objectFit: 'contain',
+                  margin: '0 auto',
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
 

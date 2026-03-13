@@ -8,6 +8,9 @@ import SWCharacterOverview from './pages/SWCharacterOverview';
 import SWCampaign from './pages/SW_campaign';
 import SWCampaignEdit from './pages/SW_campaign_edit';
 import SWNotes from './pages/SW_notes';
+import DNDCampaign from './pages/DND_campaign';
+import DNDCampaignEdit from './pages/DND_campaign_edit';
+import DNDNotes from './pages/DND_notes';
 import SWBattles from './pages/SW_battles';
 import CampaignJoin from './pages/CampaignJoin';
 import Settings from './pages/Settings';   // <-- NEW
@@ -27,6 +30,9 @@ export default function App() {
       <Route path="/SW_campaign" element={<SWCampaign />} />
       <Route path="/SW_campaign_edit" element={<SWCampaignEdit />} />
       <Route path="/SW_notes" element={<SWNotes />} />
+      <Route path="/DND_campaign" element={<DNDCampaign />} />
+      <Route path="/DND_campaign_edit" element={<DNDCampaignEdit />} />
+      <Route path="/DND_notes" element={<DNDNotes />} />
       <Route path="/SW_battles" element={<SWBattles />} />
       <Route path="/campaign-join" element={<CampaignJoin />} />
       <Route path="/settings" element={<Settings />} />   {/* NEW ROUTE */}

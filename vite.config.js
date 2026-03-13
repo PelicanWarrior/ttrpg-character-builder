@@ -14,6 +14,11 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      '/F_Pictures/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 });

@@ -1078,7 +1078,7 @@ export default function SelectTTRPG() {
                         Create Character
                       </button>
                       <button
-                        onClick={() => navigate(`/ttrpg/${initials}/campaign`)}
+                        onClick={() => navigate(`/DND_campaign?mod=${encodeURIComponent(row.name)}&ttrpgId=${encodeURIComponent(String(resolvedId || ''))}`)}
                         className="px-10 py-4 bg-purple-600 text-white font-bold text-lg rounded-xl hover:bg-purple-700 shadow-lg transition"
                       >
                         Campaign

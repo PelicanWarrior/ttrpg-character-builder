@@ -3,12 +3,39 @@ const express = require('express');
 const path = require('path');
 
 let uploadPictureRoute;
+let uploadNpcPictureRoute;
+let uploadDndPictureRoute;
+let uploadDndNpcPictureRoute;
 try {
   uploadPictureRoute = require(path.join(__dirname, 'public', 'SW_Pictures', 'api', 'upload-picture', 'index.cjs'));
   console.log('Upload picture route loaded successfully');
 } catch (err) {
   console.error('Error loading upload picture route:', err.message);
   uploadPictureRoute = (req, res) => res.status(500).json({ error: 'Upload route not available' });
+}
+
+try {
+  uploadNpcPictureRoute = require(path.join(__dirname, 'public', 'SW_Pictures', 'api', 'upload-npc-picture', 'index.cjs'));
+  console.log('Upload NPC picture route loaded successfully');
+} catch (err) {
+  console.error('Error loading upload NPC picture route:', err.message);
+  uploadNpcPictureRoute = (req, res) => res.status(500).json({ error: 'NPC upload route not available' });
+}
+
+try {
+  uploadDndPictureRoute = require(path.join(__dirname, 'public', 'F_Pictures', 'api', 'upload-picture', 'index.cjs'));
+  console.log('DND upload picture route loaded successfully');
+} catch (err) {
+  console.error('Error loading DND upload picture route:', err.message);
+  uploadDndPictureRoute = (req, res) => res.status(500).json({ error: 'DND upload route not available' });
+}
+
+try {
+  uploadDndNpcPictureRoute = require(path.join(__dirname, 'public', 'F_Pictures', 'api', 'upload-npc-picture', 'index.cjs'));
+  console.log('DND NPC upload picture route loaded successfully');
+} catch (err) {
+  console.error('Error loading DND NPC upload picture route:', err.message);
+  uploadDndNpcPictureRoute = (req, res) => res.status(500).json({ error: 'DND NPC upload route not available' });
 }
 
 const app = express();
@@ -39,6 +66,15 @@ app.use((req, res, next) => {
 // Register the upload picture API route BEFORE static files
 console.log('Registering route: /SW_Pictures/api/upload-picture');
 app.use('/SW_Pictures/api/upload-picture', uploadPictureRoute);
+console.log('Route registered');
+console.log('Registering route: /SW_Pictures/api/upload-npc-picture');
+app.use('/SW_Pictures/api/upload-npc-picture', uploadNpcPictureRoute);
+console.log('Route registered');
+console.log('Registering route: /F_Pictures/api/upload-picture');
+app.use('/F_Pictures/api/upload-picture', uploadDndPictureRoute);
+console.log('Route registered');
+console.log('Registering route: /F_Pictures/api/upload-npc-picture');
+app.use('/F_Pictures/api/upload-npc-picture', uploadDndNpcPictureRoute);
 console.log('Route registered');
 
 // Serve static files (public assets only, not the React app)
