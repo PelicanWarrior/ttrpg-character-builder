@@ -93,6 +93,33 @@ export default function SWEotECharacterCreator() {
   const isEditorMode = !createCharacter;
 
   const CHARACTERISTICS = ['Brawn', 'Agility', 'Intellect', 'Cunning', 'Willpower', 'Presence'];
+  const BASE_CAREER_SKILL_SLOTS = 4;
+  const DROID_CAREER_SKILL_SLOTS = 6;
+  const BASE_SPEC_SKILL_SLOTS = 2;
+  const DROID_SPEC_SKILL_SLOTS = 3;
+
+  const getCareerSkillSlotCount = (raceName) => (
+    raceName === 'Droid' ? DROID_CAREER_SKILL_SLOTS : BASE_CAREER_SKILL_SLOTS
+  );
+
+  const getSpecSkillSlotCount = (raceName) => (
+    raceName === 'Droid' ? DROID_SPEC_SKILL_SLOTS : BASE_SPEC_SKILL_SLOTS
+  );
+
+  const createEmptySkillSlots = (slotCount) => Array.from({ length: slotCount }, () => '');
+
+  const normalizeChosenSkills = (rawSkills, slotCount, allowedSkills = []) => {
+    const allowedSkillSet = allowedSkills.length > 0 ? new Set(allowedSkills) : null;
+    const normalizedSkills = rawSkills
+      .map(skill => skill.trim())
+      .filter(Boolean)
+      .filter(skill => !allowedSkillSet || allowedSkillSet.has(skill))
+      .filter((skill, index, array) => array.indexOf(skill) === index);
+
+    return normalizedSkills
+      .concat(createEmptySkillSlots(Math.max(0, slotCount - normalizedSkills.length)))
+      .slice(0, slotCount);
+  };
 
   // Parse "X and Y" or single skill
   const parseStartingSkills = (text) => {
@@ -346,6 +373,9 @@ export default function SWEotECharacterCreator() {
               setCharacterId(playerData.id);
               setCharacterName(playerData.name || '');
               const raceMatch = raceResponse.data?.find(r => r.name === playerData.race);
+              const loadedRaceName = raceMatch?.name || playerData.race || '';
+              const isLoadedDroid = loadedRaceName === 'Droid';
+              setIsDroidSpecies(isLoadedDroid);
               setSelectedRace({
                 ...raceMatch,
                 brawn: playerData.brawn,
@@ -399,22 +429,44 @@ export default function SWEotECharacterCreator() {
               }
 
               if (playerData.career) {
-                setSelectedCareer(playerData.career);
                 const careerRecord = careerResponse.data?.find(c => c.name === playerData.career);
+                setSelectedCareer(playerData.career);
                 setIsForceSensitiveCareer(!!careerRecord?.Force_Sensitive);
-              }
-              if (playerData.career_skills) {
-                const loadedCareerSkills = playerData.career_skills.split(',').map(skill => skill.trim()).filter(skill => skill);
-                setSelectedCareerSkills(loadedCareerSkills.concat(Array(4 - loadedCareerSkills.length).fill('')).slice(0, 4));
+
+                const careerSkillOptions = careerRecord?.skills
+                  ? careerRecord.skills.split(',').map(skill => skill.trim()).filter(Boolean)
+                  : [];
+
+                setSelectedCareerSkills(
+                  playerData.career_skills
+                    ? normalizeChosenSkills(
+                      playerData.career_skills.split(','),
+                      getCareerSkillSlotCount(loadedRaceName),
+                      careerSkillOptions,
+                    )
+                    : createEmptySkillSlots(getCareerSkillSlotCount(loadedRaceName))
+                );
+              } else {
+                setSelectedCareerSkills(createEmptySkillSlots(getCareerSkillSlotCount(loadedRaceName)));
               }
 
+              const specRecord = specResponse.data?.find(s => s.spec_name === playerData.spec);
               if (playerData.spec) setSelectedSpecialization(playerData.spec);
 
-              if (playerData.spec_skills) {
-                const specSkills = playerData.spec_skills.split(',').map(skill => skill.trim()).filter(skill => skill);
-                if (specSkills.length > 0) setSelectedSpecSkill1(specSkills[0] || '');
-                if (specSkills.length > 1) setSelectedSpecSkill2(specSkills[1] || '');
-              }
+              const specSkillOptions = specRecord?.spec_skills
+                ? specRecord.spec_skills.split(',').map(skill => skill.trim()).filter(Boolean)
+                : [];
+              const loadedSpecSkills = playerData.spec_skills
+                ? normalizeChosenSkills(
+                  playerData.spec_skills.split(','),
+                  getSpecSkillSlotCount(loadedRaceName),
+                  specSkillOptions,
+                )
+                : createEmptySkillSlots(getSpecSkillSlotCount(loadedRaceName));
+
+              setSelectedSpecSkill1(loadedSpecSkills[0] || '');
+              setSelectedSpecSkill2(loadedSpecSkills[1] || '');
+              setSelectedSpecSkill3(loadedSpecSkills[2] || '');
 
               const skillsRankData = playerData.skills_rank || '';
               if (skillsRankData) {
@@ -761,14 +813,10 @@ export default function SWEotECharacterCreator() {
       });
       setSelectedCareerSkills(newCareerSkills);
 
-      // Remove last specialization skill(s)
-      if (selectedSpecSkill2 && skillRanks[selectedSpecSkill2] > 0) {
-        setSkillRanks(prev => ({ ...prev, [selectedSpecSkill2]: prev[selectedSpecSkill2] - 1 }));
-      }
+      // Remove the extra droid-only specialization skill.
       if (selectedSpecSkill3 && skillRanks[selectedSpecSkill3] > 0) {
         setSkillRanks(prev => ({ ...prev, [selectedSpecSkill3]: prev[selectedSpecSkill3] - 1 }));
       }
-      setSelectedSpecSkill2('');
       setSelectedSpecSkill3('');
     }
   };
@@ -909,7 +957,7 @@ export default function SWEotECharacterCreator() {
     }
 
     setSelectedCareer(careerName);
-    const initialCareerSkills = isDroidSpecies ? ['', '', '', '', '', ''] : ['', '', '', ''];
+    const initialCareerSkills = createEmptySkillSlots(getCareerSkillSlotCount(selectedRace?.name));
     setSelectedCareerSkills(initialCareerSkills);
     setSelectedSpecialization('');
     setSelectedSpecSkill1('');
@@ -957,6 +1005,12 @@ export default function SWEotECharacterCreator() {
       setSkillRanks(prevRanks => ({
         ...prevRanks,
         [selectedSpecSkill2]: Math.max(0, prevRanks[selectedSpecSkill2] - 1),
+      }));
+    }
+    if (selectedSpecSkill3 && skillRanks[selectedSpecSkill3] > 0) {
+      setSkillRanks(prevRanks => ({
+        ...prevRanks,
+        [selectedSpecSkill3]: Math.max(0, prevRanks[selectedSpecSkill3] - 1),
       }));
     }
     setSelectedSpecialization(specName);
@@ -1245,7 +1299,6 @@ export default function SWEotECharacterCreator() {
     const careerSkillsString = selectedCareerSkills.filter(skill => skill).join(', ');
     const specSkillsString = [selectedSpecSkill1, selectedSpecSkill2, selectedSpecSkill3].filter(skill => skill).join(', ');
     const startingTalentsString = buildStartingTalentsString();
-    const finalSpecSkills = [specSkillsString, startingTalentsString].filter(s => s).join(', ');
 
     const { talentTreeString, talentString } = buildTalentStrings();
     const forceTalentTreeString = buildForceTalentTreeString();
@@ -1271,7 +1324,7 @@ export default function SWEotECharacterCreator() {
       career: selectedCareer,
       career_skills: careerSkillsString,
       spec: selectedSpecialization,
-      spec_skills: finalSpecSkills,
+      spec_skills: specSkillsString,
       talent_tree: combinedTalentTreeString,
       talents: startingTalentsForTalentsField,
       skills_rank: skillsRankString,
@@ -2357,7 +2410,7 @@ export default function SWEotECharacterCreator() {
                 <button
                   onClick={() => {
                     setSelectedCareer('');
-                    setSelectedCareerSkills([]);
+                    setSelectedCareerSkills(createEmptySkillSlots(getCareerSkillSlotCount(selectedRace?.name)));
                     setSelectedSpecialization('');
                   }}
                   className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold"
@@ -2531,7 +2584,7 @@ export default function SWEotECharacterCreator() {
                   </div>
 
                   <div className="border-2 border-black rounded-lg p-4 bg-white mb-4 text-left">
-                    <label className="block text-base font-bold mb-2">Specialization Skills</label>
+                    <label className="block text-base font-bold mb-2">Specialization Skills{isDroidSpecies && ' (3 available)'}</label>
                     <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
                       <div style={{ width: '520px', maxWidth: '100%' }}>
                         {Array.from({ length: isDroidSpecies ? 3 : 2 }).map((_, index) => {
