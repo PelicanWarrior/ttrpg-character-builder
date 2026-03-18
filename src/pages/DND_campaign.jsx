@@ -69,7 +69,7 @@ export default function DNDCampaign() {
   const [playerId, setPlayerId] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
   const [campaignCharacters, setCampaignCharacters] = useState({});
-  const [campaignNpcs, setCampaignNpcs] = useState({});
+  const [, setCampaignNpcs] = useState({});
   const [raceMap, setRaceMap] = useState({});
   const [classMap, setClassMap] = useState({});
   const [openCharacters, setOpenCharacters] = useState({});
@@ -380,18 +380,7 @@ export default function DNDCampaign() {
               <h3 className="text-xl font-bold mb-1 text-white text-center">{campaign.Name}</h3>
               <p className="text-sm text-gray-800 font-semibold mb-2 text-left">DM: {campaign.user?.username || 'Unknown'}</p>
 
-              {campaignNpcs[campaign.id] && campaignNpcs[campaign.id].length > 0 ? (
-                <div className="mb-4">
-                  <p className="text-gray-300 mb-2" style={{ overflowWrap: 'anywhere' }}>{campaign.description}</p>
-                  {(() => {
-                    const npc = campaignNpcs[campaign.id].find((n) => n.Description);
-                    if (!npc) return null;
-                    return <p className="text-gray-400 text-sm mt-2">NPC: {npc.Description}</p>;
-                  })()}
-                </div>
-              ) : (
-                <p className="text-gray-300 mb-4">{campaign.description}</p>
-              )}
+              <p className="text-gray-300 mb-4" style={{ overflowWrap: 'anywhere' }}>{campaign.description}</p>
 
               <div className="bg-gray-700 rounded-lg p-4 mb-4">
                 <div className="flex gap-2 mt-2 flex-wrap">

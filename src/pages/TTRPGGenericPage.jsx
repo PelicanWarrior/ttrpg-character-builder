@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 
 // Dynamically import character creator components
 const characterCreators = {
-  'F': () => import('./F_character_creator').then(m => m.default),
+  'FA': () => import('./F_character_creator').then(m => m.default),
   // Add more TTRPGs here as needed
 };
 
@@ -18,6 +18,7 @@ export default function TTRPGGenericPage() {
   const [CharacterCreatorComponent, setCharacterCreatorComponent] = useState(null);
 
   const upperInitials = (initials || '').toUpperCase();
+  const isFallout = upperInitials === 'FA' || upperInitials === 'F';
 
   useEffect(() => {
     const init = async () => {
@@ -34,14 +35,16 @@ export default function TTRPGGenericPage() {
 
         if (page === 'character_creator') {
           // Dynamically load the character creator component
-          if (characterCreators[initials]) {
-            const component = await characterCreators[initials]();
+          if (characterCreators[upperInitials]) {
+            const component = await characterCreators[upperInitials]();
             setCharacterCreatorComponent(() => component);
           } else {
             setErrorMsg(`Character creator not found for ${initials}`);
           }
         } else if (page === 'player_characters') {
-          const table = `${upperInitials}_player_characters`;
+          const table = isFallout
+            ? 'Fa_player_characters'
+            : `${upperInitials}_player_characters`;
           const { data, error } = await supabase
             .from(table)
             .select('*');
@@ -72,9 +75,41 @@ export default function TTRPGGenericPage() {
     };
 
     init();
-  }, [initials, page, userId]);
+  }, [initials, page, upperInitials, userId, isFallout]);
 
   const goBack = () => navigate('/select-ttrpg');
+
+  const handleFalloutEdit = (id) => {
+    localStorage.setItem('loadedCharacterId', String(id));
+    navigate('/Fa_character_creator');
+  };
+
+  const handleFalloutOverview = (id) => {
+    localStorage.setItem('loadedCharacterId', String(id));
+    navigate('/Fa_character_overview');
+  };
+
+  const handleFalloutDelete = async (id, displayName) => {
+    const ok = window.confirm(`Delete ${displayName || 'this character'}?`);
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from('Fa_player_characters')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to delete Fallout character:', error);
+      window.alert('Failed to delete Fallout character.');
+      return;
+    }
+
+    setRows((prev) => prev.filter((row) => row.id !== id));
+    const loaded = localStorage.getItem('loadedCharacterId');
+    if (loaded && String(loaded) === String(id)) {
+      localStorage.removeItem('loadedCharacterId');
+    }
+  };
 
   if (loading) {
     return (
@@ -121,6 +156,9 @@ export default function TTRPGGenericPage() {
             <tr className="bg-gray-100">
               <th className="border border-black py-1 px-2">ID</th>
               <th className="border border-black py-1 px-2">Name</th>
+              {isFallout && <th className="border border-black py-1 px-2">Race</th>}
+              {isFallout && <th className="border border-black py-1 px-2">Level</th>}
+              {isFallout && <th className="border border-black py-1 px-2">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -128,6 +166,32 @@ export default function TTRPGGenericPage() {
               <tr key={r.id} className="bg-gray-50">
                 <td className="border border-black py-1 px-2">{r.id}</td>
                 <td className="border border-black py-1 px-2">{r.name || r.character_name || JSON.stringify(r)}</td>
+                {isFallout && <td className="border border-black py-1 px-2">{r.race || r.species || '—'}</td>}
+                {isFallout && <td className="border border-black py-1 px-2">{r.level ?? '—'}</td>}
+                {isFallout && (
+                  <td className="border border-black py-1 px-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleFalloutEdit(r.id)}
+                        className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleFalloutOverview(r.id)}
+                        className="rounded bg-purple-600 px-3 py-1 text-xs font-semibold text-white hover:bg-purple-700"
+                      >
+                        Overview
+                      </button>
+                      <button
+                        onClick={() => handleFalloutDelete(r.id, r.name || r.character_name)}
+                        className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

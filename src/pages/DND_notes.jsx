@@ -25,6 +25,8 @@ const toIntOrNull = (value) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+
+
 export default function DNDNotes() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -96,6 +98,10 @@ export default function DNDNotes() {
   const [showAddExistingNote, setShowAddExistingNote] = useState(false);
   const [selectedExistingNpcId, setSelectedExistingNpcId] = useState('');
   const [selectedExistingNoteId, setSelectedExistingNoteId] = useState('');
+
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [timelineText, setTimelineText] = useState('');
+  const [savingTimeline, setSavingTimeline] = useState(false);
 
   const placeFileInputRef = useRef(null);
   const npcFileInputRef = useRef(null);
@@ -434,6 +440,12 @@ export default function DNDNotes() {
       inline: 'end',
     });
   }, [showAddNpcForm]);
+
+  useEffect(() => {
+    if (selectedPlaceId != null) {
+      setShowTimeline(false);
+    }
+  }, [selectedPlaceId]);
 
   useEffect(() => {
     if (!previewImage) return;
@@ -894,6 +906,16 @@ export default function DNDNotes() {
     await loadNpcs();
   };
 
+  const loadTimeline = async () => {
+    const { data, error } = await supabase
+      .from('DND_campaign')
+      .select('timeline')
+      .eq('id', campaignId)
+      .single();
+    if (error) { console.error('Failed loading timeline:', error); return; }
+    setTimelineText(data?.timeline || '');
+  };
+
   const renderChips = (items, onRemove) => (
     <div className="flex flex-wrap gap-2 mt-2">
       {items.map((item) => (
@@ -1041,6 +1063,23 @@ export default function DNDNotes() {
               )}
 
               <div className="max-h-[560px] overflow-auto py-2">
+                {String(campaignId) === '1' && (
+                  <div className="relative px-1 mb-1">
+                    <button
+                      onClick={async () => {
+                        setShowTimeline(true);
+                        setSelectedPlaceId(null);
+                        setSelectedNpcId(null);
+                        setShowDropdown(false);
+                        setRowMenuPlaceId(null);
+                        await loadTimeline();
+                      }}
+                      className={`w-full text-left px-3 py-2 text-lg rounded ${showTimeline ? 'bg-gray-200 font-bold' : 'hover:bg-gray-100'}`}
+                    >
+                      Timeline
+                    </button>
+                  </div>
+                )}
                 {topLevelPlaces.map((place) => {
                   const inPath = selectedPlacePath.some((pathPlace) => String(pathPlace.id) === String(place.id));
                   return (
@@ -1086,10 +1125,54 @@ export default function DNDNotes() {
             </div>
 
             {selectedPlacePath.length === 0 ? (
-              <div className="min-w-[620px] flex-1 p-4">
-                <h3 className="text-2xl font-bold text-slate-700">Top Level</h3>
-                <p className="text-slate-600 mt-1">Select a note/place from the left panel.</p>
-              </div>
+              showTimeline ? (
+                <div className="min-w-[620px] flex-1 p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-2xl font-bold text-slate-700">Timeline</h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/F_Pictures/api/write-timeline', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ text: timelineText }),
+                            });
+                            if (!res.ok) throw new Error('Server error');
+                          } catch {
+                            alert('Export failed. Make sure the dev server is running.');
+                          }
+                        }}
+                        className="px-3 py-1 rounded bg-slate-600 text-white text-sm font-semibold hover:bg-slate-700"
+                      >
+                        Export
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setSavingTimeline(true);
+                          await supabase.from('DND_campaign').update({ timeline: timelineText }).eq('id', campaignId);
+                          setSavingTimeline(false);
+                        }}
+                        disabled={savingTimeline}
+                        className="px-3 py-1 rounded bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-60"
+                      >
+                        {savingTimeline ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    value={timelineText}
+                    onChange={(e) => setTimelineText(e.target.value)}
+                    className="w-full h-[500px] p-3 text-slate-800 bg-white border border-slate-300 rounded resize-none focus:outline-none focus:border-amber-500 text-sm leading-relaxed"
+                    placeholder="Write your timeline here…"
+                  />
+                </div>
+              ) : (
+                <div className="min-w-[620px] flex-1 p-4">
+                  <h3 className="text-2xl font-bold text-slate-700">Top Level</h3>
+                  <p className="text-slate-600 mt-1">Select a note/place from the left panel.</p>
+                </div>
+              )
             ) : (
               <>
                 {selectedPlacePath.map((place, columnIndex) => {
@@ -1533,37 +1616,9 @@ export default function DNDNotes() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
-                  <div style={{ flex: '1 1 50%', minWidth: 0 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <input type="text" value={editNpcName} onChange={(e) => setEditNpcName(e.target.value)} className="px-3 py-2 rounded border border-slate-300" placeholder="NPC Name" style={{ width: '100%' }} />
-                      <select value={editNpcRaceId} onChange={(e) => setEditNpcRaceId(e.target.value)} className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }}>
-                        <option value="">-- Race --</option>
-                        {raceList.map((race) => (
-                          <option key={`edit-race-${race.id}`} value={race.id}>{race.RaceName}</option>
-                        ))}
-                      </select>
-                      <select value={editNpcParentId} onChange={(e) => setEditNpcParentId(e.target.value)} className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }}>
-                        <option value="0">Top Level</option>
-                        {orderedPlaces.map((place) => (
-                          <option key={`edit-parent-${place.id}`} value={place.id}>{place.Place_Name}</option>
-                        ))}
-                      </select>
-                      <textarea value={editNpcDescription} onChange={(e) => setEditNpcDescription(e.target.value)} rows={2} className="md:col-span-2 px-3 py-2 rounded border border-slate-300" placeholder="Description" style={{ gridColumn: '1 / -1', width: '100%' }} />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', marginTop: '8px' }}>
-                      <input type="number" value={editNpcStrength} onChange={(e) => setEditNpcStrength(e.target.value)} placeholder="Strength" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
-                      <input type="number" value={editNpcDexterity} onChange={(e) => setEditNpcDexterity(e.target.value)} placeholder="Dexterity" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
-                      <input type="number" value={editNpcConstitution} onChange={(e) => setEditNpcConstitution(e.target.value)} placeholder="Constitution" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
-                      <input type="number" value={editNpcIntelligence} onChange={(e) => setEditNpcIntelligence(e.target.value)} placeholder="Intelligence" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
-                      <input type="number" value={editNpcWisdom} onChange={(e) => setEditNpcWisdom(e.target.value)} placeholder="Wisdom" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
-                      <input type="number" value={editNpcCharisma} onChange={(e) => setEditNpcCharisma(e.target.value)} placeholder="Charisma" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
-                    </div>
-                  </div>
-
+                <div style={{ marginBottom: '12px' }}>
                   {selectedNpc.PictureID && (
-                    <div style={{ flex: '0 0 50%', maxWidth: '50%', minWidth: '220px', marginLeft: 'auto' }}>
+                    <div style={{ float: 'right', width: 'min(46%, 280px)', minWidth: '220px', marginLeft: '12px', marginBottom: '12px' }}>
                       <img
                         src={getPictureUrl(selectedNpc.PictureID)}
                         alt={selectedNpc.Name}
@@ -1591,6 +1646,36 @@ export default function DNDNotes() {
                       />
                     </div>
                   )}
+
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <input type="text" value={editNpcName} onChange={(e) => setEditNpcName(e.target.value)} className="px-3 py-2 rounded border border-slate-300" placeholder="NPC Name" style={{ width: '100%' }} />
+                      <select value={editNpcRaceId} onChange={(e) => setEditNpcRaceId(e.target.value)} className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }}>
+                        <option value="">-- Race --</option>
+                        {raceList.map((race) => (
+                          <option key={`edit-race-${race.id}`} value={race.id}>{race.RaceName}</option>
+                        ))}
+                      </select>
+                      <select value={editNpcParentId} onChange={(e) => setEditNpcParentId(e.target.value)} className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }}>
+                        <option value="0">Top Level</option>
+                        {orderedPlaces.map((place) => (
+                          <option key={`edit-parent-${place.id}`} value={place.id}>{place.Place_Name}</option>
+                        ))}
+                      </select>
+                      <textarea value={editNpcDescription} onChange={(e) => setEditNpcDescription(e.target.value)} rows={2} className="md:col-span-2 px-3 py-2 rounded border border-slate-300" placeholder="Description" style={{ gridColumn: '1 / -1', width: '100%' }} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', marginTop: '8px' }}>
+                      <input type="number" value={editNpcStrength} onChange={(e) => setEditNpcStrength(e.target.value)} placeholder="Strength" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
+                      <input type="number" value={editNpcDexterity} onChange={(e) => setEditNpcDexterity(e.target.value)} placeholder="Dexterity" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
+                      <input type="number" value={editNpcConstitution} onChange={(e) => setEditNpcConstitution(e.target.value)} placeholder="Constitution" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
+                      <input type="number" value={editNpcIntelligence} onChange={(e) => setEditNpcIntelligence(e.target.value)} placeholder="Intelligence" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
+                      <input type="number" value={editNpcWisdom} onChange={(e) => setEditNpcWisdom(e.target.value)} placeholder="Wisdom" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
+                      <input type="number" value={editNpcCharisma} onChange={(e) => setEditNpcCharisma(e.target.value)} placeholder="Charisma" className="px-3 py-2 rounded border border-slate-300" style={{ width: '100%' }} />
+                    </div>
+                  </div>
+
+                  {selectedNpc.PictureID && <div style={{ clear: 'both' }} />}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3">

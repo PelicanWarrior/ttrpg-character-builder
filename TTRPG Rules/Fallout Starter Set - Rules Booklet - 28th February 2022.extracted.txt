@@ -1,0 +1,3169 @@
+
+
+===== PAGE 1 =====
+
+®
+
+===== PAGE 2 =====
+
+© 2022 Bethesda Softworks LLC. FALLOUT and related logos are trademarks or registered trademarks of ZeniMax Media Inc. or its affiliates in the 
+U.S and/or other countries. 
+The Modiphius Entertainment logo is a trademark of Modiphius Entertainment. All Rights Reserved to their respective owners. 
+The 2d20 system and Modiphius Logos are copyright Modiphius Entertainment Ltd. 2015-2021. All 2d20 system text is copyright Modiphius 
+Entertainment Ltd. Any unauthorised use of copyrighted material is illegal. Any trademarked names are used in a fictional manner; no infringement 
+is intended. This is a work of fiction. Any similarity with actual people and events, past or present, is purely coincidental and unintentional except 
+for those people and events described in an historical context. 
+Lead Designers
+Nathan Dowdell, Sam Webb
+Additional Design by
+Virginia Page 
+Writers
+Nathan Dowdell, Donathin Frye,  
+Sam Webb
+Editor
+Carol Darnell
+Graphic Designers
+Michal E Cross, Tom Hutchings, 
+Stephanie Toro 
+Layout
+Michal E. Cross
+Art Director
+Sam Webb
+Cover Artist
+Michal E Cross
+Proofreaders
+Bryce Johnston, April Hill
+Project Managers
+James Barry, Virginia Page
+Production Managers
+Peter Grochulski, Sam Webb
+Bethesda Artwork and Staff
+Michael Kochis, Laura Martson,  
+Emil Pagliarulo, Spencer Weisser, 
+Jessica Williams, Calvin Yang
+MODIPHIUS ENTERTAINMENT
+Chief Creative Officer
+Chris Birch 
+Chief Operations Officer
+Rita Birch
+Managing Director
+Cameron Dicks
+Head of Product
+Sam Webb
+Head of Creative Services
+Jon Webb
+Creative Coordinator
+Kieran Street
+Financial Controller
+Luc Woolfenden
+Logistics and Production Manager
+Peter Grochulski
+Art Directors
+Kris Auburn, Ariel Orea, 
+Rocío Martín Pérez
+Studio Coordinator 
+Rocío Martín Pérez
+Photographer
+Fátima Martín Pérez
+Lead 3D Designer
+Jonathan La Trobe-Lewis
+Senior 3D Designers
+Colin Grayson, Christopher Peacey, 
+Domingo Díaz Fermín
+3D Designers
+Ben de Bosdari, Joana Abbott,  
+Sean Bullough
+Lead Graphic Designer
+Michal E. Cross
+Graphic Designers
+Christopher Webb, Mark Whittington,  
+Stephanie Toro Gurumendi
+Audio and Video Producer
+Steve Daldry
+Development Coordinator
+Jason Enos
+Developers
+Ethan Heywood, Jono Green
+2d20 Developer
+Nathan Dowdell
+QA Testers
+Dominic Westerland, Nathan Perry, 
+Samantha Laydon
+Senior Project Manager
+Gavin Dady
+Project Managers
+Ben Maunder, Daniel Lade,  
+James Barry
+Assistant Project Managers
+Haralampos Tsakiris, Matias Timm
+Operations Manager
+John Wilson
+Factory Manager
+Martin Jones
+Senior Production Operative
+Drew Cox
+Lead Production Operative
+Anthony Morris
+Senior Production Operative
+Warwick Voyzey
+Production Operative
+Jake Pink, Louis Paul Hartle
+Tool Makers
+Alex Taylor, David Hextall, Luke Gill
+Customer Service and  
+Accounts Manager
+Lloyd Gyan
+Events Manager
+Gregoire Boisbelaud
+Distribution and  
+Key Accounts Manager
+Gary Moore
+Marketing Coordinator
+Shaun Hocking
+Customer Support Representative
+Chris Dann
+Webstore Manager
+Apinya Ramakomud
+Bookkeeper
+Valya Mkrtchyan
+With Thanks to
+David Evans, the whole team at 
+Bethesda Softworks, and all the Fallout 
+fans and playtesters
+Modiphius Entertainment Ltd. 
+2nd Floor, 39 Harwood Rd, 
+London SW6 4QP, United Kingdom
+www.modiphius.net
+
+===== PAGE 3 =====
+
+CONTENTS
+ Chapter One 
+WELCOME TO THE 
+WASTELAND
+Introduction to Tabletop Roleplaying Games  . . . 4
+What Kind of Quests Can I Have?   . . . . . . . . . . 9
+ Chapter T wo 
+CHARACTERS
+S .P .E .C .I .A .L . Attributes  . . . . . . . . . . . . . . . . . 10
+Skills   . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+Derived Statistics   . . . . . . . . . . . . . . . . . . . . . 12
+ Chapter Three 
+CORE RULES
+Skill Tests  . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+Action Points   . . . . . . . . . . . . . . . . . . . . . . . . 19
+Luck  . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20
+Non-Player Characters   . . . . . . . . . . . . . . . . . 22
+ Chapter Four 
+COMBA T
+Rounds and Turns  . . . . . . . . . . . . . . . . . . . . . 23
+Damage and Injury   . . . . . . . . . . . . . . . . . . . 29
+Healing   . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+Zones and Distances  . . . . . . . . . . . . . . . . . . . 33
+ Chapter Five 
+REFERENCE LISTS
+Perks List  . . . . . . . . . . . . . . . . . . . . . . . . . . . 35
+Equipment   . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+
+
+===== PAGE 4 =====
+
+Chapter One
+WELCOME TO THE 
+WASTELAND
+This booklet contains all the information you need to 
+begin playing a tabletop roleplaying game set in the 
+Fallout universe. Regardless of your experience with 
+roleplaying games, this booklet will take you through 
+the rules of the game and even includes a quest to get 
+you started!
+AN INTRODUCTION TO TABLETOP ROLEPLAYING GAMES
+Tabletop roleplaying games (RPGs) have been enjoyed 
+as a popular hobby for over half a century. If you are 
+reading this book and have never played an RPG before, 
+then this introductory chapter is especially for you.
+Players of an RPG assume the roles of characters in a 
+fictional setting, whereas board games involve using a 
+set of rules to move or place pieces on a pre-marked 
+surface known as a “board”. Tabletop roleplaying 
+shares things in common with both board games and 
+video game RPGs, just like the Fallout series. However, 
+there are many things that make playing a tabletop 
+RPG a totally unique and unforgettable experience.
+They are typically run by a gamemaster (GM) who 
+acts as narrator and rules moderator, in which the 
+participants describe their player characters’ (PCs) 
+actions. The PCs’ actions succeed or fail according 
+to a set of rules (in the case of Fallout, rolling dice 
+to determine an action’s outcome). Within the rules, 
+both the players and the GM have the freedom to 
+improvise, or to act out their character as if they were 
+in a movie. Their choices shape the direction and 
+outcome of a game’s story. The spirit of an RPG is hav-
+ing fun with a group of people through collaborative 
+storytelling, exciting choices, and fun gameplay.
+Throughout this chapter, we’ll discuss how to find a 
+group of people to play with, how to be a good player, 
+and how to be a good gamemaster.
+PLAYING YOUR FIRST GAME
+To play your first game of Fallout, one of the first things 
+you must do is find a group of people to play with and 
+decide who will be the GM that runs the game. You can 
+convince friends or family to play with you, but there 
+are other options for finding a group too.
+GATHERING A GROUP
+A simple search on the internet should reveal the 
+nearest friendly local game store, where local gaming 
+communities gather and play. These stores often have 
+message boards to help find local players and the store 
+managers can direct you on the best way to find a 
+group to play with.
+Another great place to find many people interested in 
+playing is to attend conventions. Thousands of players 
+gather at many tabletop conventions across the world, 
+looking for a few days of fun and games.
+4 FALLOUT    Rules Booklet
+
+===== PAGE 5 =====
+
+It is also easier than ever to find groups to play online. 
+To play online, you generally need to make use of a 
+virtual tabletop (VTT) or a similar system to manage the 
+gameplay, and there are plenty of great options out there.
+SETTING EXPECTATIONS
+As you gather your group to play, it is important to set 
+the expectations for the game. Everyone should know 
+that Fallout is a roleplaying game that requires a few 
+hours of play each session. Players take on the roles 
+of characters trying to survive and make their way in 
+a post-atomic America filled with cut-throat raiders, 
+mutated monsters, and unforgiving environs. Hope is 
+scarce, whether it be for a better tomorrow or personal 
+gain, but people still cling on anyway.
+Fallout is often a violent game that puts the PCs in 
+combat situations. Despite that violence, the players 
+are meant to cooperate to tell an unforgettable story 
+about their characters and the world. The campaign 
+Once Upon a Time in the Commonwealth teaches you 
+about the setting and rules slowly over multiple ses-
+sions of gameplay.
+PREPARE TO PLAY
+While playing for the first time can be intimidating 
+to some, RPGs are easy to learn. Every game has a 
+core mechanic that determines if a character’s action 
+is successful. It is best if players read the rules before 
+playing Fallout, but the rules can also be taught by 
+the GM by playing through Once Upon a Time in the 
+Commonwealth.
+Pre-Generated 
+Player Characters
+The pre-generated characters provided in this starter 
+set are to get your players into the game quickly, while 
+showing how the setting of Fallout can feature a diverse 
+cast of widely varying viewpoints. Some players may 
+find the detailed backgrounds helpful to jump into the 
+post-apocalyptic setting of the Commonwealth. Other 
+players may find the character detail creatively restrictive 
+and be inspired to repurpose their stats and abilities to 
+their own stories. 
+As the GM, if you decide to use the pre-generated charac -
+ters in this section, consider whether you plan to continue 
+playing a full campaign of Fallout and discuss that with 
+your group before they settle on which characters they will 
+play. Be sure to encourage your players to keep, change, or 
+ignore pre-generated backgrounds as much or as little as 
+they would like.
+5Chapter One    WELCOME TO THE  WASTELAND
+
+===== PAGE 6 =====
+
+Experienced players and the GM should work 
+together to help players learn to play, without speak-
+ing over them or making them feel bad for being new 
+to the game. One way to help new players learn about 
+RPGs is to share with them an actual-play video of the 
+game they will be playing. Forums are another great 
+place to ask questions and get clarification between 
+game sessions.
+If playing in person, you need a pencil, at least two 
+20-sided dice, the specialized 6-sided included in the 
+Fallout starter set, and a character sheet. Character 
+sheets record your characters game statistics, back-
+ground information, inventory, and other important 
+information you need. This starter set includes sample 
+character sheets that you are encouraged to use.
+Finally, if playing online, everyone should have access 
+to the virtual tabletop app for the game, containing 
+their character sheet, necessary play materials, and a 
+means to chat or interact with other players, including 
+the GM.
+HOW TO BE A PLAYER
+Being a good RPG player simply requires you to have 
+fun, be kind to the people you play with, embrace the 
+game’s story, play to find out what happens next, and 
+interact collaboratively. The best players give their full 
+attention to others while they are speaking and make 
+exciting choices that build upon the actions of the 
+other people at the table.
+As a player, you could speak in your character’s voice, 
+as though you were playing them in a movie. Some 
+players are more comfortable simply describing what 
+their character does or says without attempting to act 
+as their character. RPGs don’t require you to be actors, 
+only that you have fun telling a story together with 
+the rest of the group.
+Finally, do not be afraid to ask questions if you get 
+confused about the rules, or what is happening in the 
+game’s story.
+6 FALLOUT    Rules Booklet
+
+===== PAGE 7 =====
+
+THE FLOW OF PLAYING AN RPG
+Understanding the flow of an RPG will help you 
+understand how to play and interact with others. 
+Games typically begin with the GM describing 
+where your character is and what is happening 
+around them. From there, you can ask questions and 
+describe what your character does in the story. The 
+GM narrates what happens next and asks you to roll 
+dice as necessary to determine the outcomes of your 
+character’s actions.
+This process repeats, flowing between the GM’s nar-
+ration and the players’ questions and actions, with 
+additional rules and scenarios changing the given 
+circumstances of the cycle. The story progresses until 
+the GM announces a break or that the gaming session 
+is over, sometimes leaving the players with a cliff-
+hanger ending!
+HOW TO BE A GAMEMASTER
+If you are the GM, you set the stage for the story, 
+manage the flow of the game, narrate the outcomes 
+of players’ actions, and act as a rules’ moderator for 
+the game. Being a GM can be more challenging than 
+being a player but can also be tremendously rewarding 
+and fun. The most important job of the GM is to make 
+sure everyone (including yourself) is having fun.
+A great GM is asked to present opposition to the 
+players’ characters while still being a cheerleader for 
+the players and the story they are telling. This requires 
+you show all players respect, no matter their familiar-
+ity with RPGs or who they are.
+PREPARING TO RUN A GAME
+Before running an entirely original game or story, we 
+recommend you run the campaign presented in this 
+starter set, which teaches you the rules as your group 
+plays along. While you should familiarize yourself 
+7Chapter One    WELCOME TO THE  WASTELAND
+
+===== PAGE 8 =====
+
+with the rules before playing your first session, you 
+should not expect to understand them perfectly. At 
+the least, GMs should be able to help players under-
+stand their character sheets, how dice rolls work, and 
+other basic rules.
+It is perfectly normal for GMs to have to reference 
+rule books during the game, but if you are unable to 
+find or understand a rule, you can make a decision 
+you believe makes the most sense for the situation. If 
+there is a rules dispute at the table, you should listen 
+respectfully, and then make a final decision.
+Because RPGs are largely improvised, even GMs with 
+amazing memories struggle to remember key details 
+between game sessions. Throughout a gaming session 
+and at the end of it, you could take notes, containing 
+key details about what happened in the story, what 
+major actions the PCs took, and any ideas that sprang 
+to mind in the middle of the game. Alternatively, the 
+GM may ask the players to take notes for the group 
+instead, and it is a good idea to offer a recap of the 
+previous session’s major events before beginning a 
+new session.
+MANAGING THE FLOW
+The GM manages the flow of the game. They describe 
+to the players what is happening in the story by telling 
+them what their characters can see, hear, and smell. 
+The GM also assumes the role of any characters not 
+controlled by the players, known as non-player charac-
+ters (NPCs) and acts as those NPCs based on their goals 
+and drives. The players then react to the situations 
+presented to them and the GM describes what happens 
+next. When a dice roll is required, the GM interprets 
+the results and continues advancing the story forward.
+While the campaign presented in this book is detailed, 
+you should remember that it is only a guide. Players 
+frequently do unexpected things not accounted for in 
+Once Upon a Time in the Commonwealth. You can respond 
+to these unexpected deviations from the campaign by 
+using your knowledge of the story and rules to keep the 
+game moving until the players get back on track with 
+the story presented. You should always remember that 
+the plot in your head is less important than the story 
+being improvised at the table and focus on driving 
+that story onward in collaboration with the players.
+You should not be afraid to move a scene ahead to 
+the next notable event in the game if the pace of the 
+game is too slow. If the players do not seem to be 
+having fun, you can focus on the story’s most dra-
+matic moments and ask the players how their char-
+acters react. Additionally, if the players seem stuck or 
+uncertain what to do next, you could give the players 
+hints—being stuck is not fun for anybody at the table.
+RUNNING A SAFE GAME
+It is always encouraged that you talk to your players 
+about safety at the table. Players should be given the 
+opportunity to inform the group of any subject matter 
+they wish to avoid during the game. Let them know 
+they can opt-out of a scene if it makes them uncom-
+fortable for any reason. Games are meant to be fun 
+and everyone at the table is responsible for making 
+everyone else feel welcome and safe.
+If a player is disrupting the experience of the game or 
+making other people feel uncomfortable, you should 
+approach them directly without attacking them 
+personally: describe the problem and ask them to 
+adjust their behavior. This is best done privately, but 
+if circumstances do not allow for a private conversa-
+tion, should be handled respectfully at the table. If 
+the player continues to be a problem or crosses an 
+unforgivable line, you should calmly and firmly tell 
+the player to leave the table. After asking a player to 
+leave, check in on the well-being of the other players 
+and ask if they wish to continue playing or resume the 
+game another time.
+For more information on safety tools, you can 
+search online or see p.318 of the Fallout: The Tabletop 
+Roleplaying Game Core Rulebook.
+ADVICE FOR RUNNING THE 
+STARTER SET CAMPAIGN
+The GM should read Once Upon a Time in the 
+Commonwealth through at least once before running 
+the game for others. The players do not need to be 
+familiar with the setting to enjoy this campaign, but 
+the story will be the most fun when it captures the 
+voice of Fallout’s 1940s – 1960s American pop culture 
+influence. To that end, the Fallout video games, par-
+ticularly Fallout 4, are highly recommended to anyone 
+wanting to run this campaign. 
+8 FALLOUT    Rules Booklet
+
+===== PAGE 9 =====
+
+Trust is hard to come by in post-atomic America and 
+the story of this campaign is meant to make players 
+paranoid that anyone they come across could dou-
+ble-cross them. It is likely that a group of new PCs 
+will not even trust each other at various points during 
+the campaign, due to opposing beliefs and goals. 
+Because of this, the GM must find opportunities to 
+encourage the group to work together. After all, there 
+is safety and survival in numbers.
+The number of players will vary for different groups. 
+The encounters in this campaign are generally bal-
+anced for groups of four-to-five. For smaller or larger 
+groups, consider slight adjustments to the number of 
+enemies in encounters with multiple enemies.
+WHAT KIND OF QUESTS CAN I HAVE?
+The list of possible quests you can go on with the 
+Fallout is endless. You could explore the puzzling 
+experiments of Vault-Tec; become mercenaries 
+protecting trade caravans and settlements; find 
+yourself up against Institute synth replicas while 
+hiding beneath the ruins; or meet with the mighty 
+Brotherhood of Steel and their advanced technology.
+With the options to play both vault dwellers and 
+wastelanders, as well as ghouls, super mutants, and 
+even the beloved robotic Mister Handy, the Fallout 
+tabletop roleplaying game allows you to explore any 
+aspect of the Wasteland you like.
+9Chapter One    WELCOME TO THE  WASTELAND
+
+===== PAGE 10 =====
+
+Chapter T wo
+CHARACTERS
+S.P.E.C.I. A .L. ATTRIBUTES
+Each character in Fallout is defined by seven attrib-
+utes: Strength, Perception, Endurance, Charisma, 
+Intelligence, Agility and Luck. Each attribute has a 
+rank, from 4 to 10, or more. Whenever you try to attempt 
+a skill test, your S.P.E.C.I.A.L. attributes form one part of 
+your target number, when you roll your pool of d20s.
+  STRENGTH measures your charac-
+ter’s physical prowess. It is used to 
+make melee attacks, increases melee 
+damage, and influences how much 
+stuff you can carry.
+  PERCEPTION influences how easily 
+you notice danger and how aware 
+you are of your environment, affects 
+your turn in the initiative order in 
+combat, and is used to make attacks 
+with energy weapons.
+  ENDURANCE describes your tough-
+ness and resilience, influences how 
+many health points you have, how 
+easy you find it to shrug off the physi-
+cal dangers of the wasteland, and your 
+ability to wield heavy weapons.
+  CHARISMA influences how effec-
+tively you can convince people of 
+your opinions, change their minds, 
+barter with people, and find safety; 
+among others.
+  INTELLIGENCE measures your 
+smarts, how you apply your mind 
+to an obstacle, and how much you 
+remember and know from studying 
+the world around you.
+10 FALLOUT    Rules Booklet
+
+===== PAGE 11 =====
+
+  AGILITY measures how fit and agile 
+you are, your balance, athletic sup-
+pleness, and how precisely you can 
+control your body. It is used to make 
+ranged attacks with small guns.
+  Luck describes just how much 
+fortune smiles down on you, turning 
+fickle forces in your favor, and gen-
+erally coming out on top when you 
+should be at the bottom. Luck gives 
+you points to spend to add story 
+details; use your Luck attribute when 
+you make skill tests, and re-roll dice.
+SKILLS
+You are trained in several skills, which encompass the 
+various activities and proficiencies that you’ve picked 
+up surviving in the post-apocalyptic wasteland. Each 
+skill is ranked from 0 to 6, with each rank represent-
+ing a differing degree of training.
+You add your skill rank together with your 
+S.P.E.C.I.A.L. attribute to get your target number when 
+you make a skill test.
+TAG SKILLS
+A few of your skills are Tag skills, marking them as 
+your areas of expertise. Tag skills represent a focused 
+training in those skills, a special affinity or talent with 
+that discipline.
+Tag skills increase your chances of a critical success. 
+When you use a tagged skill, each d20 that rolls 
+equal or under the skill rank is a critical success, 
+scoring 2 successes instead of 1.
+Skills Summary 
+SKILL DEFAULT 
+ATTRIBUTE DETAIL
+Athletics STR Lifting, pushing, pulling, jumping, running, and swimming
+Barter CHA Buying and selling
+Big Guns END Using heavy weapons such as miniguns, Fat Mans, gatling lasers, and gauss weapons
+Energy Weapons PER Using energy weapons such as laser guns, plasma guns, and gauss weapons
+Explosives PER Blowing things up, or stopping them from doing that
+Lockpick PER Opening locks without the key
+Medicine INT Healing people and stabilizing the dying
+Melee Weapons STR Fighting people with bats, clubs, knives, boards, wrenches, and sledges
+Pilot PER Flying and driving
+Repair INT Fixing stuff, crafting things, and building machines
+Science INT Hacking, programming, and brewing chems
+Small Guns AGI Shooting people with pistols, rifles, and shotguns
+Sneak AGI Moving quietly and staying hidden
+Speech CHA Making friends, influencing people, and lying to them if you have to
+Survival END Foraging, hunting, cooking, and enduring the wastes
+Throwing AGI Launching weapons from your hands, like spears or knives
+Unarmed STR Fighting without a weapon by making unarmed attacks
+11Chapter T wo    CHARACTERS
+
+===== PAGE 12 =====
+
+DERIVED STATISTICS
+As well as your S.P.E.C.I.A.L. attributes and skills, you 
+also have a number of derived statistics.
+CARRY WEIGHT
+You can carry a base of 150 pounds of equipment, plus 
+your Strength attribute multiplied by 10. You can carry 
+more by using perks, increasing your Strength attrib-
+ute, and using equipment with extra carrying space. 
+Over-encumbered
+If you carry more gear than your carry weight allows, you 
+will suffer a number of penalties.
+  If the total weight of your gear exceeds your carry 
+weight, all tests using your Strength or Agility increase in 
+difficulty by +1, you cannot take the Sprint action, and 
+your Initiative is reduced by 1. 
+  If you carry 50 lbs. or more than your carry weight, 
+then the difficulty of those tests increases by a further 1, 
+and your initiative is reduced by another 1. Each addi -
+tional 50 lbs. over your carry weight increases those 
+penalties by 1.
+  If you’re carrying twice your carry weight, you cannot 
+move, you will automatically fail any Strength or Agility-
+based skill tests, and your Initiative is 0.
+INITIATIVE
+Your initiative determines how quickly you act in 
+combat. It is equal to your PER + AGI (minus any 
+penalties for being over-encumbered). This is a static 
+number, which determines your place in the turn 
+order during a combat encounter—it isn’t a target 
+number for a skill test. It can be modified by perks 
+and the effects of encumbrance.
+For example, if your Perception is 5, and your Agility 
+is 7, your Initiative is 12. You will act before people 
+with an Initiative of 11 or lower, and after anyone with 
+an Initiative of 13 or higher. The higher your initiative 
+compared to those of other characters in the scene, 
+the sooner you can act each round.
+DEFENSE
+Your Defense statistic is the basic difficulty of any 
+attacks made against you. It is based on your Agility 
+attribute:
+  AGI 1-8: your Defense is 1.
+  AGI 9+: your Defense is 2.
+DAMAGE RESISTANCE
+Your resistance to different types of damage is deter-
+mined by your equipment and your perks. Damage 
+Resistance (DR) is subtracted from damage inflicted of 
+the same type before it reduces your health—Physical 
+Damage Resistance reduces Physical damage, Radiation 
+Damage Resistance reduces radiation damage, etc.
+  Physical Damage Resistance is how much 
+Physical damage you can shrug off from an attack. 
+Clothing and armor are the main sources of 
+Physical DR, depending on how they’re made, but 
+mutations can also provide some natural resistance 
+to incoming attacks. Physical DR normally varies 
+by hit location, depending on clothing or armor.
+  Energy Damage Resistance is how resistant you 
+are to Energy damage, and it normally comes from 
+clothing or armor that has been made in a par-
+ticular way. Energy Damage Resistance normally 
+varies by hit location, depending on the clothing or 
+armor worn.
+  Poison Damage Resistance is how much Poison 
+damage you ignore from toxins. Perks and muta-
+tions provide poison DR, as can certain chems and 
+consumables. You have a single Poison DR value for 
+your entire body—it doesn’t vary by location.
+12 FALLOUT    Rules Booklet
+
+===== PAGE 13 =====
+
+  Radiation Damage Resistance is rare but often 
+vital, as it reduces how much Radiation damage you 
+receive from attacks and hazards, and it normally 
+comes from protective clothing or armor, from 
+chems like Rad-X, or from other consumables. 
+Some creatures, like super mutants and ghouls, 
+are entirely immune to Radiation damage, as are 
+machines such as robots. Radiation DR normally 
+varies by hit location, depending on the clothing or 
+armor you wear.
+HEALTH POINTS
+Your starting maximum health points (HP) are 
+determined by adding together your Endurance and 
+your Luck scores. Your health points deplete as you 
+suffer damage, and generally show how far you are 
+from death, as explained in the Combat section. As you 
+increase in level, you increase your maximum health 
+points, and you can use perks to increase them further.
+MELEE DAMAGE
+Your melee damage statistic lists any bonus damage 
+you do with melee weapons or unarmed attacks, 
+due to having a high Strength attribute. You add the 
+number of bonus Combat Dice listed to your melee 
+damage rolls.
+STRENGTH ATTRIBUTE ADDITIONAL COMBAT DICE
+7–8 +1 DC 
+9–10 +2 DC 
+11+ +3 DC 
+PERKS
+Perks are special bonuses that you can obtain to boost 
+your character’s S.P.E.C.I.A.L. attributes, skills, give 
+them a unique edge, or even a brand-new ability. 
+Perks are often tied to S.P.E.C.I.A.L. attributes or skills, 
+enhancing them, or providing you with a totally new 
+ability in a specific circumstance.
+13Chapter T wo    CHARACTERS
+
+===== PAGE 14 =====
+
+Chapter Three
+CORE RULES
+SKILL TESTS
+A skill test is a method of resolving an action you 
+want your character to attempt. You roll some dice, 
+and the results tell you whether you succeeded, failed, 
+or complicated the situation.
+When the gamemaster asks you to attempt a test, 
+they’re asking you to check your character’s attributes, 
+roll a pool of 2–5 twenty-sided dice (d20s), and get 
+more successes than the gamemaster needs for you to 
+pass the test.
+ROLLING THE DICE
+1. CHOOSE ATTRIBUTE + SKILL: The gamemaster 
+chooses which attribute and skill from your charac-
+ter sheet are appropriate for your test. Add together 
+the attribute and the skill chosen: this is your target 
+number for each d20. You can suggest which attrib-
+ute + skill might apply, but the GM has the final say.
+  Your target number is the number each d20 must 
+roll equal to or under to generate one success.
+2. SET THE DIFFICULTY: The gamemaster sets the 
+difficulty for the test, normally between 1 and 5. 
+The difficulty is the number of successes you must 
+generate with your d20s to pass.
+3. ROLL THE DICE POOL: Assemble your dice pool. 
+You start with two d20s, but you can buy up to 3 
+more d20s by spending Action Points (see p.18). 
+After you’ve added any extra dice from spending 
+Action Points, roll the entire dice pool.
+4. CHECK FOR SUCCESSES: Each d20 that rolls 
+equal to or less than your target number scores one 
+success. Any d20 that rolls a 1 is a critical success, 
+which is worth two successes.
+  If the skill you’re using is a Tag Skill (see p.47), 
+then you score a critical success for each die 
+which rolls equal to or less than your skill rating.
+  Each d20 that rolls a 20 generates a complica-
+tion (see p.15)
+5. CHECK SUCCESSES AGAINST THE DIFFICULTY: 
+If the number of successes you scored equals 
+or beats the difficulty of the test, then you have 
+passed. If the number of successes scored is less 
+than the difficulty, you have failed.
+  Each success above the difficulty becomes an 
+Action Point, (see p.18).
+6. GET THE RESULT: The gamemaster describes the 
+outcome, and if the test was successful you can 
+spend Action Points to improve the result further. 
+After that, the GM introduces any complications.
+Example: Nate needs to find out if Codsworth is okay, 
+as he’s been on his own for 200 years. His test is dif-
+ficulty 1, and he must use CHA + Speech (7 + 2 = 9). 
+Nate’s player rolls 2d20, checking the results separately, 
+and rolls a 5 and a 19—because the 5 is equal or below 
+Nate’s target number, he scores 1 success, and passes the 
+test. Codsworth describes how hard it’s been to try and 
+keep the house clean for two centuries…
+FALLOUT    Rules Booklet
+14 FALLOUT    Rules Booklet
+
+===== PAGE 15 =====
+
+Skill T est Summary
+Add up your Attribute + Skill  combination
+Check the difficulty
+Want to buy d20s using Action Points?
+Roll the dice
+Count your successes.  
+Did you get enough compared to the difficulty?
+Any extra successes become  
+Action Points to spend or save
+TARGET NUMBER
+When your gamemaster asks for a skill test, you agree 
+to an attribute + skill combination from your charac-
+ter sheet that best applies to the action you’re trying 
+to achieve. That target number, made by adding your 
+chosen attribute and skill, gives you the number each 
+d20 must roll equal to, or under; if it does then you 
+generate one success.
+SUCCESSES AND DIFFICULTY
+The number of successes you need to generate with 
+your d20s to pass a skill test is called the difficulty. 
+Only needing 1 success describes a routine task, while 
+needing 5 successes reflects a difficult task that can 
+only be completed with guts and determination.
+Total up the number of successes you roll and compare 
+them against the difficulty—if you equal or beat the 
+difficulty you pass the test. Any extra successes over 
+and above the difficulty become Action Points  
+(see p.19).
+Test Difficulty Examples
+DIFFICULTY EXAMPLE
+0
+Gathering rumors around a settlement, 
+searching a room in an abandoned 
+building
+1 Shooting a target at close range, 
+picking a simple lock
+2 Breaking down a reinforced door, 
+treating an injury
+3 Identifying an unknown poison, 
+deactivating a robot from behind
+4 Hacking a complex computer,  
+disarming a landmine
+5
+Convincing an enemy to stand down, 
+shooting a target at long range on a 
+stormy night
+CRITICAL SUCCESSES
+Whenever you attempt a test, any d20 that rolls a 1 is a 
+critical success. Each critical success you roll generates 
+two successes.
+If the skill you’re using is one of 
+your Tag Skills, then you score 
+a critical success for any d20 
+that rolls equal to or less 
+than your rating in that 
+skill. For example, if your 
+Sneak skill is 3, and it’s 
+a Tag Skill, any d20 that 
+rolls a 3 or lower will be 
+a critical success.
+15Chapter Three    CORE RULES
+
+===== PAGE 16 =====
+
+Default Attribute + Skill
+The skill list on your character sheet lists a default attrib -
+ute associated with each skill. Some tests may prescribe a 
+default attribute + skill combination to work out your target 
+number, but at the GM’s discretion you can suggest a differ-
+ent combination.
+COMPLICATIONS
+When attempting a test, each d20 that rolls a 20 causes 
+a complication—a new detail in the scene that makes 
+things more difficult that comes into effect once the 
+test has been resolved. A complication could introduce 
+a new problem—like a gun jamming or breaking a 
+lock pick—or it could make specific skill tests more 
+difficult in future, like insulting a merchant so CHA 
++ Barter tests with him in future are increased in 
+difficulty by 1. Complications do not prevent you from 
+succeeding, but they do introduce something new to 
+the story that makes things more difficult.
+If you and the gamemaster cannot come up with a 
+complication for you, in the scene you’re in, the GM 
+can instead gain 1 Action Point to use for their non-
+player characters and creatures later.
+DICE POOL
+Normally, you roll 2 d20s and check their results 
+individually against your target number and count the 
+number of successes you generate, but you can buy 
+more dice to roll! With Action Points you can buy up 
+to 3 more d20s to roll on a test. This means you can 
+roll a total pool of 5d20 at any one time. Action Points 
+are covered on page 19.
+DIFFICULTY ZERO TESTS
+Some tests may be difficulty 0, or your character’s 
+perks or gear may reduce a test’s difficulty to 0. If a 
+test is difficulty 0, you don’t need to roll—your action 
+is automatically successful. At your GM’s discretion, 
+you can still choose to roll the dice against a difficulty 
+of 0. Because zero successes are required, every success 
+becomes an Action Point, but you can still suffer com-
+plications by rolling a 20, as normal.
+OPPOSED TESTS
+Sometimes you’ll face situations that are not difficult 
+because of the task itself, but because of an opposing 
+force trying to prevent your success. In these cases, you, 
+and the opposing player (normally the GM) will both 
+roll a dice pool and compare results to see who wins.
+When another character opposes you in a test, their 
+player rolls their d20 dice pool and the number of 
+successes they generate becomes the difficulty of your 
+test. If you equal or beat your opponent’s number of 
+successes, you win the opposed test, and any extra suc-
+cesses become Action Points. If you do not generate 
+enough successes to meet the difficulty, you fail, and 
+your opponent could generate AP.
+Action Points in Opposed T ests
+In an Opposed Test, the opposing characters spends AP first 
+and then rolls. The active character then may spend AP to 
+add dice to their pool (if they wish) and then rolls.
+If two player characters are making an opposed test, then 
+both players must generate AP for the GM to buy additional 
+d20s (see p.19). The group pool is for team players!
+When you succeed in an opposed test, you generate Action 
+Points by comparing your result to your opponent’s. When 
+you are rolling against an established difficulty, any excess 
+successes generate AP as normal. When you are the one 
+to roll first, establishing a difficulty for your opponent, each 
+success of theirs less than your number of successes gener -
+ates you 1 AP.
+FALLOUT    Rules Booklet
+16 FALLOUT    Rules Booklet
+
+===== PAGE 17 =====
+
+ASSISTANCE
+To assist a fellow player, describe how you are help-
+ing and decide with the GM which attribute + skill 
+combination you’re using; it doesn’t have to be the 
+same combination as the person you’re helping. Then, 
+roll 1d20 and add any successes you generate to theirs, 
+providing they score at least 1 success of their own. If 
+they didn’t generate any successes, then you cannot 
+add your success to the total.
+You cannot buy additional d20s if you are assisting—
+you can only roll 1d20—but your d20 doesn’t count 
+towards the limit of 5 that the player attempting the 
+test can roll in their dice pool.
+While assisting, you can score critical successes or 
+complications as normal.
+GROUP TESTS
+When your whole group is attempting a single large 
+activity, like sneaking through an area together, 
+or travelling through a hazardous area, you make a 
+special kind of assisted test. Once the GM has set the 
+difficulty, you must decide who is going to lead the 
+test, while the rest of the group assists. 
+The leader of the group test rolls a normal dice 
+pool—2d20 plus up to 3d20s they buy through Action 
+Points. Everyone else rolls 1d20, using their own 
+attribute + skill. So long as the test leader achieved 
+1 success, everyone assisting adds any successes they 
+generated to the leader’s score. If those accumulated 
+successes equal or beat the difficulty, the group has 
+passed the group test.
+Any complications generated by anyone in the group 
+rolling a 20 can be applied by the GM after resolving 
+the test and its consequences.
+17Chapter Three    CORE RULES
+
+===== PAGE 18 =====
+
+COMPLICATION RANGE
+When tests are riskier, the GM can increase the com-
+plication range of the test, so you generate complica-
+tions on more results than just a 20.
+Complication Range Table
+COMPLICATION 
+RANGE
+COMPLICATIONS 
+GENERATED ON A…. DESCRIPTION
+1 20 Normal
+2 19–20 Risky
+3 18–20 Perilous
+4 17–20 Precarious
+5 16–20 Treacherous 
+Success at a Cost
+At times, the GM may allow you to succeed at a cost 
+when you fail a test. In these situations, you achieve 
+whatever it was you were trying to accomplish with 
+your skill test, but you may not spend Action Points to 
+improve the outcome… in exchange, the GM causes you 
+to suffer one or more Complications, as well. The GM 
+should tell you how many Complications you’ll suffer 
+(normally only 1), and you can choose to simply fail if 
+the cost is too high.
+FALLOUT    Rules Booklet
+18 FALLOUT    Rules Booklet
+
+===== PAGE 19 =====
+
+ACTION POINTS
+When you check your successes against the task dif-
+ficulty, each success you generate above the difficulty 
+becomes an Action Point (AP). For example, if the 
+task’s difficulty is 2, and you generate 3 successes, the 
+extra success becomes 1 Action Point.
+Action Points can be used to take additional actions, 
+improve the outcome of a test, reduce the time it 
+takes, learn more about a situation, or buy more d20s 
+in future tests.
+You can spend Action Points to do the following:
+  Buy d20s (1–6 AP): Buy bonus d20s for a test, 
+before the dice pool is rolled, but after the GM 
+sets the difficulty. The cost increases for each die 
+purchased: the first d20 costs 1 AP, the second costs 
+2, and the third costs 3. No more than three bonus 
+d20s may be rolled for a single test, including any 
+d20s from perks or traits.
+  Obtain Information (1 AP): Ask the gamemaster 
+a single question about the current situation, based 
+on your test. The GM will answer truthfully, but 
+the answer might not be complete.
+  Reduce Time (2 AP): AP from a successful test 
+can allow the test to take less time to complete, 
+when time is important. Spending 2 AP halves the 
+amount of time a test takes to attempt.
+In combat, you can spend Action Points to do  
+the following:
+  Take Additional Minor Action (1 AP): Take 1 
+additional minor action in your turn. You can only 
+take a total of 2 minor actions in a single round.
+  Take Additional Major Action (2 AP): Take one 
+additional major action on your turn. Any skill test 
+you must attempt is increased in difficulty by +1. 
+You can only take a total of two major actions in a 
+single round.
+  Add Extra Damage (1-3 AP): On a successful melee 
+attack or thrown weapon attack you can spend AP 
+to add 1  DC   per AP spent, up to a maximum of 
++3  DC   for 3 AP.
+Bonus d20 Costs
+DICE POOL BONUS D20S AP COST
+2d20 – 0
+3d20 +1d20 1
+4d20 +2d20 3
+5d20 +3d20 6
+You spend Action Points either before or after you 
+roll dice, and each option describes when you can 
+spend Action Points to take advantage of its effect. 
+You buy extra d20s for a test before you roll, while you 
+spend Action Points after a test to obtain information, 
+reduce the time, improve the quality of the success, or 
+take an additional action.
+SAVING ACTION POINTS
+If you don’t want to spend the Action Points you gener-
+ate immediately, you can save them for the group to use 
+later. You can save up to a total of 6 AP as a group, and 
+anyone can use the Action Points in the group pool.
+THE GAMEMASTER’S 
+ACTION POINT POOL
+Just like you, the GM has a pool of their own Action 
+Points to spend on their NPC’s actions. They start each 
+quest with 1 AP per player. There is no maximum to 
+how many Action Points the GM can have in their pool. 
+Buying Dice Without  
+Action Points
+If you don’t have any Action Points to buy d20s, you may 
+instead generate AP for the gamemaster. For each AP you 
+want to spend in this way, the GM adds 1 AP to their pool, 
+which they can use later on their NPC’s actions and tests. 
+You may only give the GM Action Points to buy d20s;  
+you can’t do this for other uses of AP.
+19Chapter Three    CORE RULES
+
+===== PAGE 20 =====
+
+LUCK
+In addition to being one of your attributes, your Luck 
+also provides Luck points that you can spend to shift 
+the odds in your favor in a number of different ways. 
+When you start each quest with a number of Luck 
+points equal to your Luck attribute. You can spend 
+Luck points to do one of the following options, both 
+during freeform play or on your turn in combat.
+LUCK OF THE DRAW
+You may spend a Luck point to introduce a helpful 
+fact or detail about the situation you’re in, something 
+that you’d have to be lucky to encounter. You could 
+find just the right items or the right kind of ammo 
+while you’re scavenging, find a key to a locked door, or 
+a clue to a computer password. The gamemaster may 
+prompt you with an opportunity to do this, or you 
+may suggest when it could happen, but they can veto 
+your suggestions, or ask you to spend multiple Luck 
+points to make it happen.
+STACKED DECK
+You may spend 1 point of Luck, before you attempt a 
+skill test, to use LCK instead of the default attribute 
+used for that test to determine your target number. 
+Obviously, this only really has a benefit if your Luck is 
+higher than the attribute it’s replacing.
+LUCKY TIMING
+In a combat encounter, at the start of any round, or 
+immediately after any other character or creature has 
+acted, you may spend 1 Luck to interrupt the normal 
+initiative order and take your turn for this round 
+immediately. This counts as your normal turn—it sim -
+ply allows you to act earlier—and you cannot do it if 
+you have already taken a turn this round.
+FALLOUT    Rules Booklet
+20 FALLOUT    Rules Booklet
+
+===== PAGE 21 =====
+
+MISS FORTUNE
+You may spend one or more Luck points to re-roll dice 
+in a dice pool you roll. You may re-roll one d20, or up 
+to three  DC  , by spending one Luck point, and you can 
+spend multiple Luck points on a roll. Each die may only 
+be re-rolled once—you cannot re-roll a die that has 
+already been re-rolled. You must accept the re-rolled 
+result, even if it is worse than the original roll.
+Example: Nick Valentine is hacking a computer and his 
+player hasn’t generated enough successes to pass the skill 
+test. They need 2 successes, and have rolled a 9 and a 19, 
+generating only 1 success. Nick’s player decides to spend 
+a point of his Luck, and re-roll the d20 that rolled a 19. 
+Rolling it again, Nick’s player gets a 6, generating the 
+second success they need to pass the test.
+T rinkets
+Personal trinkets also allow your character to regain Luck 
+points. Once per quest, outside of combat, your character 
+can spend a few moments looking at the trinket, thinking 
+about what it means to them. When you do, you regain 1 
+Luck point. See Personal Trinkets, p.80 for more details.
+Luck Options Summary
+LUCK SPEND DESCRIPTION
+Luck of the Draw Add a detail to a scene
+Stacked Deck Use your LCK attribute for a  
+skill test
+Lucky Timing Interrupt the normal turn order 
+to take your turn now
+Miss Fortune Re-roll 1d20 or 3  DC   per Luck 
+point spent
+REGAINING LUCK
+You start your quest with a number of Luck points 
+equal to your Luck attribute. Once you’ve spent a 
+point, it can’t be used again until the gamemaster 
+refreshes them when you reach a milestone in your 
+quest, or when you start a new quest. When they are 
+refreshed, you get all your Luck points back, no matter 
+how many you’ve spent. You can’t have any more Luck 
+points than your Luck attribute.
+21Chapter Three    CORE RULES
+
+===== PAGE 22 =====
+
+NON-PLAYER CHARACTERS
+A non-player character—normally abbreviated to 
+NPC—is any character controlled by you, the game -
+master. You decide on an NPC’s motives, their nature, 
+and the actions they take. There are two main catego-
+ries of NPC: creatures and characters.
+A creature is a simpler kind of NPC, normally used to 
+represent mutated animals, feral creatures, and similar 
+bestial foes. Everything from mole rats and radroaches 
+to feral ghouls and deathclaws are creatures. Creatures 
+use a simplified set of statistics.
+A character is an intelligent being, little differ-
+ent from a player character. They have a full set of 
+S.P.E.C.I.A.L. attributes and derived statistics.
+  Like player characters, all NPCs have a level, indi-
+cating how dangerous a creature is or how chal-
+lenging a character is.
+  NPCs often have a keyword that notes something 
+specific about them. Rules may refer to these 
+keywords, and they describe an NPC’s underlying 
+nature or allegiance.
+  Types of NPCs describe how powerful and impor-
+tant they are. Normal NPCs are the most common 
+while Mighty creatures are more potent, and 
+Legendary creatures are more even more power-
+ful. Notable characters are significant individuals, 
+while Major characters are some of the most influ-
+ential people in the wasteland.
+  Special Abilities listed in the NPCs entry describe 
+unique abilities they have, much like perks for 
+player characters.
+DEFEATING OR OVERCOMING NPCS
+Enemy NPCs reduced to 0 health points are dead 
+unless the attacker chooses otherwise. Major 
+Characters start dying in the same way as PCs, and you 
+must start making END + Survival tests as described 
+on page 29.
+Enemy NPCs are overcome if the threat they pose is 
+conclusively avoided, such as sneaking past a group 
+of foes to get at what they’re guarding (and getting 
+back out again) or persuading them not to fight. 
+Enemies are not overcome if the PCs only avoid 
+them for a short time—sneaking past a Mister Gutsy 
+on guard duty doesn’t earn any XP if it catches the 
+PCs later.
+When an Enemy NPC is defeated or overcome, each 
+PC receives the total XP for the scene based on the 
+combined XP values of the NPCs present. 
+Creatures Don’t Use 
+S.P.E.C.I.A.L.
+While NPCs use the same S.P.E.C.I.A.L. attributes as player 
+characters, creatures use Body and Mind. These statistics 
+are usually a number between 4 and 12, used in place of 
+any S.P.E.C.I.A.L. attributes for skill tests. Body is used for 
+skill tests that require STR, END, or AGI, while Mind is 
+used in place of any SPECIAL attributes for mental skill tests: 
+typically, those using PER, CHA, or INT. 
+FALLOUT    Rules Booklet
+22 FALLOUT    Rules Booklet
+
+===== PAGE 23 =====
+
+Chapter Four
+COMBAT
+ROUNDS AND TURNS
+Combat encounters are broken down into rounds, and 
+during each round, each character takes a single turn.
+INITIATIVE
+When combat begins, the player who initiated the 
+combat takes a turn immediately. Once this is done, 
+the first round begins and the character with the 
+highest initiative goes first, and then each character 
+takes a turn in order of highest to lowest. If there is a 
+tie, the GM decides which character or creature goes 
+first. Once the last character has completed their turn, 
+the round ends, and the character with the highest 
+initiative takes the first turn of the next round. Repeat 
+this sequence until the conflict ends. 
+Sequence of Play
+1. INITIATE COMBAT: The character who initiated the 
+combat takes a single turn before the first round.
+2. INITIATIVE: List all characters in order of their Initiative 
+statistic, from highest to lowest.
+3. TAKE TURNS: Each character, in order from highest 
+initiative to lowest, takes a turn.
+4. BEGIN NEW ROUND:  Once every character has 
+taken a turn, the round is over; begin a new round, 
+repeating step 3 and step 4 as many times as needed to 
+resolve the conflict.
+Spending Luck to Act Faster
+You can also spend Luck points (p.20) to take your turn 
+earlier in the round. You must do this at the end of another 
+character’s turn but before your turn. Once you have taken 
+your turn, you do not take another until the next round.
+ACTIONS
+You can attempt one minor action on your turn 
+in combat. You can take one additional minor action 
+by spending 1 Action Point, and you can take one 
+additional major action by spending 2 Action Points, 
+but the difficulty of any test attempted on that second 
+major action is increased by 1. You may take your 
+actions in any order you wish during your turn.
+You cannot take more than two minor actions 
+and two major actions on your turn by any 
+means. You cannot take more than one move -
+ment action per turn.
+MINOR ACTIONS
+  Aim: Re-roll 1d20 on the first attack roll you make 
+this turn.
+  Draw Item: Draw one item carried on your person 
+or pick up an object or item within your reach. You 
+may put an item away as part of this action.
+  Interact: Interact with your equipment or envi-
+ronment in a simple way, like opening a door, or 
+pushing a button.
+23Chapter Four    COMBAT
+
+===== PAGE 24 =====
+
+  Move: Movement action. Move up to one zone, to 
+any position within Medium range. Alternatively, 
+stand up from a prone position.
+  Take Chem: Administer a dose of a chem that you 
+are holding, targeting yourself or a willing character 
+within your reach. If you’re not holding the chem, 
+then you need to draw it first.
+Prone
+You may be knocked prone by attacks, hazards, or com -
+plications. You may also drop prone willingly, at the end 
+of any movement action you perform. Being prone has the 
+following effects:
+  When you’re prone, you crawl. The Move action 
+becomes a major action, rather than a minor action,  
+and you cannot take the Sprint action.
+  While you’re prone, enemies at Medium range or further 
+add +1 to the difficulty of any attacks against you.
+  While you’re prone, enemies at Close range reduce the 
+difficulty of attacks (including melee attacks) by 1, to a 
+minimum of 0.
+  While you’re prone, you can re-roll any cover  DC   
+you have.
+MAJOR ACTIONS
+  Assist: You assist another character with their next 
+test. When the character you are assisting takes 
+their turn and attempts their task, you provide 
+assistance (p.17). If you have not yet acted this 
+round, you may give up your turn later in the round 
+to assist an ally when they attempt a skill test.
+  Attack: Make a melee or ranged attack, as 
+described in Making an Attack.
+  Command an NPC: If you have an allied NPC 
+under your command, choose a single major 
+action for them to take. If the action requires a 
+test, then you automatically assist using your CHA 
++ Speech (if the NPC is a person), CHA + Survival 
+(if the NPC is an animal), or INT + Science (if the 
+NPC is a robot).
+  Defend: You focus on protecting yourself. Make an 
+AGI + Athletics test with a difficulty equal to your 
+current Defense. If you succeed, add +1 to your 
+Defense. For 2 AP, add an extra +1 to your Defense.
+  First Aid: You try to quickly patch the wounds of 
+yourself or an ally. Make an INT + Medicine test, 
+with a difficulty equal to the number of injuries the 
+patient has, and increase the difficulty by 1 if you 
+are trying to perform first aid on yourself. If you 
+succeed, you can either:
+  Heal HP equal to your Medicine rating,
+  Treat one injury the patient is suffering from, or 
+  Stabilize a dying patient
+  Pass: You choose not to do anything.
+  Rally: You grit your teeth, catch your breath, and 
+prepare yourself. Make an END + Survival  test 
+with a difficulty of 0, and save any Action Points 
+you generate. The GM may allow you to use a 
+different ATT + skill for this action depending 
+on how you describe it, such as CHA + Speech to 
+inspire your allies.
+  Ready: Describe a situation you expect to occur, 
+and choose a major action you will perform when 
+it does. If that action occurs before the start of 
+your next turn, you may perform that major action 
+immediately, interrupting other characters’ actions 
+as necessary. If more than one character has read-
+ied an action for the same situation, their readied 
+actions occur in initiative order.
+  Sprint: Movement action. You move up to two 
+zones, to anywhere within Long range.
+  Test: Perform a skill test for an action not cov -
+ered by the other actions, with the gamemaster’s 
+permission.
+FALLOUT    Rules Booklet
+24 FALLOUT    Rules Booklet
+
+===== PAGE 25 =====
+
+MAKING AN ATTACK
+1. CHOOSE WEAPON AND TARGET: Select one 
+weapon you are currently wielding. Then, select a 
+single character, creature, or object as the target. 
+If you’re using a melee weapon, the target must be 
+visible to you and within your reach. If you’re using 
+a ranged weapon, the target must be visible to you.
+  Choose Hit Location: You may choose to target 
+a specific part of a target creature or character. 
+This increases the difficulty of the attack by 1.
+2. ATTEMPT A TEST: The test is determined by the 
+type of weapon used.
+  Melee Weapon: Roll a STR + Melee Weapons 
+test, with a difficulty equal to your target’s Defense.
+  Ranged Weapon: Roll an AGI + Small Guns, 
+END + Big Guns, or PER + Energy Weapons 
+test (based on the ranged weapon you’re using), 
+with a difficulty equal to your target’s Defense. 
+This is modified by the range to the target (see 
+Range, p.28)
+  Thrown Weapon: Roll a PER + Explosives or 
+AGI + Throwing test, with a difficulty equal to 
+the target’s Defense, modified by range.
+  Unarmed: Roll a STR + Unarmed test, with a 
+difficulty equal to your target’s Defense.
+3. DETERMINE HIT LOCATION: If you passed your 
+test, roll 1d20 or a hit location die to determine the 
+part of the target you hit. If you choose a specific hit 
+location already, you hit the chosen location instead.
+4. INFLICT DAMAGE: Roll a number of Combat Dice 
+( DC  ) listed by the weapon’s damage rating, plus 
+any bonuses from derived statistics, or from AP or 
+ammo spent. Reduce the target’s health points by 
+the total rolled.
+  Resistances: The target reduces the total damage 
+inflicted by their Damage Resistance against 
+the attack’s damage type, on the location hit. 
+Characters and creatures have different DRs for 
+different types of damage: physical, energy, radia-
+tion, and poison.
+5. REDUCE AMMUNITION: If you made a ranged 
+attack, remove one shot of ammunition, plus any 
+additional shots of ammunition spent on the attack. 
+If you made a thrown weapon attack, remove the 
+thrown weapon from your inventory.
+HIT LOCATIONS
+There are 6 body parts that you can target as hit loca-
+tions: head, torso, left arm, right arm, left leg, and right 
+leg. When you successfully hit an opponent with an 
+attack, you either randomly determine which body part 
+you hit, or hit the body part you chose before you made 
+the test. Use the Hit Locations table for reference.
+25Chapter Four    COMBAT
+
+===== PAGE 26 =====
+
+CREATURES WITH OTHER 
+HIT LOCATIONS
+Some creatures in the wasteland may have other body 
+parts—wings, claws, and tails—that do not appear on 
+the hit location table. These locations will be listed in 
+the creature’s statistics, replacing the Hit Locations 
+table with its own.
+Hit Locations
+D20 ROLL HIT LOCATION
+1–2 Head
+3–8 Torso
+9–11 Left arm
+12–14 Right arm
+15–17 Left Leg
+18–20 Right Leg
+RANGE
+Ranged weapons can be used to attack any target you 
+can see, but they vary in effectiveness depending on 
+how far away the target is from you. Ranged weapons 
+have an ideal range noted in their profile (just listed 
+as Range), which is based on the relative distance 
+between the attacker and the target, using the zones of 
+the combat environment. A weapon’s ideal range will 
+be one of the following:
+  Close (C): The weapon is most effective against 
+targets within the same zone.
+  Medium (M): The weapon is most effective against 
+targets in an adjacent zone.
+  Long (L): The weapon is most effective against 
+targets 2 zones away.
+  Extreme (X): The weapon is most effective against 
+targets 3 or more zones away.
+The difficulty of a ranged attack increases by one for 
+each range band outside of the weapon’s ideal range, 
+whether closer or further away; a long sniper’s rifle is 
+deadly at long ranges, but awkward and unwieldy in 
+close quarters, while a pistol is great at close range but 
+less useful at longer distances.
+Weapon Range Difficulty
+RANGE TO 
+TARGET
+WEAPON RANGE
+Close Medium Long Extreme
+Close  
+(same zone) 0 +1 +2 +3
+Medium  
+(adjacent zone) +1 0 +1 +2
+Long  
+(2 zones) +2 +1 0 +1
+Extreme  
+(3+ zones) +3 +2 +1 0
+Ranged Attacks Within Reach
+Being in reach of an enemy is disruptive to ranged attacks 
+and tests, adding +2 to the difficulty of any test that isn’t a 
+melee attack.
+COMBAT DICE
+When your attack hits its target, you inflict damage 
+based on the weapon’s damage rating. This damage 
+rating is described as Combat Dice, abbreviated by the 
+DC   symbol.
+Combat Dice are specially designed six-sided dice, 
+with four different results as shown on the Combat 
+Dice Results table.
+Combat Dice Results
+D6 ROLL COMBAT DICE 
+RESULT DAMAGE AND EFFECTS
+1  D  1 damage
+2  D 2 damage
+3 Blank Nothing
+4 Blank Nothing
+5  DC  1 damage +  
+damage effects trigger
+6  DC  1 damage +  
+damage effects trigger
+FALLOUT    Rules Booklet
+26 FALLOUT    Rules Booklet
+
+===== PAGE 27 =====
+
+When you hit, roll all the  DC   for the attack together 
+as a single dice pool, and total up the result. This total 
+is the amount of damage you inflict on your target. In 
+addition, any effect symbols (the face showing the  DC  
+symbol) activates special abilities—called damage 
+effects—listed for the weapon.
+Sneak Attacks
+If the enemy is unaware of you before you attack, the 
+difficulty to attack them is reduced by 1 (to a minimum of 0), 
+and your attack gains the Vicious damage effect if it did not 
+have it already, or the damage is increased by +2  DC   if it 
+already has the Vicious damage effect.
+If the difficulty to hit your opponent is 0, you do not need to 
+roll to hit them, but you may still decide to do so, generating 
+Action Points and complications as normal.
+INCREASING DAMAGE
+You can increase the number of Combat Dice you roll 
+to inflict damage with an attack by spending Action 
+Points or ammunition, depending on the type of 
+weapon you are using. 
+For melee weapons (including unarmed attacks) and 
+thrown weapons, each Action Point (AP) you spend 
+adds +1 DC   to roll in your damage dice pool. You can 
+spend up to 3 AP to increase your dice pool by up to 
++3 DC  . You can only spend AP you have saved in the 
+group pool or generated with your attack. You cannot 
+generate AP for the gamemaster to use this AP option.
+For ranged weapons, each unit of ammunition you 
+spend adds +1 DC   to roll in your damage dice pool. 
+You can spend ammunition up to the gun’s fire rate.
+DAMAGE TYPES
+There are four damage types in Fallout: Physical, 
+Energy, Radiation, and Poison damage. 
+Each weapon lists the type of damage it inflicts:
+  Physical: Unarmed attacks, blunt force, slashing 
+and stabbing, ballistics.
+  Energy: Laser, plasma, and flame weapons.
+  Radiation: Exposure to RADs, or nuclear weaponry.
+  Poison: Toxins, chemicals, and creatures’ stings 
+and barbs.
+Each target has a Damage Resistance (DR) for each of 
+these types, based on their clothing, armor, or natu-
+rally tough hides and chitin. While most forms of pro-
+tection provide Physical DR, Energy DR is rarer, while 
+Radiation or Poison protection are particularly rare.
+DAMAGE EFFECTS
+Damage effects augment how the damage you inflict 
+to a target is applied. When you roll one or more DC  
+symbols in your Combat Dice pool, all your weapon’s 
+damage effects are triggered. Some damage effects are 
+also based on the number of DC   symbols appearing in 
+your result, as described in each entry.
+Each weapon lists its damage effects immediately after 
+its damage rating.
+  Burst: The attack hits one additional target within 
+Close range of the primary target for each Effect 
+rolled. Each additional target spends 1 additional 
+unit of ammunition from the weapon.
+  Breaking: For each Effect rolled, reduce the num-
+ber of DC   a target’s cover provides by 1, perma-
+nently. If the target is not in cover, instead reduce 
+the DR of the location struck by 1, according to the 
+damage type of the weapon—Physical damage only 
+reduces Physical DR, for example.
+27Chapter Four    COMBAT
+
+===== PAGE 28 =====
+
+DAMAGE AND INJURY
+  Persistent: If one or more effects are rolled, the 
+target suffers the weapon’s damage again at the 
+end of their next and subsequent turns, for a 
+number of rounds equal to the number of Effects 
+rolled. The target can spend a major action to 
+make a test to stop persistent damage early, with 
+the difficulty equal to the number of Effects 
+rolled, and the attribute + skill chosen by the GM. 
+Some Persistent weapons may inflict a different 
+type of damage to the weapon, and where this is 
+the case, it will be noted in brackets, for example: 
+Persistent (Poison).
+  Piercing X: Ignore X points of the target’s DR for 
+each Effect rolled, where X is the rating of this 
+damage effect.
+  Radioactive: For every Effect rolled, the target 
+also suffers 1 point of Radiation damage. This 
+Radiation damage is totaled and applied sepa -
+rately, after a character has suffered the normal 
+damage from the attack.
+  Spread: For each Effect rolled, your attack inflicts 
+one additional hit on the target. Each additional hit 
+inflicts half the rolled damage (rounded down) and 
+hits a random location even if a specific location 
+was targeted for the initial attack.
+  Stun: If one or more effects are rolled, the target 
+cannot take their normal actions on their next 
+turn. A stunned character or creature can still 
+spend AP to take additional actions as normal.
+  Vicious: The attack inflicts +1 damage for each 
+Effect rolled.
+RADIATION DAMAGE
+Radiation damage is applied differently than other 
+damage types. Each point of Radiation damage 
+reduces a character’s maximum health points, rather 
+than their current health points. If a character’s health 
+point maximum is reduced below their current health 
+point total, then their current HP is reduced as well.
+Radiation damage is only reduced by a target’s 
+Radiation Damage Resistance, according to the loca-
+tion hit. If the radiation would affect the whole body, 
+like an environmental effect, then use the character or 
+creature’s lowest locational radiation DR.
+In all cases, where a character would suffer Radiation 
+damage and another type of damage at the same 
+time, resolve the Radiation damage after any other 
+types of damage.
+Breaking Things
+Inanimate objects can be damaged just like characters and 
+creatures. Damaging an object works just the same as dam -
+aging a character: roll to hit, roll the weapon’s  DC   damage 
+rating, subtract the object’s damage resistance, and reduce 
+its health. 
+The GM provides damage resistance and health for the 
+object you’re trying to break. If you inflict a critical hit 
+on an object—by inflicting 5 or more damage at once—
+you’ve broken  it. Especially large objects, like vehicles, 
+may have multiple locations which can be hit and bro -
+ken, and they will be destroyed when all their locations 
+are broken.
+FALLOUT    Rules Booklet
+28 FALLOUT    Rules Booklet
+
+===== PAGE 29 =====
+
+DAMAGE AND INJURY
+A character that has lost health points (HP) isn’t seri-
+ously hurt; they may have suffered scratches, scrapes, 
+cuts, and bruises, but nothing that would hinder them. 
+However, once a character’s health points are reduced 
+to 0, they are defeated, and begin dying. In addition, 
+characters may suffer from serious injuries after being 
+reduced to 0 HP, or because of critical hits.
+CRITICAL HITS AND INJURIES
+A critical hit occurs whenever a character suffers five 
+or more damage in one hit (after reductions from 
+Damage Resistance). A critical hit imposes an injury 
+on the character, which confers a penalty depending 
+on the location hit.
+  Arm: You drop any object held in that hand, and 
+the arm is broken or otherwise unable to move. 
+You cannot perform any actions using that arm—by 
+itself or alongside your other arm.
+  Leg: You immediately fall prone as your leg gives 
+out under your weight. You can no longer take the 
+Sprint action, and the Move action is now a major 
+action for you. 
+  Torso: You begin bleeding heavily. At the end of 
+each of your subsequent turns, you suffer 2  DC  
+physical damage, ignoring all your Damage 
+Resistances.
+  Head: You are momentarily dazed and lose your 
+normal actions in your next turn (though you may 
+spend AP for extra actions as normal). Further, you 
+cannot see clearly, and increase the difficulty of all 
+tests which rely on vision by +2.
+These effects last until the injury has received medical 
+attention (see p.31).
+DYING
+When your character is reduced to 0 HP, they suffer 
+an injury to the location struck, and then fall prone 
+and start dying. If they suffer a critical hit (above) and 
+are reduced to 0 HP, they suffer two injuries—one for 
+the critical hit, and one for being reduced to 0 HP. 
+While they are dying, they are unconscious, cannot 
+recover HP from the First Aid action, and cannot take 
+any actions. Furthermore, at the start of each of your 
+turns while they’re dying, you must attempt an END + 
+Survival test, with a difficulty equal to the number of 
+injuries they have, and a complication range of 19-20. 
+If you pass this test, they remain alive, but are still 
+dying. If you fail, they die.
+If they suffer any damage while dying, they imme-
+diately gain one additional injury, in addition to any 
+injury caused by another critical hit.
+29Chapter Four    COMBAT
+
+===== PAGE 30 =====
+
+HEALING
+When you’ve taken damage, there are a number of 
+ways you can recover. During combat, Stimpaks and 
+first aid are the only ways to heal, but outside of com-
+bat you have several options.
+HEALING ACTIONS IN COMBAT
+During a combat encounter, you can use the following 
+methods to restore health and treat injuries.
+  Take Chem: A number of chems, most commonly 
+stimpaks, can be used in a hurry in combat to 
+restore health points. Taking the minor action 
+allows you to administer the chem to yourself, or to 
+a willing creature within your reach.
+  First Aid: You try to quickly patch the wounds of 
+yourself or an ally. Attempt an INT + Medicine 
+test, with a difficulty equal to the number of inju-
+ries the patient has, increasing the difficulty by +1 
+if you are trying to perform first aid on yourself. If 
+you succeed, you can do one of the following:
+  Stabilize a dying patient
+  Heal Health Points equal to your Medicine rating
+  Treat one injury the patient is suffering from
+FALLOUT    Rules Booklet
+30 FALLOUT    Rules Booklet
+
+===== PAGE 31 =====
+
+STABILIZING THE DYING
+Using the First Aid action, you can attempt to stabilize 
+a dying character. This requires an INT + Medicine 
+test with a difficulty equal to the number of injuries 
+the patient has. Passing the test restores the character 
+to 1 HP and they are no longer dying. Their player no 
+longer has to attempt END + Survival tests to avoid 
+death. The character remains unconscious and unable 
+to take actions. 
+If radiation damage has reduced their maximum 
+health points to 0, they cannot be stabilized until 
+their maximum health points are above 0, by healing 
+the radiation damage.
+If you stabilize the patient, you can spend AP to heal 
+additional health points. You can heal 1 HP for every 
+AP spent. You may also spend 1 AP after stabilizing a 
+character to wake them from unconsciousness, allow-
+ing them to continue to act.
+REGAINING HEALTH
+You can use the First Aid action to heal a character’s 
+health. Passing an INT + Medicine test will heal a 
+number of HP equal to your rank in the Medicine 
+skill, and an additional 1 HP for every AP you spend. 
+You can only heal the HP of a stable character.
+TREATING AN INJURY
+You can attempt an INT + Medicine test to treat an 
+injury sustained from a critical hit. Passing the test 
+allows a patient to ignore the penalties of their injury. 
+An injury treated using First Aid is not fully healed—
+it’s merely been patched up so that it no longer 
+imposes a penalty. 
+Whenever a character suffers any damage to a location 
+which has a treated injury, roll 1 DC  . If you roll an 
+effect, the damage has re-opened that wound and the 
+character is injured again. Completely recovering from 
+an injury takes time, outside combat.
+Using Stimpaks
+Stimpaks are incredibly useful pieces of medical technology, 
+described in more detail on p.169. You can use a stimpak or 
+similar forms of medication in one of two ways.
+  With the Take Chem minor action, you inject the 
+stimpak and receive an instant result. Your character (or 
+a willing patient) immediately recovers 4 HP or treats 
+one injury. If the person injected was dying, then they 
+stabilize immediately.
+  With the First Aid major action, you may administer a 
+stimpak as part of the action. The patient regains 4 HP 
+immediately in addition to any other effects, and any AP 
+spent to heal additional health points heal twice as much: 
+2 HP per AP spent, rather than 1.
+Robots cannot be healed by Stimpaks, but you can use robot 
+repair kits for the same benefits outlined here.
+Healing Robots
+Robots and other machines cannot recover from injuries 
+naturally, and they require maintenance to restore damage.
+Attempting the First Aid action on a robot, a suit of power 
+armor, or other large machine (like a vehicle) requires an 
+INT + Repair test, with a difficulty of 2. This increases by 
++1 for each injury the machine has suffered. Passing the 
+test restores health points equal to your Repair rating, treats 
+an injury, or stabilizes a dying machine. Machines cannot 
+use chems, though a repair kit functions for machines as 
+Stimpaks do for living characters.
+Machines cannot heal through eating, drinking, rest, or 
+medical attention. Outside of combat, an hour’s work on a 
+damaged machine restores HP equal to twice the repairer’s 
+Repair skill rating.
+31Chapter Four    COMBAT
+
+===== PAGE 32 =====
+
+ZONES AND DISTANCESLONG-TERM RECOVERY
+Outside of combat, there are three ways a character 
+can heal: rest, food & drink, and medical attention.
+REST
+Rest is the easiest way to recover from damage, though 
+it is slow. If you can find somewhere to sleep, for at 
+least six hours, you regain all lost HP.If you’re able to 
+get eight hours of sleep somewhere safe and comfort-
+able—your own bed in a settlement you belong to, 
+for example—then you are considered Well Rested as 
+well, and your maximum HP is increased by +2 until 
+you next sleep.
+When you sleep, if you have any injuries (treated or 
+otherwise), make an END + Survival test with a diffi-
+culty of 1. The complication range on this test increases 
+by +1 for each injury that has not been treated. If you 
+succeed, you may recover from one of those injuries, 
+plus an additional injury for every 2 AP spent.
+The difficulty of this test varies based on how active 
+you were during the preceding day:
+Injury Recovery Difficulty
+ACTIVITY DIFFICULTY
+Restful (no strenuous activity all day) 1
+Light (only a small amount of travel  
+or similar) 2
+Moderate (travel, but no combat) 3
+Heavy (travel and combat) 4
+You may only sleep once in any 24-hour period. Going 
+without sleep for long periods can also be harmful 
+(see Survival, p.190).
+FOOD & DRINK
+While proper nutrition isn’t common in the waste-
+land, a decent snack, a hearty meal, or a refreshing 
+beverage is still a vital part of life, and a valuable way 
+to recover health.
+Food and drink restores the HP listed in their 
+description (see p.149). Food and drink cannot be con-
+sumed during combat. Some forms of food and drink 
+are irradiated, especially if consumed raw: roll 1 DC  
+when consuming irradiated food or drink, and if you 
+roll an Effect, you suffer 1 Radiation damage, ignoring 
+any DR from equipment or armour.
+MEDICAL ATTENTION
+Characters may require long-term medical care if 
+they’ve been injured, poisoned, or are suffering from 
+a disease. A single character can provide medical 
+attention for a number of patients equal to their 
+Medicine rating.
+For injuries, each day of rest and medical attention 
+a patient receives allows you to assist their END + 
+Survival test at the end of the day to heal their inju-
+ries, using your own INT + Medicine target number.
+For poisons and diseases, you may assist the patient’s 
+END + Survival tests to help them recover. If the 
+patient spent the entire day resting, they reduce the 
+difficulty of this test by 1 allowing them to recover 
+more quickly. This is covered in more detail on p.194. 
+Recovering from Rads
+Because radiation damage reduces maximum health points, 
+it doesn’t heal in the same way that most damage does—  
+the effects of radiation damage don’t heal naturally at all. 
+Radiation damage can only be removed by administering 
+RadAway, or other chems or consumables that remove 
+radiation damage. When you heal HP and remove radiation 
+damage at the same time, remove the radiation damage 
+first, and then resolve the HP recovery.
+FALLOUT    Rules Booklet
+32 FALLOUT    Rules Booklet
+
+===== PAGE 33 =====
+
+ZONES AND DISTANCES
+Each combat encounter happens in a single location. 
+This may be a ruined building, a city street, an area 
+of wilderness, or the floor of a vault. The location is 
+divided into several zones based on the terrain fea-
+tures or natural divisions present in the area. 
+Movement and ranged attacks use descriptive terms 
+to measure their distance in combat, relative to the 
+objects’ placement within zones. 
+Range is measured in the following five categories:
+  Reach is when an object or character is within 
+arm’s length of your character. You can interact 
+with objects and make melee attacks within your 
+reach. Being in reach of an enemy is disruptive to 
+ranged attacks and tests, adding +2 to the difficulty 
+of any test that isn’t a melee attack.
+  Close range represents any distance within the 
+zone you’re in—a distance of 0 zones.
+  Medium range is any distance to something in the 
+zone adjacent to your current zone. Medium range 
+is a distance of 1 zone.
+  Long range represents objects 2 zones away from your 
+current zone. Long range is a distance of 2 zones.
+  Extreme range represents any objects beyond 
+long range. Extreme range is a distance of 3 or 
+more zones.
+33Chapter Four    COMBAT
+
+===== PAGE 34 =====
+
+Chapter Five
+REFERENCE LISTS
+PERKS LIST
+MOVEMENT IN ZONES
+When you move into a zone as part of a movement 
+action, you can move your character within reach of 
+any object within that zone. So, when using the Move 
+minor action to move into an adjacent zone, you can 
+move to any point in that zone. Equally, when using 
+the Sprint action, you can move to any point within 
+a zone that is 2 zones away. This could put you into 
+Reach with an enemy, or an object you need to get to.
+DIFFICULT TERRAIN AND OBSTACLES
+Difficult terrain describes any ground that requires 
+more effort to cross, either because it hinders you or 
+because you need to be careful where you step. A zone 
+may be filled with difficult terrain, slowing anyone 
+attempting to cross it.
+Obstacles are similar in that they hinder your 
+movement, but they exist between zones—attempts 
+to move from one zone to another where an obstacle 
+is present may slow your progress. Obstacles may be 
+barriers you need to climb up or over, or they might 
+be gaps that you need to jump past.
+When you attempt to move from an area of difficult 
+terrain, or cross an obstacle, you must spend one or 
+more extra Action Points to do so, depending on how 
+difficult the terrain or obstacle is.
+If you do not have sufficient Action Points available, 
+then you need to find some way to generate them. 
+The simplest way to do this is to take the Rally major 
+action, generating Action Points with a Difficulty 0 
+STR + Athletics test; any successes become AP, which 
+can be spent on moving through the terrain.
+Difficult Terrain and Obstacle Examples
+TERRAIN AP COST
+Thick mud, loose sand, up stairs 1
+Swamp, unstable rubble 2
+Steep slope, fast-flowing water 3
+OBSTACLE AP COST
+Up to waist-height/short jump 1
+Up to chest-height/short jump with run-up 2
+Taller than you/long jump 3
+COVER
+Cover provides additional Damage Resistance against 
+Physical and Energy-based attacks. Objects in the 
+environment will provide a certain amount of DR, as 
+a number of Combat Dice (  DC   ), depending on what 
+they’re made from and how resilient they are.
+When you are attacked by a Physical or Energy-based 
+attack while behind cover, roll the number of  DC  
+listed in the Cover Values table and add that result to 
+your DR for that attack.
+To benefit from cover, it needs to obscure the location 
+hit, whether that’s from a melee or ranged attack. You 
+cannot be targeted by an attack if the cover obscures 
+your character’s entire body, as you can only be 
+attacked by something that can see you.
+Cover Values
+COVER TYPE  COMBAT DICE
+Foliage, Wood 1 DC 
+Rubble, Ruined Brick Walls,  
+Metal Fencing 2 DC 
+Concrete Walls, Steel Barricades 3 DC 
+FALLOUT    Rules Booklet
+34 FALLOUT    Rules Booklet
+
+===== PAGE 35 =====
+
+Chapter Five
+REFERENCE LISTS
+PERKS LIST
+ACTION BOY/GIRL
+Ranks: 1
+Requirements: None
+When you spend AP to take an 
+additional major action, you do not 
+suffer the increased skill test diffi-
+culty during your second action.
+ADRENALINE RUSH
+Ranks: 1
+Requirements: STR 7
+When your health is below 
+its maximum value, you 
+count your STR score as 
+10 for all purposes when 
+attempting a STR-based 
+skill test or melee attack.
+ANIMAL FRIEND
+Ranks: 2
+Requirements: CHA 6, Level 1+
+At rank 1, whenever a creature 
+NPC with the Mammal, Lizard, 
+or Insect keyword would attack 
+you, roll 1  DC   ; on any result 
+other than an Effect, the crea -
+ture chooses not to attack you, 
+although it may still attack 
+another character it can target. 
+At rank 2, you can attempt a CHA + Survival test with 
+a difficulty of 2 as a major action. If you succeed, the 
+animal treats you as friendly and will attack anyone 
+who attacks you. Mighty and Legendary animals are 
+unaffected by this perk. Each time you take this perk, 
+the level requirement increases by 5.
+AQUABOY/AQUAGIRL
+Ranks: 2
+Requirements: END 5, Level 1+
+Water is your ally. At rank 1, you no longer take 
+Radiation damage from swimming in irradiated 
+water, and you can hold your breath for twice as long 
+as normal. 
+At rank 2, enemies add +2 to the difficulty to tests 
+to detect you while you are submerged underwater. 
+Each time you take this perk, the level requirement 
+increases by 3.
+35Chapter Five    REFERENCE LISTS
+
+===== PAGE 36 =====
+
+AWARENESS
+Ranks: 1
+Requirements: PER 7
+When you take the 
+Aim minor action at a 
+target within Close range, you spot their 
+weaknesses and can attack more efficiently. The next 
+attack you make against that target gains the Piercing 
+1 damage effect or improves the rating of any existing 
+Piercing X damage effect by 1.
+BASHER
+Ranks: 1
+Requirements: STR 6
+When you make a melee attack 
+by bashing with your gun, 
+your attack gains the Vicious 
+damage effect.
+BETTER CRITICALS
+Ranks: 1
+Requirements: LCK 9
+When you inflict one or 
+more points of damage to 
+an enemy, you may spend 1 
+Luck point to automatically 
+inflict a critical hit, causing 
+an injury.
+BIG LEAGUES
+Ranks: 1
+Requirements: STR 8
+When you make a melee 
+attack with a two-handed 
+melee weapon, the weapon 
+gains the Vicious damage 
+effect.
+BLACK WIDOW/LADY KILLER
+Ranks: 1
+Requirements: CHA 6
+The Black Widow perk affects 
+men and masculine characters, 
+while the Lady Killer perk 
+affects women and feminine 
+characters—they are otherwise 
+identical. When you attempt a 
+CHA-based skill test to influ-
+ence a character of the chosen gender,  
+you may re-roll 1d20. In addition, your attacks  
+inflict +1 DC   additional damage against characters  
+of the chosen gender.
+BLOODY MESS
+Ranks: 1
+Requirements: LCK 6
+When you inflict a critical hit, 
+roll 1 DC   ; if you roll an Effect, 
+you inflict one additional injury 
+to a random location.
+ 
+CAN DO!
+Ranks: 1
+Requirements: LCK 5
+When you are scav-
+enging a location 
+that contains food, 
+you gain 1 additional 
+random food item, 
+without spending AP.
+CAP COLLECTOR
+Ranks: 1
+Requirements: CHA 5
+When you buy or sell items, 
+you may increase or decrease 
+the price of the goods being 
+traded by 10%.
+FALLOUT    Rules Booklet
+36 FALLOUT    Rules Booklet
+
+===== PAGE 37 =====
+
+CAUTIOUS NATURE
+Ranks: 1
+Requirements: PER 7
+Whenever you attempt a skill 
+test, and you buy one or more 
+d20s by spending Action Points, 
+you may re-roll 1d20 on that 
+test. You may not purchase this 
+perk if you have Daring Nature.
+CHEM RESISTANT
+Ranks: 2
+Requirements: END 7, Level 1+
+At rank 1, roll one fewer  DC  
+when determining if you 
+become addicted to chems,  
+to a minimum of 0. 
+At rank 2, you cannot become addicted to chems. 
+Each time you take this perk, the level requirement 
+increases by 4.
+CHEMIST
+Ranks: 1
+Requirements: INT 7
+Chems you create last twice as 
+long as normal (see p.51).
+COMMANDO
+Ranks: 2
+Requirements: AGI 8, Level 2+
+When you make a ranged attack 
+with any weapon with a Fire 
+Rate of 3 or higher (except 
+heavy weapons), you add +1  DC  
+per rank to the weapon’s dam-
+age. Each time you take this perk, the  
+level requirement increases by 3.
+COMPREHENSION
+Ranks: 1
+Requirements: INT 6
+After you use the bonus gained 
+from reading a magazine, roll 1  DC  . 
+If you roll an Effect, you may use 
+that bonus one additional time.
+CONCENTRATED FIRE
+Ranks: 1
+Requirements: PER 8, AGI 6
+When you make a ranged attack and spend ammu-
+nition to increase the damage, you may re-roll up to 
+3 DC   for your damage roll.
+DARING NATURE
+Ranks: 1
+Requirements: LCK 7
+Whenever you attempt a skill 
+test, and you buy one or more 
+d20s by giving the gamemaster 
+Action Points, you may re-roll 
+one d20 on that test. You may not 
+purchase this perk if you have 
+Cautious Nature.
+DEMOLITION EXPERT
+Ranks: 1
+Requirements: PER 6, LCK 6
+When you make an 
+attack using a weapon 
+with the Blast quality, 
+the attack gains the 
+Vicious damage effect.
+37Chapter Five    REFERENCE LISTS
+
+===== PAGE 38 =====
+
+FASTER HEALING
+Ranks: 1
+Requirements: END 6, not a robot
+When you make an END + Survival 
+test to heal your own injuries, the first 
+additional d20 you buy is free. The 
+normal maximum of 5d20 still applies.
+FORTUNE FINDER
+Ranks: 3
+Requirements: LCK 5, Level 2+
+Whenever you roll to determine how 
+much money you find, you find more. 
+At rank 1, you find +3 DC   addi-
+tional caps. At rank 2, you find 
++6 DC   additional caps. At rank 
+3, you find +10 DC   additional 
+caps. Each time you take this 
+perk, the level requirement 
+increases by 4.
+GRIM REAPER’S SPRINT
+Ranks: 1
+Requirements: LCK 8
+When you make an attack which 
+kills one or more enemies, roll 
+1 DC  . If you roll an Effect, add 2 
+AP to the group’s pool.
+GUNSLINGER
+Ranks: 2
+Requirements: AGI 7, Level 2+
+When you make an attack with a 
+one-handed ranged weapon with a 
+Fire Rate of 2 or lower, you increase 
+the weapon’s damage by +1 DC   per 
+rank. In addition, you may re-roll 
+the hit location die. Each time you 
+take this perk, the level require-
+ment increases by 4.
+HACKER
+Ranks: 1
+Requirements: INT 8
+The difficulty of skill tests to hack computers is 
+decreased by 1, to a minimum of 0.
+HEALER
+Ranks: 3
+Requirements: INT 7, Level 1+
+When you heal a patient’s HP 
+using the First Aid action, 
+increase the amount of HP 
+healed by +1 per rank in this 
+perk. Each time you take this 
+perk, the level requirement 
+increases by 5.
+HUNTER
+Ranks: 1
+Requirements: END 6
+When you make an attack 
+against an NPC with one 
+of the Mammal, Lizard, 
+or Insect keywords and 
+the Mutated keyword, 
+your attack gains the 
+Vicious damage effect, if 
+it did not already have 
+that effect.
+FALLOUT    Rules Booklet
+38 FALLOUT    Rules Booklet
+
+===== PAGE 39 =====
+
+INFILTRATOR
+Ranks: 1
+Requirements: PER 8
+When you attempt a 
+Lockpick skill test to 
+unlock a door or  
+container, you may 
+re-roll 1d20.
+INSPIRATIONAL
+Ranks: 1
+Requirements: CHA 8
+Because you lead by example, the maximum number 
+of AP the group may save is increased by 1.
+INTENSE TRAINING
+Ranks: 10
+Requirements: Level 2+ 
+Increase any one S.P.E.C.I.A.L 
+attribute by 1 rank. As usual, 
+your S.P.E.C.I.A.L attributes 
+cannot be increased beyond 10 
+using this method. Each time 
+you take this perk, the level 
+requirement increases by 2.
+IRON FIST
+Ranks: 2
+Requirements: STR 6, Level 1+
+At rank 1, your unarmed attacks 
+inflict +1 DC   damage. At rank 2, 
+your unarmed attacks also gain 
+the Vicious damage effect. Each 
+time you take this perk, the level 
+requirement increases by 5.
+JUNKTOWN JERKY VENDOR
+Ranks: 1
+Requirements: CHA 8
+The difficulty of any CHA + Barter 
+test you attempt to buy or sell 
+goods is reduced by 1, to a mini-
+mum of 0.
+LEAD BELLY
+Ranks: 2
+Requirements: END 6, Level 1+
+At rank 1, you may re-roll the  DC   to 
+determine if you suffer Radiation 
+damage from irradiated food or 
+drink. At rank 2, you are immune to 
+Radiation damage from consuming 
+irradiated food or drink. Each time 
+you take this perk, the level require-
+ment increases by 4.
+LIFE GIVER
+Ranks: 5
+Requirements: Level 5+
+Increase your maximum health 
+points by your Endurance rank. 
+Each time you take this perk, the 
+level requirement increases by 5.
+LIGHT STEP
+Ranks: 1
+Requirements: None
+When you roll any complications 
+on an Agility-based skill test, you 
+may ignore one complication for 
+every 1 AP spent. In addition, you 
+may re-roll 1d20 on any AGI + 
+Athletics test to avoid traps trig-
+gered by pressure plates or similar 
+mechanisms.
+39Chapter Five    REFERENCE LISTS
+
+===== PAGE 40 =====
+
+MEDIC
+Ranks: 1
+Requirements: INT 8
+When you use the First Aid 
+action to try and treat an 
+injury, you can re-roll 1d20.
+MISTER SANDMAN
+Ranks: 1
+Requirements: AGI 9
+When you make a sneak 
+attack with a silenced 
+or suppressed weapon, 
+the damage is increased 
+by +2 DC  .  You cannot 
+gain this benefit while 
+in Power Armor.
+MOVING TARGET
+Ranks: 1
+Requirements: AGI 6
+When you take the  
+Sprint action, your  
+Defense increases  
+by +1 until the  
+start of your  
+next turn.
+MYSTERIOUS STRANGER
+Ranks: 1
+Requirements: LCK 7
+From time to time, a mysterious 
+stranger comes to your aid, with 
+lethal results. At the start of a 
+combat encounter, you may spend 
+1 Luck point. If you do so, then at 
+any point during the scene, the 
+GM may have the Mysterious Stranger  
+appear, make a single ranged attack against an  
+enemy you attacked, or who just attacked you,  
+and then vanish. If you spend a Luck point and the 
+Mysterious Stranger does not appear, the GM must 
+refund the Luck point you spent.
+The stranger has an AGI of 10, a Small Guns skill of 
+6, and counts Small Guns as a Tag Skill. They always 
+roll 3d20 for attacks, rather than 2d20, and their 
+attack—using a custom .44 Magnum revolver—inflicts 
+8 DC   Piercing 1, Vicious Physical damage. They always 
+appear within their weapon’s ideal range. Any attempt 
+to find where the Stranger went after their attack fails.
+NERD RAGE!
+Ranks: 3
+Requirements: INT 8, Level 2+
+While your health is reduced to 
+less than ¼ of your maximum, 
+you add +1 to your Physical DR, +1 
+to your Energy DR, and +1 DC   to 
+the damage of all your attacks.
+At rank 2, this increases to +2 DR, and +2 DC   damage. 
+At rank 3, this increases to +3 DR and +3 DC   damage.
+Each time you take this perk, the level requirement 
+increases by 5.
+NIGHT PERSON
+Ranks: 1
+Requirements: PER 7
+You reduce any diffi-
+culty increases due to 
+darkness by 1.
+NINJA
+Ranks: 1
+Requirements: AGI 8
+When you make a sneak attack with a melee weapon 
+or unarmed attack, the damage is increased by +2 DC  . 
+You cannot gain this benefit while in Power Armor.
+FALLOUT    Rules Booklet
+40 FALLOUT    Rules Booklet
+
+===== PAGE 41 =====
+
+NUCLEAR PHYSICIST
+Ranks: 1
+Requirements: INT 9
+Whenever you use a weapon that 
+inflicts radiation damage, or has the 
+Radioactive damage effect, each Effect 
+you roll inflicts one additional point of 
+Radiation damage. 
+In addition, fusion cores you use have 3 additional 
+charges.
+PAIN TRAIN
+Ranks: 2
+Requirements: STR 9, END 7, Level 1+
+You may 
+Charge as a 
+major action if 
+you are wearing 
+Power Armor 
+or are a super 
+mutant. This is a movement action, 
+and you may not Move or Sprint in the same turn.  
+When you take this action, you move into reach of 
+an enemy within Medium range (1 zone) and make a 
+STR + Athletics test with a difficulty of 2. If you suc-
+ceed, the enemy suffers damage equal to your normal 
+unarmed damage and is knocked prone. 
+At rank 2, you add +1 DC   and the Stun damage effect 
+to the damage inflicted. At the GM’s discretion, 
+especially large or sturdy creatures cannot be knocked 
+prone by this action. Each time you take this perk, the 
+level requirement increases by 5.
+PARTY BOY/PARTY GIRL
+Ranks: 1
+Requirements: END 6, CHA 7
+You cannot become 
+addicted to alcoholic 
+drinks, and when-
+ever you drink an 
+alcoholic drink, you 
+heal +2 HP.
+PICKPOCKET
+Ranks: 3
+Requirements: PER 8,  
+AGI 8, Level 1+
+At rank 1, you can ignore the first 
+complication you roll when you make 
+an AGI + Sneak test to steal an object 
+from someone else’s person or to plant 
+something on them. 
+At rank 2, you can re-roll 1d20 in your dice pool when 
+attempting to pick someone’s pocket. 
+At rank 3, you reduce the difficulty of attempts to pick 
+someone’s pocket by 1. 
+Each time you take this perk, the level requirement 
+increases by 3.
+Pickin ’ Pockets
+Stealing an item carried by someone else, or secreting an 
+item upon their person, is a surprisingly valuable survival 
+trick in the wasteland, and it’s useful to have some sense of 
+how easy or difficult a given theft is likely to be.
+Picking pockets is an AGI + Sneak test, with a base diffi -
+culty of 1. Success allows you to take an item weighing 1lb. 
+or less from another character’s pockets, belt pouches, etc., 
+or to place an item of that size into a pocket, etc., without 
+being detected. Failure means your attempt was noticed.
+If the item you’re stealing/planting weighs more than 1lb., 
+then the difficulty increases by 1. If it weighs more than 10 
+lbs., then the difficulty increases by 2 instead. Similarly, 
+especially talented pickpockets can remove small items a 
+person is wearing—such as stealing a wristwatch during a 
+handshake—this test is also at +1 difficulty.
+Picking pockets can become an opposed test if the target is 
+wary or suspicious.
+41Chapter Five    REFERENCE LISTS
+
+===== PAGE 42 =====
+
+QUICK HANDS
+Ranks: 1
+Requirements: AGI 8
+You can reload firearms faster. 
+When you make a ranged attack, 
+you may spend 2 AP to double the 
+Fire Rate of your gun for that attack.
+RAD RESISTANCE
+Ranks: 2
+Requirements: END 8, Level 1+
+Your Radiation Damage Resistance, 
+to all hit locations, increases by 
++1 per rank in this perk. Each 
+time you take this perk, the level 
+requirement increases by 4.
+REFRACTOR
+Ranks: 2
+Requirements:  
+PER 6, LCK 7, Level 1+
+Your energy Damage Resistance to 
+all hit locations increases by +1 per 
+rank in this perk. Each time you 
+take this perk, the level require-
+ment increases by 4.
+RIFLEMAN
+Ranks: 2
+Requirements: AGI 7, Level 2+
+When you make a ranged attack 
+with any two-handed weapon with 
+a Fire Rate of 2 or lower (except 
+heavy weapons), you add +1 DC   to 
+the weapon’s damage per rank. 
+At rank 2, you also add the Piercing 1 damage effect, 
+or add +1 to the rating of any Piercing X damage effect 
+the weapon already had. Each time you take this perk, 
+the level requirement increases by 4.
+SCOUNDREL
+Ranks: 1
+Requirements: CHA 7
+When you make a 
+CHA + Speech test to 
+convince someone of a 
+lie, you may ignore the 
+first complication you roll.
+SCRAPPER
+Ranks: 2
+Requirements: Level 3+
+When you scrap an item, you can 
+salvage uncommon component 
+materials as well as common 
+ones (see p.52). At rank 2, you can 
+also salvage rare materials. Each 
+time you take this perk, the level 
+requirement increases by 5.
+SCROUNGER
+Ranks: 3
+Requirements: LCK 6, Level 1+
+Whenever you roll to determine how much ammuni-
+tion you find, you find more. 
+At rank 1, you find +3 DC   additional shots. At rank 2, 
+you find +6 DC   additional shots. At rank 3, you find 
++10 DC   additional shots. The additional ammo you 
+find is the same as initially found, for example, if you 
+find 10mm ammunition, this perk increases how much 
+10mm ammo you find. If you find multiple types of 
+ammunition, Scrounger applies to the ammunition 
+with the lowest rarity (GM’s choice if there is a tie).
+Each time you take this perk, the level requirement 
+increases by 5.
+FALLOUT    Rules Booklet
+42 FALLOUT    Rules Booklet
+
+===== PAGE 43 =====
+
+SKILLED
+Ranks: 10
+Requirements: Level 3+
+Add +1 rank to two skills or 
+add +2 ranks to one skill. 
+No skill may have more 
+than 6 ranks. Each time 
+you take this perk, the level 
+requirement increases by 3.
+SIZE MATTERS
+Ranks: 3
+Requirements:  
+END 7, AGI 6
+When you make a ranged 
+attack with any heavy weapon, 
+you add +1 DC  to the weapon’s dam-
+age, per rank. Each time you take this 
+perk, the level requirement increases by 4.
+SNIPER
+Ranks: 1
+Requirements: PER 8, AGI 6
+When you take the Aim minor action, and then make 
+a ranged attack with a two-handed weapon with the 
+Accurate quality, you can specify a hit location to tar-
+get without increasing the difficulty of the attack.
+SOLAR POWERED
+Ranks: 1
+Requirements: END 7
+For every hour you 
+spend in direct 
+sunlight, 
+you heal 1 
+Radiation 
+damage.
+STRONG BACK
+Ranks: 3
+Requirements: STR 5, Level 1+
+Your maximum carry weight 
+is increased by +25 lbs., per 
+rank. Each time you take this 
+perk, the level requirement 
+increases by 2.
+TAG!
+Ranks: 1
+Requirements: Level 5+
+You may select 
+one additional Tag 
+skill. Increase the 
+skill’s rank by 2, to a 
+maximum of 6, and 
+mark it as a Tag skill, 
+allowing you to roll a 
+critical success with a 
+d20 result equal or under  
+the skill’s rank.
+TOUGHNESS
+Ranks: 2
+Requirements: END 6, 
+LUC 6, Level 1+
+Your Physical 
+Damage Resistance 
+to all hit locations 
+increases by +1 per rank in 
+this perk. Each time you 
+take this perk, the level 
+requirement increases by 4.
+GUNS
+43Chapter Five    REFERENCE LISTS
+
+===== PAGE 44 =====
+
+EQUIPMENT
+The gear you received in your equipment pack as a 
+starting character is enough to get going, but you’ll 
+need more than that to survive in the wasteland. 
+Consult the following sections when you get more 
+equipment during your quests.
+CAPS
+The standard accepted currency across North America, 
+bottle caps are finite in supply and difficult to repro-
+duce, which makes them ideal as a token of value for 
+merchants travelling the wastelands, in the absence of 
+the banking methods that supported pre-War curren-
+cies. All prices in this booklet are listed in caps.
+WEAPONS
+Each weapon’s type corresponds to a single skill, which 
+is the skill used to make attacks with the weapon:
+  Big Guns
+  Energy Weapons
+  Explosives
+  Melee Weapons
+  Small Guns
+  Throwing
+  Unarmed
+DAMAGE RATING
+Damage rating is the number of Combat Dice you 
+roll to determine how much damage you inflict upon 
+your target. Remember, melee weapons and unarmed 
+attacks add extra  DC   to their damage rating based on 
+the wielder’s STR (see Melee Damage, p.27).
+A ranged weapon’s damage rating is based on the 
+ammunition it uses; a weapon’s damage rating changes 
+if the ammunition type changes.
+DAMAGE EFFECTS
+Damage effects are traits which affect how a weapon 
+inflicts damage. When you roll one or more Effects 
+in a damage roll, all your weapon’s damage effects 
+are triggered. Some damage effects are based on the 
+number of  DC   symbols which appear in your result, as 
+described in the Damage Effects section (p.27).
+FIRE RATE
+All guns, and some explosive weapons, have a Fire 
+Rate, which represents how quickly the weapon can 
+fire. Fire Rate is a number from 0 to 6.
+When you make an attack with a gun, you spend one 
+shot of ammunition simply to make the attack. You 
+may spend additional shots of ammunition to increase 
+the damage you inflict, adding +1 DC   to the weapon’s 
+damage rating (for that attack only) for each extra 
+shot you spend. A weapon’s Fire Rate is the maximum 
+number of additional shots you may spend to increase 
+damage in this way. 
+Wait, Fire Rate 0?
+There are a few weapons with a Fire Rate of 0. All this 
+means is that the weapon fires so slowly, or requires reload -
+ing so frequently, that it isn’t possible to spend additional 
+shots to boost the weapon’s damage during an attack. 
+RANGE
+Ranged weapons have a listed ideal range. A weapon’s 
+ideal range is one of the following:
+  Close (C): The weapon is most effective against 
+targets within the same zone.
+  Medium (M): The weapon is most effective against 
+targets in an adjacent zone.
+  Long (L): The weapon is most effective against 
+targets 2 zones away.
+  Extreme (X): The weapon is most effective against 
+targets 3 or more zones away.
+FALLOUT    Rules Booklet
+44 FALLOUT    Rules Booklet
+
+===== PAGE 45 =====
+
+A weapon’s range alters the difficulty of attacks against 
+a target, depending on how distant they are to their 
+target, as described on p.26. Melee weapons and 
+unarmed attacks do not have a listed range and can 
+only be used to attack enemies within Reach.
+QUALITIES
+Qualities are rules which describe how a weapon oper-
+ates, and how it differs from other weapons.
+  Accurate: If you take the Aim minor action before 
+attacking with an Accurate weapon, you may spend 
+up to 3 AP to add +1 DC   per AP spent to the attack’s 
+damage. If you gain damage in this way, you may 
+not spend ammunition for extra damage. A weapon 
+cannot be both Accurate and Inaccurate.
+  Blast: When you make an attack with a Blast 
+weapon, you do not target a single opponent. 
+Instead, select a single zone you can see, and make 
+the appropriate skill test to attack, with a basic 
+difficulty of 2 (adjusted for range as normal). If 
+you succeed, every creature (and other damageable 
+target) in that zone suffers the weapon’s damage. 
+If you fail, your misplaced attack is less effective: 
+roll only half the weapon’s  DC   to determine the 
+damage inflicted to creatures in the target zone and 
+ignore the weapon’s normal damage effects.
+  Close Quarters: A Close Quarters weapon is easy to 
+use up-close, and suffers no difficulty increase for 
+being used when within Reach of an enemy.
+  Concealed: A Concealed weapon is small, or other-
+wise easy to hide on your person. Enemies do not 
+spot a Concealed weapon unless you’re wielding it, 
+or if they make a thorough search and succeed at a 
+PER + Survival test with a difficulty of 2.
+  Debilitating: The difficulty of any skill test to 
+treat injuries inflicted by a Debilitating weapon 
+increase by +1.
+  Gatling: Ammunition is spent at ten times the nor-
+mal rate by Gatling weapons: whenever you would 
+spend one shot of ammunition, a Gatling weapon 
+instead spends a burst of 10 shots. Whenever you 
+spend ammunition to increase this weapon’s dam-
+age, add +2 DC   per ten-shot burst (to a maximum 
+number of bursts equal to the weapon’s Fire Rate), 
+rather than +1 DC   per shot.
+  Inaccurate: When making an attack with an 
+Inaccurate weapon, you gain no benefit from the 
+Aim minor action. A weapon may not be both 
+Accurate and Inaccurate.
+  Mine: When a Mine is placed onto a surface and 
+primed, it becomes a dangerous object, inflicting its 
+damage upon anyone who comes within Reach of it 
+(and upon additional characters, if it has the Blast 
+quality).
+  Night Vision: The sights of a weapon with Night 
+Vision have been made to allow you to see more 
+clearly in the dark. When you Aim with a Night 
+Vision weapon, you ignore any increase in the diffi-
+culty of an attack due to darkness.
+  Parry: When an enemy attempts a melee attack 
+against you, and you are wielding a Parry weapon, 
+you may spend 1 AP to add +1 to your Defense 
+against that attack.
+  Recon: When you Aim with a Recon weapon, 
+you may mark the target you aimed at. The next 
+ally to attack that target may re-roll one d20 on 
+their attack.
+  Reliable: During each combat encounter, a Reliable 
+weapon ignores the first complication you roll on a 
+test to use that weapon. A weapon may not be both 
+Reliable and Unreliable.
+  Suppressed: If an enemy is not aware of you when 
+you attack with a Suppressed weapon, they do not 
+notice the attack unless they are the target or they 
+pass a PER + Survival test with a difficulty of 2.
+  Thrown: A Thrown (C) weapon can be thrown, 
+as a ranged attack with an ideal range of Close. A 
+Thrown (M) weapon can be thrown, as a ranged 
+attack with an ideal range of Medium. You make 
+an AGI + Throwing test to attack with the weapon, 
+depending on the type of weapon.
+  Two-Handed: A Two-Handed weapon must be 
+held in two hands to be used effectively; attempt-
+ing to attack with a Two-Handed weapon in one 
+hand increases the difficulty by +2.
+  Unreliable: When you make an attack with an 
+Unreliable weapon, increase the complication 
+range of the attack by 1. A weapon may not be both 
+Reliable and Unreliable.
+45Chapter Five    REFERENCE LISTS
+
+===== PAGE 46 =====
+
+WEIGHT
+The weight of the weapon, in pounds (lbs.).
+COST
+The cost of the weapon, in caps.
+RARITY
+The rarity of the weapon. Some especially rare or  
+effective mods may increase this.
+RANGED WEAPONS
+NAME WEAPON 
+TYPE
+DAMAGE 
+RATING
+DAMAGE 
+EFFECTS
+DAMAGE 
+TYPE
+FIRE 
+RATE RANGE QUALITIES WEIGHT COST RARITY
+.44 Pistol Small 
+Guns 6 DC  Vicious Physical 1 C Close 
+Quarters 4 99 2
+10mm Pistol Small 
+Guns 4 DC  – Physical 2 C
+Close 
+Quarters, 
+Reliable
+4 50 1
+Combat Rifle Small 
+Guns 5 DC  – Physical 2 M Two-Handed 11 117 2
+Hunting Rifle Small 
+Guns 6 DC  Piercing 1 Physical 0 M Two-Handed 10 55 2
+Double-Barrel 
+Shotgun
+Small 
+Guns 5 DC 
+Spread, 
+Vicious Physical 0 C Inaccurate, 
+Two-Handed 9 39 1
+Pipe Bolt-Action Small 
+Guns 5 DC  Piercing 1 Physical 0 C Unreliable 3 30 0
+Pipe Gun Small 
+Guns 3 DC  – Physical 2 C
+Close 
+Quarters, 
+Unreliable
+2 30 0
+Pipe Revolver Small 
+Guns 4 DC  – Physical 1 C
+Close 
+Quarters, 
+Unreliable
+4 25 0
+Institute Laser Energy 
+Weapon 3 DC  Burst Energy 3 C
+Close 
+Quarters, 
+Inaccurate
+4 50 2
+Laser Gun Energy 
+Weapon 4 DC  Piercing 1 Energy 2 C Close 
+Quarters 4 69 2
+Minigun Big  
+Guns 3 DC 
+Burst, 
+Spread Physical 5 M
+Gatling, 
+Inaccurate, 
+Two-Handed
+27 382 2
+FALLOUT    Rules Booklet
+46 FALLOUT    Rules Booklet
+
+===== PAGE 47 =====
+
+MELEE AND THROWING WEAPONS
+NAME WEAPON 
+TYPE
+DAMAGE 
+RATING
+DAMAGE 
+EFFECTS
+DAMAGE 
+TYPE QUALITIES WEIGHT COST RARITY
+Unarmed Strike Unarmed 2 DC  – Physical – – – –
+Handy Rock Unarmed 2 DC  Vicious Physical Thrown (C) 1 – –
+Gun Bash (1H) Melee 
+Weapon 2 DC  Stun Physical —————— As Gun ——————
+Gun Bash Melee 
+Weapon 3 DC  Stun Physical ——— As Two-Handed Gun ———
+Combat Knife Melee 
+Weapon 3 DC  Piercing 1 Physical – 1 25 1
+Machete Melee 
+Weapon 3 DC  Piercing 1 Physical – 2 25 1
+Switchblade Melee 
+Weapon 2 DC  Piercing 1 Physical Concealed 1 20 0
+Baseball Bat Melee 
+Weapon 4 DC  – Physical Two-Handed 3 25 1
+Board Melee 
+Weapon 4 DC  – Physical Two-Handed 3 20 0
+Lead Pipe Melee 
+Weapon 3 DC  – Physical – 3 15 0
+Pipe Wrench Melee 
+Weapon 3 DC  – Physical – 2 30 1
+Pool Cue Melee 
+Weapon 3 DC  – Physical Two-Handed 1 10 0
+Rolling Pin Melee 
+Weapon 3 DC  – Physical – 1 10 0
+Baton Melee 
+Weapon 3 DC  – Physical – 2 15 1
+Sledgehammer Melee 
+Weapon 5 DC  – Physical – 12 40 2
+Tire Iron Melee 
+Weapon 3 DC  – Physical – 2 25 1
+Knuckles Unarmed 3 DC  – Physical Concealed <1 10 1
+Throwing Knives Throwing 3 DC  Piercing 1 Physical Concealed,  
+Thrown (C), Suppressed <1 10 1
+Tomahawk Throwing 4 DC  Piercing 1 Physical Thrown (C), Suppressed <1 15 2
+Javelin Throwing 4 DC  Piercing 1 Physical Thrown (M), Suppressed 4 10 1
+47Chapter Five    REFERENCE LISTS
+
+===== PAGE 48 =====
+
+EXPLOSIVES
+EXPLOSIVE WEAPON 
+TYPE
+DAMAGE 
+RATING
+DAMAGE 
+EFFECTS
+DAMAGE 
+TYPE QUALITIES WEIGHT COST RARITY
+Baseball Grenade Explosive 5 DC  – Physical Blast, Thrown (M) 1 40 1
+Frag Grenade Explosive 6 DC  – Physical Blast, Thrown (M) <1 50 2
+Molotov Cocktail Explosive 4 DC  Persistent Energy Blast, Thrown (M) 1 20 1
+Bottlecap Mine Explosive 6 DC  – Physical Blast, Mine 1 75 2
+Frag Mine Explosive 6 DC  – Physical Blast, Mine 1 50 2
+ARMOR AND CLOTHING
+ITEM
+DAMAGE RESISTANCES
+LOCATIONS COVERED WEIGHT COST RARITY
+PHYSICAL ENERGY RADIATION
+CLOTHING
+Military Fatigues 0 1 0 Arms, Legs, Torso 3 12 1
+Road Leathers 1 1 0 Arms, Legs, Torso 1 5 1
+Tough Clothing 1 1 0 Arms, Legs, Torso 3 20 1
+Vault Jumpsuit 0 1 2 Arms, Legs, Torso 1 20 2
+OUTFIT
+Brotherhood of  
+Steel Fatigues 2 2 2 Arms, Legs, Torso 4 20 3
+Brotherhood 
+Scribe’s Armor 1 2 2 Arms, Legs, Torso 4 20 2
+Drifter Outfit 1 2 0 Arms, Legs, Torso 10 35 1
+Formal Clothing 0 0 0 Arms, Legs, Torso 2 30 2
+Lab Coat 0 0 0 Arms, Legs, Torso 2 10 1
+HEADGEAR
+Army Helmet 2 0 0 Head 3 20 1
+Brotherhood of  
+Steel Hood 0 1 0 Head <1 12 2
+Brotherhood
+Scribe’s Hat 0 2 0 Head <1 8 2
+Casual Hat 0 0 0 Head <1 15 1
+Formal Hat 0 0 0 Head <1 15 2
+ARMOR
+DAMAGE RESISTANCES
+COST WEIGHT RARITY
+PHYSICAL ENERGY RADIATION
+Raider 1 1 0 8 7 0
+Leather 1 2 0 10 5 1
+Metal 2 1 0 15 3 1
+Combat 2 2 0 25 2 2
+Note: Roll the hit location die for each piece of armor you find; the result indicates which part of the body the armor protects.
+FALLOUT    Rules Booklet
+48 FALLOUT    Rules Booklet
+
+===== PAGE 49 =====
+
+Pip-Boy
+A Personal Information Processor manufactured by RobCo Industries. Under partnership with Vault-Tec, they were issued to 
+many vault residents, though due to production constraints and ongoing development, different Vaults received shipments of 
+different versions of the Pip-Boy. Many models were designed with biometric locks, preventing them from being removed while 
+the wearer still lives.
+Common functions include:
+  A personal status indicator showing current health and wellbeing.
+  An inbuilt holotape reader.
+  A compass, a radio, and a Geiger counter, and can generate light from its screen equivalent to a flashlight.
+V.A.T.S.
+All Pip-Boy units aid their wearer with the Vault-Tec Assisted Targeting System. When a character equipped with a Pip-Boy 
+makes an attack, they can ignore the normal difficulty increase for targeting a specific hit location .
+49Chapter Five    REFERENCE LISTS
+
+===== PAGE 50 =====
+
+FOOD AND BEVERAGES
+Some items of food and drink are irradiated, contam-
+inated with the radiation which is all-pervasive in 
+the wastelands. When you consume irradiated food 
+or drink, roll 1 DC  . If you roll an Effect, you suffer 1 
+Radiation damage, which ignores any resistance from 
+equipment or armor.
+Food Items
+FOOD HP HEALED OTHER EFFECTS IRRADIATED? WEIGHT COST RARITY
+BlamCo Brand Mac 
+and Cheese 4 – 1DC  <1 10 1
+Canned Dog Food 3 – 1DC  <1 6 0
+Cram 5 – 1DC  <1 25 1
+Crispy Squirrel Bits 6 –  – <1 6 2
+Dandy Boy Apples 3 – 1DC  <1 7 0
+Fancy Lads Snack Cakes 3 – 1DC  <1 18 0
+Gum Drops 3 – 1DC  <1 5 0
+Iguana Bits 4 – 1DC  <1 8 1
+InstaMash 4 – 1DC  <1 20 0
+Mirelurk Meat 6 – 1DC  <1 18 1
+Mongrel Dog Meat 4 – 1DC  <1 8 0
+Mutt Chops 6 –  – <1 12 1
+Noodle Cup 6 – – <1 20 2
+Pork ‘n’ Beans 4 – 1DC  <1 10 0
+Potato Crisps 3 – 1DC  <1 7 0
+Roasted Mirelurk Meat 8 Gain +1 AP at start of next scene. – <1 40 2
+Salisbury Steak 5 – 1DC  <1 20 0
+Squirrel Bits 4 – 1DC  <1 4 1
+Sugar Bombs 4 Gain +1 AP at start of next scene. 1DC  <1 11 0
+Yum-Yum Deviled Eggs 4 – 1DC  <1 20 0
+FALLOUT    Rules Booklet
+50 FALLOUT    Rules Booklet
+
+===== PAGE 51 =====
+
+Many of the beverages listed in this section are 
+Alcoholic. All alcoholic drinks have the same effect: 
+Until the end of the scene, you may re-roll 1d20 on 
+STR and CHA tests, but increase the difficulty of INT 
+tests by +1. In addition, alcoholic drinks are addictive: 
+after drinking the beverage, roll a few  DC   equal to the 
+number of alcoholic drinks you’ve consumed during 
+this session. If 2 or more Effects are rolled, you are 
+addicted, and add +1 to the difficulty of CHA and AGI 
+tests while not under the effects of an alcoholic drink. 
+The Party Boy/Party Girl perk (p.41) renders you 
+immune to alcohol addiction.
+Beverage Items
+BEVERAGE HP HEALED OTHER EFFECTS IRRADIATED? WEIGHT COST RARITY
+Beer 0 Alcoholic.  – 1 5 1
+Bourbon 0 Alcoholic. Reroll 1d20 on END tests.  – 1 7 2
+Brahmin Milk 1 Heals 2 Radiation damage.  – <1 15 2
+Dirty Water 2 – 1DC  <1 5 0
+Moonshine 0 Alcoholic. +2 Max HP. – <1 30 3
+Nuka-Cola 2 Immediately gain +1 AP. 1DC  1 20 2
+Purified Water 3 –  – <1 20 1
+Rum 0 Alcoholic. Reroll 1d20 on AGI tests.  – 1 8 2
+CHEMS
+Many chems are addictive. When you take an addic-
+tive chem, roll a number of  DC   equal to the num-
+ber of doses you’ve taken this session. If you roll 
+a number of Effects that equals or exceeds that 
+Chems addiction number (noted after “Yes” in 
+the “Addictive?” column below), you have become 
+addicted to that chem. Each chem lists the addiction 
+effects in their descriptions, below.
+Chem duration lasts until the end of the current 
+turn (Brief) or until the end of the current scene 
+(Lasting).
+Chem Items
+CHEMS EFFECTS DURATION ADDICTIVE? WEIGHT COST RARITY
+Buffout Re-roll 1d20 on all STR and END tests.  
++3 Max HP. Lasting Yes 2 <1 45 2
+Daddy-O Reduce the difficulty of all PER and INT tests 
+by 1 (minimum 0). +1 difficulty to CHA tests. Lasting Yes 1 <1 50 2
+Jet Extra actions cost 1 less AP. Brief Yes 2 <1 50 2
+Med-X +3 Physical damage resistance. Lasting Yes 2 <1 50 2
+Mentats Re-roll 1d20 on PER and INT tests. Lasting Yes 3 <1 50 2
+Psycho +2DC   damage to all attacks, +3 Physical 
+damage resistance. Lasting Yes 2 <1 50 2
+Rad-X +6 Radiation damage resistance. Lasting No <1 40 2
+RadAway Heals 4 Radiation damage (see description). Instant No <1 80 2
+Stimpak Heals 4 HP (see description). Instant No <1 50 2
+51Chapter Five    REFERENCE LISTS
+
+===== PAGE 52 =====
+
+JUNK
+When you find junk while scavenging, roll 2d20. 
+That is the quantity of junk items you scavenge. Junk 
+items have a weight of 2 and are worth 2 caps each 
+in trade. You may spend 1 Luck point to increase the 
+number of junk items scavenged by an amount equal 
+to your LCK score.
+You can salvage materials from junk items and from 
+other items you wish to dispose of to use them later for 
+repairs and for crafting. Salvage requires that you have 
+appropriate tools or facilities, such as a workbench.
+Salvaging items takes around 10 minutes and requires 
+an INT + Repair test with a difficulty of 0. Roll 1 DC  
+for each junk item salvaged: you receive common 
+materials equal to the total rolled. You may roll +1 DC  
+for every AP spent after succeeding on this test, as you 
+salvage more efficiently and secure more materials.
+If you have the Scrapper perk, you also receive one 
+uncommon material for each effect rolled. If you have 
+2 ranks in the Scrapper perk, you’ll also receive 1 rare 
+material for every 2 Effects rolled.
+Common materials include wood, steel, plastic, 
+rubber, cloth, concrete, bone, and ceramics; substances 
+that are easy to find and easy to salvage. A single unit 
+of common materials has a cost of 1 cap, and a weight 
+of 1 lb.
+Uncommon materials  are rarer and harder to 
+salvage, and include copper, aluminum, lead, silver, 
+as well as cork, glass, fertilizer, fiberglass, and small 
+components such as gears, springs, and screws. A sin -
+gle unit of uncommon materials has a cost of 3 caps, 
+and a weight of 1 lb.
+Rare materials are the rarest and most difficult to 
+salvage. Asbestos, ballistic fiber, circuitry, fiber-optics, 
+corrosive and antiseptic chemicals, and even nuclear 
+material are found in many items, but are difficult to 
+salvage. A single unit of rare materials has a cost of 5 
+caps and a weight of 1 lb.
+FALLOUT    Rules Booklet
+52 FALLOUT    Rules Booklet
+
+===== PAGE 53 =====
+
+MAGAZINES
+When you read a magazine, it grants a tem porary perk, 
+a bonus which applies once, on a single skill test, a 
+single attack, or other dis tinct situation. If you have 
+the Comprehension perk (p.37) you have a chance to 
+use the benefit again. Once you used a temporary perk, 
+you may choose to learn it permanently when you next 
+level up; otherwise, you forget it and must find another 
+copy of that magazine to ‘remind’ yourself of the perk.
+PUBLICATION EFFECT
+Astoundingly Awesome Tales +2 to Radiation damage resistance.
+Duck and Cover!
+Once, when you are affected by a Blast weapon, you may choose to fall 
+prone (p.24). If you do so, you add +3 to all damage resistances against 
+the damage caused by that Blast. If you later learn this perk, you may use it 
+whenever you are affected by a Blast weapon by spending 1 AP.
+Grognak the Barbarian One successful melee attack you make inflicts +2 DC   damage.
+Guns and Bullets One attack with a Small Guns weapon gains the Vicious damage effect if it 
+didn’t have it already.
+Massachusetts Surgical Journal
+Once, when you provide medical attention to another character and assist 
+their END + Survival test to heal Injuries, you may treat your assistance die as 
+if it had rolled a 1. If you learn this perk, you may do this once per session.
+Tales of a Junktown Jerky Vendor
+Once, when you succeed or fail at a Barter test to haggle on the price of a 
+trade, you may spend 1 Luck point to shift the price 10% in your favor. If you 
+learn this Perk, you may do this on any Barter test to haggle, though you must 
+spend one additional Luck point each extra time you use it during a session  
+(1 for the first time, 2 for the second, 3 for the third, etc.).
+Tesla Science Magazine Once, when you inflict a Critical Hit, increase the total damage inflicted by +2.
+Tumblers Today You may re-roll 1d20 on a single Lockpicking test.
+Unstoppables Spend 3 Luck points to avoid all damage from a single attack or hazard.
+U.S. Covert Operations Manual Enemies suffer +1 difficulty on tests to detect you.
+Wasteland Survival Guide Consuming a food item heals twice as many HP.
+MISCELLANY
+UTILITY ITEMS EFFECTS WEIGHT COST RARITY
+Bobby Pin Reduces difficulty of Lockpick tests by 1 (minimum 1). One bobby 
+pin breaks per complication rolled. <1 1 0
+First Aid Kit Heal +2 HP upon succeeding at the First Aid action. 4 200 2
+Geiger Counter Allows a PER + Survival  test, difficulty 1, to determine if there is 
+radiation present in an area, and how much. 8 325 3
+Multi-Tool Reduce the difficulty of Repair tests by 1 (minimum 0). 1 100 2
+Torch
+Generates bright light within Close range until the end of the 
+current scene. Requires an INT + Survival test to light, difficulty 1, 
++1 for each previous use.
+1 10 1
+53Chapter Five    REFERENCE LISTS
+
+===== PAGE 54 =====
+
+Order now from Modiphius.net!
+••* Player’s Guide 
+••* Gamemaster’s Guide 
+••* Gamemaster’s Screen Toolkit 
+••* Secret War Dice set 
+••* Blauer Kristall Dice Set 
+••* Black Sun Exarch Collector’s Edition 
+Achtung! Cthulhu 2d20
+A NEW secret war begins
+FREE QUICKSTART
+AVAILABLE
+NOW!
+Sign up here to find out more!
+www.modiphius.net/pages/achtung-cthulhu-2d20
+®
+
+===== PAGE 55 =====
+
+The Dune: Adventures in the Imperium roleplaying game takes you into a far future beyond anything you 
+have imagined where fear is the mind killer so be sure to keep your wits about you. Expand your game, and the 
+power of your House with this collection of Dune: Adventures in the Imperium supplements and accessories.  
+S t a n d a r d  E d i t i o n   
+C o r E  r u l E b o o k  
+A beautiful 336 page hardback 
+full colour interior core rulebook, 
+offering everything you need to 
+create your own character and noble 
+House to adventure in the Imperium. 
+Learn to harness the spice and battle 
+your way to power.
+C o l l E C t o r ’S  E d i t i o n  
+C o r E  r u l E b o o k S 
+Show your allegiance to the most 
+powerful Houses of the Imperium 
+or collect the set of these three 
+stunning special edition covers for 
+the Core Rulebook. 
+P l ay E r ’S  J o u r n a l  
+An elegantly designed 160 page 
+journal to record your character 
+details, House and adventures 
+everywhere from Caladan to Arrakis. 
+Contains lined, square and blank 
+paper beautifully rendered in 
+matching graphics with character 
+and House sheets.
+G a m E m a S t E r ’S  t o o l k i t  
+A four panel decorated screen with 
+32 page booklet offering all manner 
+of gamemaster support. The perfect 
+way to build your story and perhaps 
+even your legacy on the dunes of 
+Arrakis.
+a r r a k i S  d i C E  S E t  
+A beautiful set of custom dice, spot 
+wormsign on these sand coloured 
+dice and bring the power of the 
+Makers to your game.
+a r r a k i S  m E l a n G E  
+d i C E  S E t  
+A pre-order only set of custom dice, 
+blue as the Eyes of Ibad, see the far 
+future and navigate the murky world 
+of Dune with the clarity of the spice 
+Melange.
+FIND OUT MORE AT
+https://www.modiphius.net/pages/discover-dune-roleplaying-game
+
+===== PAGE 56 =====
+
+ENTER THE WASTELAND!
+ • 2 Player+, Solo and Co-Op play. 
+ • Narrative and battle modes. 
+ • Build your settlement or just ﬁght it out.
+ • Organised play and tournament support.
+Major factions include:
+ 
+ • Survivors            • Raiders
+ • Brotherhood of Steel      • The Enclace
+ • Super Mutants         • The Institute
+Get your store listed on the 
+Modiphius retail locator 
+modiphius.net/pages/store-locator 
+so we can send customers your way.
+MADE TO ORDER ITEMS 
+Made to order only items available direct from 
+Made to order only items available direct from 
+modiphiusretail.com includes Wasteland Scenics, 
+Robots and Creature sets, along with individual 
+faction models. 
+®
+modiphius.com/fallout
+AVAILABLE
+NOW!
+©2022 Bethesda Softworks, a ZeniMax Media company.  All Rights Reserved.
+Sole Survivor & 
+T-60 Armor 
+shown actual scale.

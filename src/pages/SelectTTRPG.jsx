@@ -21,6 +21,14 @@ export default function SelectTTRPG() {
   const [dndCharacterError, setDndCharacterError] = useState('');
   const [dndClassMap, setDndClassMap] = useState({});
   const [campaigns, setCampaigns] = useState([]);
+  const [faCharacters, setFaCharacters] = useState([]);
+  const [showFaCharacterList, setShowFaCharacterList] = useState(false);
+  const [loadingFaCharacters, setLoadingFaCharacters] = useState(false);
+  const [faCharacterError, setFaCharacterError] = useState('');
+  const [mmCharacters, setMmCharacters] = useState([]);
+  const [showMmCharacterList, setShowMmCharacterList] = useState(false);
+  const [loadingMmCharacters, setLoadingMmCharacters] = useState(false);
+  const [mmCharacterError, setMmCharacterError] = useState('');
   const [showSWCampaigns, setShowSWCampaigns] = useState(false);
   const [showSoloAdventures, setShowSoloAdventures] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -350,6 +358,44 @@ export default function SelectTTRPG() {
     }
 
     setRollResults({ poolResults, diffResults });
+  };
+
+  const fetchFaCharacters = async () => {
+    if (!playerId) return;
+    setLoadingFaCharacters(true);
+    setFaCharacterError('');
+    try {
+      const { data, error } = await supabase
+        .from('Fa_player_characters')
+        .select('id, name, race, level')
+        .eq('user_number', playerId);
+      if (error) throw error;
+      setFaCharacters(data || []);
+    } catch (err) {
+      console.error('Failed to load Fallout characters:', err);
+      setFaCharacterError('Failed to load characters.');
+    } finally {
+      setLoadingFaCharacters(false);
+    }
+  };
+
+  const fetchMmCharacters = async () => {
+    if (!playerId) return;
+    setLoadingMmCharacters(true);
+    setMmCharacterError('');
+    try {
+      const { data, error } = await supabase
+        .from('MM_player_characters')
+        .select('id, name, hero_name, origin, rank')
+        .eq('user_number', playerId);
+      if (error) throw error;
+      setMmCharacters(data || []);
+    } catch (err) {
+      console.error('Failed to load Marvel characters:', err);
+      setMmCharacterError('Failed to load characters.');
+    } finally {
+      setLoadingMmCharacters(false);
+    }
   };
 
   const fetchDndCharacters = async (ttrpgId) => {
@@ -805,6 +851,8 @@ export default function SelectTTRPG() {
           const initials = row.initials || initialsFor(row.name);
           if (!shouldShow(row)) return null;
           const isSW = initials === 'SW' || row.name === 'Star Wars';
+          const isFa = initials.toUpperCase() === 'FA';
+          const isMM = initials.toUpperCase() === 'MM' || /marvel\s*multiverse/i.test(row.name || '');
           const isWWW = initials.toUpperCase() === 'WWW' || /world\s*wide\s*wrestling/i.test(row.name || '');
           return (
             <div key={row.name} className="bg-white rounded-3xl shadow-2xl border-4 border-gray-900 overflow-hidden transform hover:scale-105 transition duration-300">
@@ -834,6 +882,14 @@ export default function SelectTTRPG() {
                     onClick={() => {
                       if (isSW) {
                         setShowCharacterList(s => !s);
+                      } else if (isFa) {
+                        const next = !showFaCharacterList;
+                        setShowFaCharacterList(next);
+                        if (next) fetchFaCharacters();
+                      } else if (isMM) {
+                        const next = !showMmCharacterList;
+                        setShowMmCharacterList(next);
+                        if (next) fetchMmCharacters();
                       } else {
                         navigate(`/ttrpg/${initials}/player_characters`);
                       }
@@ -846,6 +902,9 @@ export default function SelectTTRPG() {
                     onClick={() => {
                       if (isSW) {
                         navigate('/sweote-character-creator', { state: { create_character: true } });
+                      } else if (isMM) {
+                        localStorage.removeItem('loadedCharacterId');
+                        navigate('/MM_character_creator');
                       } else if (isWWW) {
                         navigate(`/www-character-creator?mod=${encodeURIComponent(row.name)}`);
                       } else if (row.dndMod) {
@@ -858,9 +917,9 @@ export default function SelectTTRPG() {
                   >
                     Create Character
                   </button>
-                  {(!isSW) && (
+                  {(!isSW && !isMM) && (
                     <button
-                      onClick={() => navigate(`/ttrpg/${initials}/campaign`)}
+                      onClick={() => isFa ? navigate('/Fa_campaign') : navigate(`/ttrpg/${initials}/campaign`)}
                       className="px-10 py-4 bg-purple-600 text-white font-bold text-lg rounded-xl hover:bg-purple-700 shadow-lg transition"
                     >
                       Campaign
@@ -878,6 +937,153 @@ export default function SelectTTRPG() {
                     <button onClick={openDiceRoll} className="px-10 py-4 bg-blue-500 text-white font-bold text-lg rounded-xl hover:bg-blue-600 shadow-lg transition">Dice Roll</button>
                   )}
                 </div>
+
+                {/* Fallout Character List (inline) */}
+                {isFa && showFaCharacterList && (
+                  <div style={{ backgroundColor: '#000000', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {loadingFaCharacters && (
+                      <p style={{ color: 'white', textAlign: 'center', padding: '1rem' }}>Loading...</p>
+                    )}
+                    {!loadingFaCharacters && faCharacterError && (
+                      <p style={{ color: '#fca5a5', textAlign: 'center', padding: '1rem' }}>{faCharacterError}</p>
+                    )}
+                    {!loadingFaCharacters && !faCharacterError && faCharacters.length === 0 && (
+                      <p style={{ color: 'white', textAlign: 'center', padding: '1rem' }}>No characters found</p>
+                    )}
+                    {!loadingFaCharacters && !faCharacterError && faCharacters
+                      .slice()
+                      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                      .map(character => (
+                        <div
+                          key={character.id}
+                          style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', backgroundColor: '#000000', border: '2px solid #dc2626', borderRadius: '0.5rem', flexWrap: 'wrap' }}
+                        >
+                          <div style={{ flexShrink: 0 }}>
+                            <img
+                              src={`/Fa_Pictures/${character.race}_Face.png`}
+                              alt={character.name}
+                              className="rounded object-contain"
+                              style={{ width: '80px', height: '100px' }}
+                              onError={(e) => { e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%22100%22%3E%3Crect fill=%22%23333%22 width=%2280%22 height=%22100%22/%3E%3C/svg%3E'; }}
+                            />
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'left' }}>
+                            <h3 style={{ fontWeight: 'bold', fontSize: '1.125rem', color: 'white' }}>{character.name}</h3>
+                            <p style={{ fontSize: '0.875rem', color: '#999999' }}>{character.race || '—'}</p>
+                            <p style={{ fontSize: '0.875rem', color: '#dddddd' }}>Level {character.level ?? 1}</p>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
+                            <button
+                              onClick={() => { localStorage.setItem('loadedCharacterId', character.id); navigate('/Fa_character_creator'); }}
+                              className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-sm"
+                            >Edit</button>
+                            <button
+                              onClick={() => { localStorage.setItem('loadedCharacterId', character.id); navigate('/Fa_character_overview'); }}
+                              className="px-6 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-sm"
+                            >Overview</button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Delete ${character.name || 'this character'}?`)) return;
+                                const { error } = await supabase.from('Fa_player_characters').delete().eq('id', character.id);
+                                if (error) { console.error('Error deleting character:', error); alert('Failed to delete character.'); return; }
+                                setFaCharacters(prev => prev.filter(c => c.id !== character.id));
+                                const loaded = localStorage.getItem('loadedCharacterId');
+                                if (loaded && String(loaded) === String(character.id)) localStorage.removeItem('loadedCharacterId');
+                              }}
+                              className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-sm"
+                            >Delete</button>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+
+                {isMM && showMmCharacterList && (
+                  <div style={{ backgroundColor: '#000000', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {loadingMmCharacters && (
+                      <p style={{ color: 'white', textAlign: 'center', padding: '1rem' }}>Loading...</p>
+                    )}
+                    {!loadingMmCharacters && mmCharacterError && (
+                      <p style={{ color: '#fca5a5', textAlign: 'center', padding: '1rem' }}>{mmCharacterError}</p>
+                    )}
+                    {!loadingMmCharacters && !mmCharacterError && mmCharacters.length === 0 && (
+                      <p style={{ color: 'white', textAlign: 'center', padding: '1rem' }}>No characters found</p>
+                    )}
+                    {!loadingMmCharacters && !mmCharacterError && mmCharacters
+                      .slice()
+                      .sort((a, b) => (a.hero_name || a.name || '').localeCompare(b.hero_name || b.name || ''))
+                      .map(character => (
+                        <div
+                          key={character.id}
+                          style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', backgroundColor: '#000000', border: '2px solid #dc2626', borderRadius: '0.5rem', flexWrap: 'wrap' }}
+                        >
+                          <div
+                            style={{
+                              width: '80px',
+                              height: '100px',
+                              flexShrink: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '0.5rem',
+                              border: '2px solid #f59e0b',
+                              background: 'linear-gradient(180deg, #991b1b 0%, #111827 100%)',
+                              color: '#ffffff',
+                              fontSize: '2rem',
+                              fontWeight: 800,
+                              textTransform: 'uppercase'
+                            }}
+                          >
+                            {String(character.hero_name || character.name || 'M').trim().charAt(0) || 'M'}
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'left' }}>
+                            <h3 style={{ fontWeight: 'bold', fontSize: '1.125rem', color: 'white' }}>{character.hero_name || character.name}</h3>
+                            <p style={{ fontSize: '0.875rem', color: '#999999' }}>{character.hero_name ? character.name : (character.origin || 'Marvel Hero')}</p>
+                            <p style={{ fontSize: '0.875rem', color: '#dddddd' }}>Rank {character.rank ?? 1}{character.origin ? ` - ${character.origin}` : ''}</p>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
+                            <button
+                              onClick={() => {
+                                localStorage.setItem('loadedCharacterId', character.id);
+                                navigate('/MM_character_creator');
+                              }}
+                              className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                localStorage.setItem('loadedCharacterId', character.id);
+                                navigate('/MM_character_overview');
+                              }}
+                              className="px-6 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-sm"
+                            >
+                              Overview
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Delete ${character.hero_name || character.name || 'this character'}?`)) return;
+                                const { error } = await supabase.from('MM_player_characters').delete().eq('id', character.id);
+                                if (error) {
+                                  console.error('Error deleting Marvel character:', error);
+                                  alert('Failed to delete character.');
+                                  return;
+                                }
+                                setMmCharacters(prev => prev.filter(c => c.id !== character.id));
+                                const loaded = localStorage.getItem('loadedCharacterId');
+                                if (loaded && String(loaded) === String(character.id)) localStorage.removeItem('loadedCharacterId');
+                              }}
+                              className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-sm"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
 
                 {/* Star Wars Character List (inline) */}
                 {isSW && showCharacterList && (

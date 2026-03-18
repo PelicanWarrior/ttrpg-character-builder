@@ -86,6 +86,11 @@ const isStarWarsSystem = (systemRow) => {
   return initials === 'SW' || /star\s*wars/i.test(systemRow.name || '');
 };
 
+const isFalloutInitials = (initials) => {
+  const normalized = String(initials || '').toUpperCase();
+  return normalized === 'FA' || normalized === 'F';
+};
+
 const countSkillRanksFromCsv = (skillsRankCsv) => {
   if (!skillsRankCsv) return {};
   return String(skillsRankCsv)
@@ -469,7 +474,9 @@ export default function SoloAdventure() {
       ? 'DND_player_character'
       : isSW
         ? 'SW_player_characters'
-        : `${initials}_player_characters`;
+        : isFalloutInitials(initials)
+          ? 'Fa_player_characters'
+          : `${initials}_player_characters`;
 
     let rows = null;
     let lastError = null;

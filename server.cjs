@@ -77,8 +77,26 @@ console.log('Registering route: /F_Pictures/api/upload-npc-picture');
 app.use('/F_Pictures/api/upload-npc-picture', uploadDndNpcPictureRoute);
 console.log('Route registered');
 
+const fs = require('fs');
+
 // Serve static files (public assets only, not the React app)
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Write timeline text to Feastlands_history_timeline.txt
+app.post('/F_Pictures/api/write-timeline', (req, res) => {
+  const { text } = req.body;
+  if (typeof text !== 'string') {
+    return res.status(400).json({ error: 'Missing text field' });
+  }
+  const filePath = path.join(__dirname, 'Feastlands_history_timeline.txt');
+  try {
+    fs.writeFileSync(filePath, text, 'utf8');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed writing timeline:', err);
+    res.status(500).json({ error: 'Failed to write file' });
+  }
+});
 
 // Global error handlers for debugging
 process.on('uncaughtException', err => {
