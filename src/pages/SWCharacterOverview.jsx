@@ -18,6 +18,9 @@ export default function SWCharacterOverview() {
   const [career, setCareer] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [backstory, setBackstory] = useState('');
+  const [backstoryDraft, setBackstoryDraft] = useState('');
+  const [editingBackstory, setEditingBackstory] = useState(false);
+  const [savingBackstory, setSavingBackstory] = useState(false);
   const [skills, setSkills] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState('');
@@ -584,6 +587,7 @@ export default function SWCharacterOverview() {
       setCareer(characterData.career || '');
       setSpecialization(characterData.spec || '');
       setBackstory(characterData.backstory || '');
+      setBackstoryDraft(characterData.backstory || '');
       setCredits(characterData.credits ?? 0);
       setForceRating(characterData.force_rating ?? 0);
 
@@ -1075,6 +1079,32 @@ export default function SWCharacterOverview() {
       setTotalSoak(newSoak);
     }
   }, [brawn, armour, previousSoak]);
+
+  const canCampaignOwnerEditBackstory = Boolean(
+    location?.state?.fromCampaign
+    && playerId
+    && campaignOwnerId
+    && playerId === campaignOwnerId
+  );
+
+  const handleSaveBackstory = async () => {
+    if (!characterId) return;
+    setSavingBackstory(true);
+    try {
+      const { error } = await supabase
+        .from('SW_player_characters')
+        .update({ backstory: backstoryDraft || null })
+        .eq('id', characterId);
+      if (error) throw error;
+      setBackstory(backstoryDraft);
+      setEditingBackstory(false);
+    } catch (err) {
+      console.error('Error saving backstory:', err);
+      alert('Failed to save backstory');
+    } finally {
+      setSavingBackstory(false);
+    }
+  };
 
   const handleChooseTTRPG = () => {
     navigate('/select-ttrpg');
@@ -2246,12 +2276,58 @@ export default function SWCharacterOverview() {
           </div>
         )}
 
-        {backstory && (
-          <div className="border-2 border-black rounded-lg p-4 w-full text-center mt-4" style={{ minHeight: '500px' }}>
-            <h3 className="font-bold text-lg mb-3">Backstory</h3>
-            <p className="text-left">{backstory}</p>
+        <div className="border-2 border-black rounded-lg p-4 w-full text-center mt-4" style={{ minHeight: '500px' }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-lg">Backstory</h3>
+            {canCampaignOwnerEditBackstory && (
+              <div className="flex items-center gap-2">
+                {!editingBackstory ? (
+                  <button
+                    onClick={() => {
+                      setBackstoryDraft(backstory || '');
+                      setEditingBackstory(true);
+                    }}
+                    className="px-3 py-1 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 transition"
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditingBackstory(false);
+                        setBackstoryDraft(backstory || '');
+                      }}
+                      disabled={savingBackstory}
+                      className="px-3 py-1 bg-gray-500 text-white text-sm font-semibold rounded hover:bg-gray-600 transition disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveBackstory}
+                      disabled={savingBackstory}
+                      className="px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition disabled:opacity-60"
+                    >
+                      {savingBackstory ? 'Saving...' : 'Save'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-        )}
+
+          {editingBackstory ? (
+            <textarea
+              value={backstoryDraft}
+              onChange={(e) => setBackstoryDraft(e.target.value)}
+              rows={12}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-left"
+              placeholder="Enter character backstory..."
+            />
+          ) : (
+            <p className="text-left whitespace-pre-wrap">{backstory || 'No backstory provided.'}</p>
+          )}
+        </div>
 
         {/* NEW: Dynamic Dice Pool Popup */}
         {dicePopup && (

@@ -585,14 +585,39 @@ export default function SoloAdventure() {
     }
 
     const nodeIds = nodeList.map((node) => node.id);
-    const { data: choices, error: choiceError } = await supabase
+    const fullChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Check_Enabled, Check_Skill, Check_Difficulty, Check_Failure_Next_Node_ID, Display_Order';
+    const fallbackChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Display_Order';
+
+    let choices = [];
+    const { data: fullChoices, error: fullChoiceError } = await supabase
       .from('Solo_Adventure_Choices')
-      .select('id, Node_ID, Choice_Text, Next_Node_ID, Check_Enabled, Check_Skill, Check_Difficulty, Check_Failure_Next_Node_ID, Display_Order')
+      .select(fullChoiceSelect)
       .in('Node_ID', nodeIds)
       .order('Display_Order', { ascending: true })
       .order('id', { ascending: true });
 
-    if (choiceError) throw choiceError;
+    if (fullChoiceError) {
+      if (!isMissingColumnError(fullChoiceError)) throw fullChoiceError;
+
+      const { data: fallbackChoices, error: fallbackChoiceError } = await supabase
+        .from('Solo_Adventure_Choices')
+        .select(fallbackChoiceSelect)
+        .in('Node_ID', nodeIds)
+        .order('Display_Order', { ascending: true })
+        .order('id', { ascending: true });
+
+      if (fallbackChoiceError) throw fallbackChoiceError;
+
+      choices = (fallbackChoices || []).map((choice) => ({
+        ...choice,
+        Check_Enabled: false,
+        Check_Skill: null,
+        Check_Difficulty: 0,
+        Check_Failure_Next_Node_ID: null,
+      }));
+    } else {
+      choices = fullChoices || [];
+    }
 
     const nodesById = {};
     nodeList.forEach((node) => {
@@ -600,7 +625,7 @@ export default function SoloAdventure() {
     });
 
     const choicesByNode = {};
-    (choices || []).forEach((choice) => {
+    choices.forEach((choice) => {
       if (!choicesByNode[choice.Node_ID]) choicesByNode[choice.Node_ID] = [];
       choicesByNode[choice.Node_ID].push(choice);
     });
@@ -849,15 +874,40 @@ export default function SoloAdventure() {
       return;
     }
 
-    const { data, error: choiceError } = await supabase
+    const fullChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Check_Enabled, Check_Skill, Check_Difficulty, Check_Failure_Next_Node_ID, Display_Order';
+    const fallbackChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Display_Order';
+
+    const { data: fullData, error: fullChoiceError } = await supabase
       .from('Solo_Adventure_Choices')
-      .select('id, Node_ID, Choice_Text, Next_Node_ID, Check_Enabled, Check_Skill, Check_Difficulty, Check_Failure_Next_Node_ID, Display_Order')
+      .select(fullChoiceSelect)
       .eq('Node_ID', Number(nodeId))
       .order('Display_Order', { ascending: true })
       .order('id', { ascending: true });
 
-    if (choiceError) throw choiceError;
-    setBuilderChoices(data || []);
+    if (!fullChoiceError) {
+      setBuilderChoices(fullData || []);
+      resetBuilderChoiceForm();
+      return;
+    }
+
+    if (!isMissingColumnError(fullChoiceError)) throw fullChoiceError;
+
+    const { data: fallbackData, error: fallbackChoiceError } = await supabase
+      .from('Solo_Adventure_Choices')
+      .select(fallbackChoiceSelect)
+      .eq('Node_ID', Number(nodeId))
+      .order('Display_Order', { ascending: true })
+      .order('id', { ascending: true });
+
+    if (fallbackChoiceError) throw fallbackChoiceError;
+
+    setBuilderChoices((fallbackData || []).map((choice) => ({
+      ...choice,
+      Check_Enabled: false,
+      Check_Skill: null,
+      Check_Difficulty: 0,
+      Check_Failure_Next_Node_ID: null,
+    })));
     resetBuilderChoiceForm();
   };
 

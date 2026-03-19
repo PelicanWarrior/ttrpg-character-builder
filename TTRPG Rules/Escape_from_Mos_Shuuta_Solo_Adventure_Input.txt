@@ -1,0 +1,1172 @@
+SOLO ADVENTURE INPUT PACK
+Escape from Mos Shuuta - adapted for Solo Adventure builder
+
+IMPORTANT
+- This is an adaptation blueprint for manual entry into the app's Solo Adventure Builder.
+- The app stores real node IDs in Supabase, so this file uses NODE_KEY placeholders.
+- Create all nodes first, then create choices and map each Next_Node_Key / Failure_Next_Node_Key to the real node ID.
+- Skill names below are written to match common SW skill naming in this repo.
+
+ADVENTURE RECORD (Solo_Adventures)
+Title: Escape from Mos Shuuta (Solo Conversion)
+Description: You are a renegade stranded in Mos Shuuta after crossing Teemo the Hutt. To escape Tatooine, you must survive cantina violence, acquire a hypermatter reactor igniter, release docking clamps, evade Imperial patrols, seize the Krayt Fang, and outrun TIE fighters.
+TTRPG: Star Wars
+Is_Published: false
+
+NODE FORMAT REFERENCE
+NODE_KEY
+Display_Order
+Is_Start
+Node_Title
+Node_Content
+Choices:
+- Choice_Text
+  Next_Node_Key
+  Check_Enabled
+  Check_Skill
+  Check_Difficulty
+  Failure_Next_Node_Key
+  Display_Order
+
+==================================================
+NODES AND CHOICES
+==================================================
+
+NODE_KEY: N00
+Display_Order: 0
+Is_Start: true
+Node_Title: Opening Crawl - Mos Shuuta
+Node_Content:
+The Empire grips the galaxy while outlaws and drifters survive on the fringe. On Tatooine, you have crossed Teemo the Hutt. Exhausted and hunted, you dive into a cantina to break line of sight and plan your escape.
+
+You know one way off-world: steal the freighter Krayt Fang from Landing Bay Aurek.
+Choices:
+- Choice_Text: Push into the cantina and hide before the thugs arrive.
+  Next_Node_Key: N01
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N01
+Display_Order: 10
+Is_Start: false
+Node_Title: Encounter 1 - On the Run
+Node_Content:
+Inside the cantina, you have only seconds before Gamorrean enforcers enter. Pick one hiding tactic. If you fail, you are spotted and lose the ambush edge.
+Choices:
+- Choice_Text: Melt into the shadows and crowded furniture.
+  Next_Node_Key: N02
+  Check_Enabled: true
+  Check_Skill: Stealth
+  Check_Difficulty: 1
+  Failure_Next_Node_Key: N03
+  Display_Order: 1
+- Choice_Text: Bluff your way backstage with charm and confidence.
+  Next_Node_Key: N02
+  Check_Enabled: true
+  Check_Skill: Charm
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N03
+  Display_Order: 2
+- Choice_Text: Slip into a storage nook and jam the lock.
+  Next_Node_Key: N02
+  Check_Enabled: true
+  Check_Skill: Mechanics
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N03
+  Display_Order: 3
+- Choice_Text: Climb rafters and hide above eye level.
+  Next_Node_Key: N02
+  Check_Enabled: true
+  Check_Skill: Athletics
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N03
+  Display_Order: 4
+- Choice_Text: Pretend to belong behind the bar.
+  Next_Node_Key: N02
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N03
+  Display_Order: 5
+- Choice_Text: Sit still at the bar and look unbothered.
+  Next_Node_Key: N02
+  Check_Enabled: true
+  Check_Skill: Cool
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N03
+  Display_Order: 6
+
+NODE_KEY: N02
+Display_Order: 20
+Is_Start: false
+Node_Title: Hidden - You Have Initiative
+Node_Content:
+You remain unseen as Teemo's thugs push in. You can choose where the first strike lands.
+Choices:
+- Choice_Text: Spring the ambush and start the brawl.
+  Next_Node_Key: N04
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N03
+Display_Order: 30
+Is_Start: false
+Node_Title: Spotted - No Surprise
+Node_Content:
+A Gamorrean spots you and howls. The room erupts into violence before you are set.
+Choices:
+- Choice_Text: Fight your way out of the cantina.
+  Next_Node_Key: N04
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N04
+Display_Order: 40
+Is_Start: false
+Node_Title: Encounter 2 - Gang of Gamorreans
+Node_Content:
+A full cantina fight breaks out. Resolve this narratively for solo play: if you were hidden, you likely dictate first momentum; if spotted, you are reacting. Either way, the conflict ends with the bartender giving you critical intel.
+Choices:
+- Choice_Text: We win the fight and force the goons out.
+  Next_Node_Key: N05
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: We are beaten but recover; the bartender still talks.
+  Next_Node_Key: N05
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N05
+Display_Order: 50
+Is_Start: false
+Node_Title: Bartender's Lead
+Node_Content:
+You learn three facts:
+1) A freighter called the Krayt Fang is in Landing Bay Aurek.
+2) Its captain, Trex, is dangerous and connected to Teemo.
+3) The ship needs a hypermatter reactor igniter (HMRI), likely at Vorn's junk shop.
+Choices:
+- Choice_Text: Go to Vorn's junk shop for the HMRI.
+  Next_Node_Key: N10
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N10
+Display_Order: 60
+Is_Start: false
+Node_Title: Encounter 3 - Vorn's Junk Shop
+Node_Content:
+Vorn Tel-ovis has one HMRI and has promised it to Trex. You need leverage, lies, pressure, theft, or force.
+Choices:
+- Choice_Text: Offer a better deal than Trex's price.
+  Next_Node_Key: N11
+  Check_Enabled: true
+  Check_Skill: Negotiation
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N12
+  Display_Order: 1
+- Choice_Text: Claim Trex sent you to collect the part.
+  Next_Node_Key: N13
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N14
+  Display_Order: 2
+- Choice_Text: Appeal to Vorn's ego and dislike of Trex.
+  Next_Node_Key: N13
+  Check_Enabled: true
+  Check_Skill: Charm
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N14
+  Display_Order: 3
+- Choice_Text: Threaten Vorn into compliance.
+  Next_Node_Key: N13
+  Check_Enabled: true
+  Check_Skill: Coercion
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N14
+  Display_Order: 4
+- Choice_Text: Turn R5 against Vorn and get help.
+  Next_Node_Key: N13
+  Check_Enabled: true
+  Check_Skill: Charm
+  Check_Difficulty: 1
+  Failure_Next_Node_Key: N14
+  Display_Order: 5
+- Choice_Text: Steal the HMRI while Vorn is distracted.
+  Next_Node_Key: N13
+  Check_Enabled: true
+  Check_Skill: Skulduggery
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N15
+  Display_Order: 6
+- Choice_Text: Draw weapons and take it by force.
+  Next_Node_Key: N15
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 7
+
+NODE_KEY: N11
+Display_Order: 70
+Is_Start: false
+Node_Title: Deal Struck - Better Price
+Node_Content:
+Vorn agrees to sell if paid above Trex's offer. Mark credit cost as 600 for success result.
+Choices:
+- Choice_Text: Pay and take the HMRI.
+  Next_Node_Key: N13
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Refuse the deal and try another plan.
+  Next_Node_Key: N10
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N12
+Display_Order: 80
+Is_Start: false
+Node_Title: Deal Struck - Hard Bargain
+Node_Content:
+Vorn senses urgency and gouges you. Mark credit cost as 750 for failed negotiation result.
+Choices:
+- Choice_Text: Pay anyway and secure the HMRI.
+  Next_Node_Key: N13
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Walk away and try a different tactic.
+  Next_Node_Key: N10
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N14
+Display_Order: 90
+Is_Start: false
+Node_Title: Vorn Is Suspicious
+Node_Content:
+Vorn hardens his stance. You can pivot, escalate, or leave and return with a new approach.
+Choices:
+- Choice_Text: Try another social angle.
+  Next_Node_Key: N10
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Force the issue and start a fight.
+  Next_Node_Key: N15
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N15
+Display_Order: 100
+Is_Start: false
+Node_Title: Shop Violence
+Node_Content:
+A direct confrontation erupts in the junk shop. For solo conversion, resolve this as a narrative combat beat.
+Choices:
+- Choice_Text: Win the fight and claim the HMRI.
+  Next_Node_Key: N13
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Lose the fight and get captured.
+  Next_Node_Key: N90
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N13
+Display_Order: 110
+Is_Start: false
+Node_Title: HMRI Secured
+Node_Content:
+You now have the hypermatter reactor igniter needed for the Krayt Fang. Next objective: spaceport control to release docking clamps.
+Choices:
+- Choice_Text: Move to spaceport command and control.
+  Next_Node_Key: N20
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N20
+Display_Order: 120
+Is_Start: false
+Node_Title: Encounter 4 - Command and Control Exterior
+Node_Content:
+Spaceport control is guarded by security droids. You can bluff, intimidate, sneak in through a side entrance, or fight.
+Choices:
+- Choice_Text: Present a fake clearance story.
+  Next_Node_Key: N22
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N21
+  Display_Order: 1
+- Choice_Text: Pressure the droids into compliance.
+  Next_Node_Key: N22
+  Check_Enabled: true
+  Check_Skill: Coercion
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N21
+  Display_Order: 2
+- Choice_Text: Bypass to the side door and pick the lock.
+  Next_Node_Key: N22
+  Check_Enabled: true
+  Check_Skill: Skulduggery
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N21
+  Display_Order: 3
+- Choice_Text: Override side-door access from a terminal.
+  Next_Node_Key: N22
+  Check_Enabled: true
+  Check_Skill: Computers
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N21
+  Display_Order: 4
+- Choice_Text: Open fire and force entry.
+  Next_Node_Key: N23
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 5
+
+NODE_KEY: N21
+Display_Order: 130
+Is_Start: false
+Node_Title: Blocked at the Door
+Node_Content:
+The droids reject your attempt and tighten security posture.
+Choices:
+- Choice_Text: Retry with a new plan.
+  Next_Node_Key: N20
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Escalate to violence.
+  Next_Node_Key: N23
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N23
+Display_Order: 140
+Is_Start: false
+Node_Title: Entry Firefight
+Node_Content:
+You fight your way inside command and control. The interior staff is now alert.
+Choices:
+- Choice_Text: Push into the control room.
+  Next_Node_Key: N22
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N22
+Display_Order: 150
+Is_Start: false
+Node_Title: Control Room - Overseer Brynn
+Node_Content:
+Inside, Overseer Brynn and staff monitor traffic. You need docking clamps released from the Krayt Fang's bay.
+Choices:
+- Choice_Text: Convince Brynn to release the clamps.
+  Next_Node_Key: N24
+  Check_Enabled: true
+  Check_Skill: Charm
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N25
+  Display_Order: 1
+- Choice_Text: Intimidate Brynn into unlocking them.
+  Next_Node_Key: N24
+  Check_Enabled: true
+  Check_Skill: Coercion
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N25
+  Display_Order: 2
+- Choice_Text: Feed a false but plausible emergency story.
+  Next_Node_Key: N24
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N25
+  Display_Order: 3
+- Choice_Text: Slice a terminal and release clamps directly.
+  Next_Node_Key: N24
+  Check_Enabled: true
+  Check_Skill: Computers
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N26
+  Display_Order: 4
+- Choice_Text: Attack control staff and seize command.
+  Next_Node_Key: N27
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 5
+
+NODE_KEY: N25
+Display_Order: 160
+Is_Start: false
+Node_Title: Brynn Refuses
+Node_Content:
+Brynn rejects your demand and calls for order. You have moments to act.
+Choices:
+- Choice_Text: Attempt a quick terminal slice.
+  Next_Node_Key: N26
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Start a control-room fight.
+  Next_Node_Key: N27
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N26
+Display_Order: 170
+Is_Start: false
+Node_Title: Alarm Triggered
+Node_Content:
+Your slicing attempt triggers attention. You can still salvage this with fast talking, or the room goes hot.
+Choices:
+- Choice_Text: Explain it away under pressure.
+  Next_Node_Key: N24
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N27
+  Display_Order: 1
+- Choice_Text: Abort and withdraw.
+  Next_Node_Key: N20
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N27
+Display_Order: 180
+Is_Start: false
+Node_Title: Control-Room Clash
+Node_Content:
+Violence decides access to the clamps.
+Choices:
+- Choice_Text: Win and force clamp release.
+  Next_Node_Key: N24
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Lose and get captured by local authorities.
+  Next_Node_Key: N90
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N24
+Display_Order: 190
+Is_Start: false
+Node_Title: Interlude - Clamps Released
+Node_Content:
+Primary objective complete: docking clamps are disengaged. In the original adventure this is a midpoint and players gain XP and destiny options. For solo mode, choose to explore Mos Shuuta briefly or move to extraction.
+Choices:
+- Choice_Text: Explore Mos Shuuta before extraction.
+  Next_Node_Key: N30
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Head straight for Landing Bay Aurek.
+  Next_Node_Key: N40
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+- Choice_Text: Investigate the newly arrived Imperial shuttle.
+  Next_Node_Key: N40
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 3
+
+NODE_KEY: N30
+Display_Order: 200
+Is_Start: false
+Node_Title: Optional Exploration Hub - Mos Shuuta
+Node_Content:
+You spend time moving through town locations. Any delay increases chance of Imperial contact. Visit one or more locations, then continue to Landing Bay Aurek.
+Choices:
+- Choice_Text: Visit Offworld Trader's.
+  Next_Node_Key: N31
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Visit Dewback stables.
+  Next_Node_Key: N32
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+- Choice_Text: Visit the slagworks.
+  Next_Node_Key: N33
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 3
+- Choice_Text: Move through the shantytown.
+  Next_Node_Key: N34
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 4
+- Choice_Text: Scout Teemo's palace perimeter.
+  Next_Node_Key: N35
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 5
+- Choice_Text: Climb the water tower for reconnaissance.
+  Next_Node_Key: N36
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 6
+- Choice_Text: Stop exploring and move to extraction route.
+  Next_Node_Key: N40
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 7
+
+NODE_KEY: N31
+Display_Order: 210
+Is_Start: false
+Node_Title: Offworld Trader's
+Node_Content:
+You find expensive curios and no practical extraction help.
+Choices:
+- Choice_Text: Leave quietly and stay alert for patrols.
+  Next_Node_Key: N30
+  Check_Enabled: true
+  Check_Skill: Vigilance
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N40
+  Display_Order: 1
+
+NODE_KEY: N32
+Display_Order: 220
+Is_Start: false
+Node_Title: Dewback Stables
+Node_Content:
+A hard-edged stablemaster can rent mounts, but this costs time and credits.
+Choices:
+- Choice_Text: Continue through back routes carefully.
+  Next_Node_Key: N30
+  Check_Enabled: true
+  Check_Skill: Survival
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N40
+  Display_Order: 1
+
+NODE_KEY: N33
+Display_Order: 230
+Is_Start: false
+Node_Title: Slagworks
+Node_Content:
+Brutal labor operations are overseen by armed thugs. Supplies may be scavenged if you are discreet.
+Choices:
+- Choice_Text: Extract yourself without notice.
+  Next_Node_Key: N30
+  Check_Enabled: true
+  Check_Skill: Skulduggery
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N40
+  Display_Order: 1
+
+NODE_KEY: N34
+Display_Order: 240
+Is_Start: false
+Node_Title: Shantytown Bridges
+Node_Content:
+Makeshift bridges and unstable footpaths create hazard and cover in equal measure.
+Choices:
+- Choice_Text: Cross safely and rejoin the main streets.
+  Next_Node_Key: N30
+  Check_Enabled: true
+  Check_Skill: Athletics
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N40
+  Display_Order: 1
+
+NODE_KEY: N35
+Display_Order: 250
+Is_Start: false
+Node_Title: Teemo's Palace Perimeter
+Node_Content:
+The palace is heavily protected by guards and droids. Direct assault is not viable at this stage.
+Choices:
+- Choice_Text: Pull back before attention locks onto you.
+  Next_Node_Key: N30
+  Check_Enabled: true
+  Check_Skill: Stealth
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N40
+  Display_Order: 1
+
+NODE_KEY: N36
+Display_Order: 260
+Is_Start: false
+Node_Title: Water Tower Recon
+Node_Content:
+From the tower you can map routes and patrol vectors, but climbing and descending under pressure is risky.
+Choices:
+- Choice_Text: Use the intel and descend unseen.
+  Next_Node_Key: N30
+  Check_Enabled: true
+  Check_Skill: Perception
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N40
+  Display_Order: 1
+
+NODE_KEY: N40
+Display_Order: 270
+Is_Start: false
+Node_Title: Encounter 5 - Imperial Stormtrooper Patrol
+Node_Content:
+Imperial stormtrooper teams sweep Mos Shuuta in support of Teemo's hunt. Contact is inevitable now.
+Choices:
+- Choice_Text: Set an ambush from cover.
+  Next_Node_Key: N41
+  Check_Enabled: true
+  Check_Skill: Stealth
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N42
+  Display_Order: 1
+- Choice_Text: Stand and fight through the patrol.
+  Next_Node_Key: N41
+  Check_Enabled: true
+  Check_Skill: Vigilance
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N42
+  Display_Order: 2
+- Choice_Text: Break contact and run.
+  Next_Node_Key: N43
+  Check_Enabled: true
+  Check_Skill: Athletics
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N42
+  Display_Order: 3
+
+NODE_KEY: N41
+Display_Order: 280
+Is_Start: false
+Node_Title: Patrol Neutralized
+Node_Content:
+You outfight the patrol and can advance toward Landing Bay Aurek.
+Choices:
+- Choice_Text: Push to Landing Bay Aurek immediately.
+  Next_Node_Key: N50
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N43
+Display_Order: 290
+Is_Start: false
+Node_Title: Patrol Evaded
+Node_Content:
+You shake pursuit long enough to continue extraction.
+Choices:
+- Choice_Text: Continue to Landing Bay Aurek.
+  Next_Node_Key: N50
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N42
+Display_Order: 300
+Is_Start: false
+Node_Title: Under Heavy Fire
+Node_Content:
+Your position is compromised and blaster fire cuts off safe routes.
+Choices:
+- Choice_Text: Keep moving under fire and force a breakthrough.
+  Next_Node_Key: N50
+  Check_Enabled: true
+  Check_Skill: Cool
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N90
+  Display_Order: 1
+- Choice_Text: Surrender to Imperial custody.
+  Next_Node_Key: N90
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+- Choice_Text: Make one desperate sprint through side alleys.
+  Next_Node_Key: N50
+  Check_Enabled: true
+  Check_Skill: Athletics
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N90
+  Display_Order: 3
+
+NODE_KEY: N50
+Display_Order: 310
+Is_Start: false
+Node_Title: Encounter 6 - Landing Bay Aurek
+Node_Content:
+The Krayt Fang is in the hangar, watched by security droids. Trex is onboard. You must gain access and secure the ship.
+Choices:
+- Choice_Text: Claim you brought a bounty for Trex.
+  Next_Node_Key: N51
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N52
+  Display_Order: 1
+- Choice_Text: Present the HMRI and claim you are here to install it.
+  Next_Node_Key: N53
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N52
+  Display_Order: 2
+- Choice_Text: Slip in through a side access and bypass the front.
+  Next_Node_Key: N54
+  Check_Enabled: true
+  Check_Skill: Skulduggery
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N52
+  Display_Order: 3
+- Choice_Text: Assault the entrance droids.
+  Next_Node_Key: N55
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 4
+
+NODE_KEY: N52
+Display_Order: 320
+Is_Start: false
+Node_Title: Access Denied
+Node_Content:
+The droids reject your entry and begin escalation protocols.
+Choices:
+- Choice_Text: Try another deception route.
+  Next_Node_Key: N50
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Start the hangar fight.
+  Next_Node_Key: N55
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N51
+Display_Order: 330
+Is_Start: false
+Node_Title: Trex Comes Out to Inspect
+Node_Content:
+Trex steps out to verify your story. A final bluff can open a clean path to the ship.
+Choices:
+- Choice_Text: Keep him occupied away from the ramp.
+  Next_Node_Key: N56
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N55
+  Display_Order: 1
+- Choice_Text: Drop the act and engage Trex.
+  Next_Node_Key: N55
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N53
+Display_Order: 340
+Is_Start: false
+Node_Title: Boarding Ruse
+Node_Content:
+You are let toward the ship under supervision. Trex is suspicious and tests your story.
+Choices:
+- Choice_Text: Maintain the technical cover story.
+  Next_Node_Key: N56
+  Check_Enabled: true
+  Check_Skill: Deception
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N55
+  Display_Order: 1
+- Choice_Text: Abandon pretense and fight.
+  Next_Node_Key: N55
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N54
+Display_Order: 350
+Is_Start: false
+Node_Title: Inside Through Side Access
+Node_Content:
+You get inside the hangar perimeter. If you can delay reinforcement, boarding gets easier.
+Choices:
+- Choice_Text: Seal and lock access points before rushing the ramp.
+  Next_Node_Key: N56
+  Check_Enabled: true
+  Check_Skill: Skulduggery
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N55
+  Display_Order: 1
+- Choice_Text: Engage hostiles immediately.
+  Next_Node_Key: N55
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N55
+Display_Order: 360
+Is_Start: false
+Node_Title: Hangar Battle - Trex and Droids
+Node_Content:
+This is the hardest ground fight in the adventure. Trex is dangerous and security droids reinforce him.
+Choices:
+- Choice_Text: Win the battle and secure the ship.
+  Next_Node_Key: N56
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+- Choice_Text: Lose the battle and get taken alive.
+  Next_Node_Key: N90
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 2
+
+NODE_KEY: N56
+Display_Order: 370
+Is_Start: false
+Node_Title: Aboard the Krayt Fang
+Node_Content:
+You have control of the freighter and launch into Tatooine sky. TIE fighters intercept before you can jump.
+Choices:
+- Choice_Text: Begin emergency escape sequence.
+  Next_Node_Key: N60
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N60
+Display_Order: 380
+Is_Start: false
+Node_Title: Encounter 7 - Starship Escape Phase 1
+Node_Content:
+Your ship takes immediate strain from opening fire. You need to survive pursuit and bring the HMRI online.
+Choices:
+- Choice_Text: Pilot evasive vectors while buying time.
+  Next_Node_Key: N61
+  Check_Enabled: true
+  Check_Skill: Piloting-Space
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N62
+  Display_Order: 1
+- Choice_Text: Engage TIEs with turret fire.
+  Next_Node_Key: N63
+  Check_Enabled: true
+  Check_Skill: Gunnery
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N62
+  Display_Order: 2
+- Choice_Text: Rush engineering and install HMRI under pressure.
+  Next_Node_Key: N64
+  Check_Enabled: true
+  Check_Skill: Mechanics
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N62
+  Display_Order: 3
+
+NODE_KEY: N61
+Display_Order: 390
+Is_Start: false
+Node_Title: Escape Phase 2 - Stable Flight Window
+Node_Content:
+You stabilize the ship temporarily.
+Choices:
+- Choice_Text: Install HMRI now.
+  Next_Node_Key: N64
+  Check_Enabled: true
+  Check_Skill: Mechanics
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N62
+  Display_Order: 1
+- Choice_Text: Keep pressure on TIE fighters.
+  Next_Node_Key: N63
+  Check_Enabled: true
+  Check_Skill: Gunnery
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N62
+  Display_Order: 2
+
+NODE_KEY: N63
+Display_Order: 400
+Is_Start: false
+Node_Title: Escape Phase 2 - Dogfight Momentum
+Node_Content:
+One enemy wing is disrupted or destroyed. The remaining threat is still dangerous.
+Choices:
+- Choice_Text: Finish the remaining fighters.
+  Next_Node_Key: N65
+  Check_Enabled: true
+  Check_Skill: Gunnery
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N62
+  Display_Order: 1
+- Choice_Text: Ignore pursuit and commit to HMRI install.
+  Next_Node_Key: N64
+  Check_Enabled: true
+  Check_Skill: Mechanics
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N62
+  Display_Order: 2
+
+NODE_KEY: N64
+Display_Order: 410
+Is_Start: false
+Node_Title: HMRI Installed - Countdown Begins
+Node_Content:
+The igniter is installed and warming up. You must survive until jump conditions are met.
+Choices:
+- Choice_Text: Hold them off with precision piloting.
+  Next_Node_Key: N66
+  Check_Enabled: true
+  Check_Skill: Piloting-Space
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N62
+  Display_Order: 1
+
+NODE_KEY: N65
+Display_Order: 420
+Is_Start: false
+Node_Title: Space Is Clearing
+Node_Content:
+Enemy pressure is reduced, but you still need a functioning jump solution.
+Choices:
+- Choice_Text: Install and spool HMRI now.
+  Next_Node_Key: N67
+  Check_Enabled: true
+  Check_Skill: Mechanics
+  Check_Difficulty: 2
+  Failure_Next_Node_Key: N62
+  Display_Order: 1
+
+NODE_KEY: N66
+Display_Order: 430
+Is_Start: false
+Node_Title: Final Defensive Pass
+Node_Content:
+Reactor warmup is almost complete. One final exchange may decide your fate.
+Choices:
+- Choice_Text: Final gunnery burst to break pursuit.
+  Next_Node_Key: N67
+  Check_Enabled: true
+  Check_Skill: Gunnery
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N62
+  Display_Order: 1
+- Choice_Text: Divert power and brace systems.
+  Next_Node_Key: N67
+  Check_Enabled: true
+  Check_Skill: Mechanics
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N62
+  Display_Order: 2
+
+NODE_KEY: N67
+Display_Order: 440
+Is_Start: false
+Node_Title: Jump Window Open
+Node_Content:
+The hyperdrive is ready. If you commit now, this run can end in escape.
+Choices:
+- Choice_Text: Punch to lightspeed.
+  Next_Node_Key: N80
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N62
+Display_Order: 450
+Is_Start: false
+Node_Title: Critical Damage Under Pursuit
+Node_Content:
+A major hit compromises systems. You can attempt emergency control or be taken out.
+Choices:
+- Choice_Text: Conduct emergency damage control.
+  Next_Node_Key: N66
+  Check_Enabled: true
+  Check_Skill: Mechanics
+  Check_Difficulty: 3
+  Failure_Next_Node_Key: N91
+  Display_Order: 1
+- Choice_Text: Fly through chaos and force another pass.
+  Next_Node_Key: N66
+  Check_Enabled: true
+  Check_Skill: Piloting-Space
+  Check_Difficulty: 4
+  Failure_Next_Node_Key: N91
+  Display_Order: 2
+- Choice_Text: Power down and surrender.
+  Next_Node_Key: N90
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 3
+
+NODE_KEY: N80
+Display_Order: 460
+Is_Start: false
+Node_Title: Escape Successful
+Node_Content:
+Stars stretch to lines as the Krayt Fang jumps to hyperspace. You escaped Mos Shuuta, stole a starship, and left both Teemo and the Imperials behind - for now.
+
+Suggested post-adventure notes:
+- Award XP for major objectives completed.
+- Track remaining credits, wounds/strain, and salvaged gear.
+- Use discovered cargo and enemies as hooks for the next chapter.
+Choices:
+- Choice_Text: End adventure.
+  Next_Node_Key:
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N90
+Display_Order: 470
+Is_Start: false
+Node_Title: Captured Ending
+Node_Content:
+You are overwhelmed and captured by Teemo-aligned forces or Imperial patrols. Escape fails this run.
+Choices:
+- Choice_Text: End adventure.
+  Next_Node_Key:
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+NODE_KEY: N91
+Display_Order: 480
+Is_Start: false
+Node_Title: Shot Down Ending
+Node_Content:
+The Krayt Fang is crippled before it can jump. Debris and fire end the escape attempt.
+Choices:
+- Choice_Text: End adventure.
+  Next_Node_Key:
+  Check_Enabled: false
+  Check_Skill:
+  Check_Difficulty: 0
+  Failure_Next_Node_Key:
+  Display_Order: 1
+
+==================================================
+ENTRY ORDER SUGGESTION
+==================================================
+1) Create adventure record.
+2) Create all nodes in Display_Order sequence.
+3) Keep a mapping sheet: NODE_KEY -> actual Node ID.
+4) Enter all choices using mapped Node IDs.
+5) Publish after one dry-run playthrough.
