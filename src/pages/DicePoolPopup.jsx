@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
+const FALLBACK_DICE_NAMES = {
+  G: 'Ability',
+  Y: 'Proficiency',
+  B: 'Boost',
+  P: 'Challenge',
+  R: 'Difficulty',
+  K: 'Setback',
+  W: 'Force',
+};
+
 // Parse roll results to compute net successes, failures, advantages, threats, triumphs, despairs
 function parseRollResults(poolResults, diffResults) {
   // Helper to count occurrences of a word in an array of result strings
@@ -12,10 +22,6 @@ function parseRollResults(poolResults, diffResults) {
       return acc + (matches ? matches.length : 0);
     }, 0);
   }
-  const all = [
-    ...(poolResults || []),
-    ...(diffResults || [])
-  ];
   // Count each symbol
   const counts = {
     success: countAll(poolResults || [], 'success'),
@@ -63,21 +69,12 @@ const splitResultLines = (text) => {
   return [first, rest];
 };
 
-export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) {
+export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fromSkillCheck = false }) {
   const [rollResults, setRollResults] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [diceTable, setDiceTable] = useState({});
-  const fallbackDiceNames = {
-    G: 'Ability',
-    Y: 'Proficiency',
-    B: 'Boost',
-    P: 'Challenge',
-    R: 'Difficulty',
-    K: 'Setback',
-    W: 'Force',
-  };
   const diceMap = Object.fromEntries(
-    Object.entries(diceTable).map(([key, value]) => [key, value?.name || fallbackDiceNames[key] || 'Unknown'])
+    Object.entries(diceTable).map(([key, value]) => [key, value?.name || FALLBACK_DICE_NAMES[key] || 'Unknown'])
   );
 
   const collectSides = (row) => {
@@ -136,7 +133,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
       const pool = dicePopup.pool || '';
       const details = pool.split('').map(color => ({
         color,
-        name: diceMap[color] || fallbackDiceNames[color] || 'Unknown'
+          name: diceMap[color] || FALLBACK_DICE_NAMES[color] || 'Unknown'
       }));
       setDicePopup(prev => ({
         ...(prev || {}),
@@ -149,7 +146,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
 
     if (Object.keys(diceMap).length > 0) {
       const updated = dicePopup.details.map(d => {
-        const resolved = diceMap[d.color] || d.name || fallbackDiceNames[d.color] || 'Unknown';
+        const resolved = diceMap[d.color] || d.name || FALLBACK_DICE_NAMES[d.color] || 'Unknown';
         return d.name === resolved ? d : { ...d, name: resolved };
       });
       const needsUpdate = updated.some((d, i) => d.name !== dicePopup.details[i].name);
@@ -166,6 +163,16 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
       }));
     }
   }, [dicePopup, diceMap, setDicePopup]);
+
+  const popupConfiguredDifficulty = dicePopup?.difficulty;
+
+  useEffect(() => {
+    if (popupConfiguredDifficulty == null) return;
+    const configuredDifficulty = Number(popupConfiguredDifficulty);
+    const normalizedDifficulty = Number.isNaN(configuredDifficulty) ? 0 : Math.max(0, configuredDifficulty);
+    setSelectedDifficulty(normalizedDifficulty);
+    setRollResults(null);
+  }, [popupConfiguredDifficulty]);
 
   const rollSingleDieAsync = async (colorLetter) => {
     const key = String(colorLetter || '').toUpperCase();
@@ -230,6 +237,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
   const poolDetails = dicePopup.details || [];
   const boostsArr = dicePopup.boosts || [];
   const setbacksArr = dicePopup.setbacks || [];
+  const difficultyLocked = Boolean(dicePopup.difficultyLocked);
 
   return (
     <>
@@ -265,7 +273,8 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                           });
                           setRollResults(null);
                         }}
-                        className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs font-bold mb-1"
+                        disabled={fromSkillCheck}
+                        className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-gray-400 text-gray-600 cursor-not-allowed' : 'bg-gray-600 text-white hover:bg-gray-700'}`}
                       >
                         Remove
                       </button>
@@ -280,7 +289,8 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                             });
                             setRollResults(null);
                           }}
-                          className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-bold mb-1"
+                          disabled={fromSkillCheck}
+                          className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-red-400 text-red-600 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
                         >
                           Downgrade
                         </button>
@@ -295,12 +305,13 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                             });
                             setRollResults(null);
                           }}
-                          className="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs font-bold mb-1"
+                          disabled={fromSkillCheck}
+                          className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-purple-400 text-purple-600 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
                         >
                           Upgrade
                         </button>
                       )}
-                      <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{d.name || diceMap[d.color] || fallbackDiceNames[d.color] || 'Unknown'}</div>
+                      <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{d.name || diceMap[d.color] || FALLBACK_DICE_NAMES[d.color] || 'Unknown'}</div>
                       <div
                         aria-hidden
                         style={{
@@ -334,17 +345,18 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                           setDicePopup(prev => ({ ...(prev || {}), boosts: (prev?.boosts || []).slice(0, -1) }));
                           setRollResults(null);
                         }}
-                        className="px-2 py-1 bg-gray-200 text-xs rounded"
-                        disabled={boostsArr.length === 0}
+                        disabled={boostsArr.length === 0 || fromSkillCheck}
+                        className={`px-2 py-1 text-xs rounded ${fromSkillCheck ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         - Boost
                       </button>
                       <button
                         onClick={() => {
-                          setDicePopup(prev => ({ ...(prev || {}), boosts: [...(prev?.boosts || []), { color: 'B', name: diceMap['B'] || 'Boost' }] }));
+                            setDicePopup(prev => ({ ...(prev || {}), boosts: [...(prev?.boosts || []), { color: 'B', name: diceMap.B || 'Boost' }] }));
                           setRollResults(null);
                         }}
-                        className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
+                        disabled={fromSkillCheck}
+                        className={`px-2 py-1 text-xs rounded ${fromSkillCheck ? 'bg-blue-400 text-blue-600 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
                       >
                         + Boost
                       </button>
@@ -355,17 +367,18 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                           setDicePopup(prev => ({ ...(prev || {}), setbacks: (prev?.setbacks || []).slice(0, -1) }));
                           setRollResults(null);
                         }}
-                        className="px-2 py-1 bg-gray-200 text-xs rounded"
-                        disabled={setbacksArr.length === 0}
+                        disabled={setbacksArr.length === 0 || fromSkillCheck}
+                        className={`px-2 py-1 text-xs rounded ${fromSkillCheck ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'}`}
                       >
                         - Setback
                       </button>
                       <button
                         onClick={() => {
-                          setDicePopup(prev => ({ ...(prev || {}), setbacks: [...(prev?.setbacks || []), { color: 'K', name: diceMap['K'] || 'Setback' }] }));
+                            setDicePopup(prev => ({ ...(prev || {}), setbacks: [...(prev?.setbacks || []), { color: 'K', name: diceMap.K || 'Setback' }] }));
                           setRollResults(null);
                         }}
-                        className="px-2 py-1 bg-black text-white text-xs rounded"
+                        disabled={fromSkillCheck}
+                        className={`px-2 py-1 text-xs rounded ${fromSkillCheck ? 'bg-gray-400 text-gray-600 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-900'}`}
                       >
                         + Setback
                       </button>
@@ -380,7 +393,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                       const idx = poolDetails.length + bi;
                       return (
                         <div key={bi} className="flex flex-col items-center" style={{ minWidth: 56 }}>
-                          <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{b.name || diceMap[b.color] || fallbackDiceNames[b.color] || 'Boost'}</div>
+                            <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{b.name || diceMap[b.color] || FALLBACK_DICE_NAMES[b.color] || 'Boost'}</div>
                           <div
                             style={{
                               width: 48,
@@ -409,12 +422,15 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                 )}
 
                 <div className="mt-6 pt-4 border-t border-gray-300">
-                  <label className="text-xs font-medium mb-2 block" style={{ color: '#000' }}>Difficulty (1-5)</label>
+                  <label className="text-xs font-medium mb-2 block" style={{ color: '#000' }}>
+                    Difficulty (1-5){difficultyLocked ? ' - locked by skill check' : ''}
+                  </label>
                   <div className="flex gap-2 mb-3 items-center">
                     {[1, 2, 3, 4, 5].map(num => (
                       <button
                         key={num}
                         onClick={() => setSelectedDifficulty(num)}
+                        disabled={difficultyLocked}
                         className={`w-8 h-8 rounded font-bold text-sm ${
                           selectedDifficulty === num ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700'
                         }`}
@@ -424,6 +440,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                     ))}
                     <button
                       onClick={() => setSelectedDifficulty(0)}
+                      disabled={difficultyLocked}
                       className={`w-8 h-8 rounded font-bold text-sm ${
                         selectedDifficulty === 0 ? 'bg-gray-500 text-white' : 'bg-gray-200 text-gray-700'
                       }`}
@@ -473,7 +490,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                         const idx = (selectedDifficulty || 0) + si;
                         return (
                           <div key={si} className="flex flex-col items-center" style={{ minWidth: 56 }}>
-                            <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{s.name || diceMap[s.color] || fallbackDiceNames[s.color] || 'Setback'}</div>
+                            <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{s.name || diceMap[s.color] || FALLBACK_DICE_NAMES[s.color] || 'Setback'}</div>
                             <div
                               style={{
                                 width: 48,
@@ -502,14 +519,35 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                   )}
                 </div>
 
-                {/* Roll button */}
+                {/* Roll button or Use Result button */}
                 <div className="mt-6">
-                  <button
-                    onClick={handleRoll}
-                    className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
-                  >
-                    Roll
-                  </button>
+                  {!rollResults ? (
+                    <button
+                      onClick={handleRoll}
+                      className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+                    >
+                      Roll
+                    </button>
+                  ) : fromSkillCheck ? (
+                    <button
+                      className="w-full px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-bold"
+                      onClick={() => {
+                        if (!rollResults) return;
+                        const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
+                        onUseResult(parsed.netSuccess, parsed.netAdvantage, parsed);
+                        setDicePopup(null);
+                      }}
+                    >
+                      Use Result
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleRoll}
+                      className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+                    >
+                      Roll Again
+                    </button>
+                  )}
                 </div>
                 </div>
 
@@ -560,13 +598,13 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult }) 
                           </>
                         );
                       })()}
-                      {onUseResult && (
+                      {onUseResult && !fromSkillCheck && (
                         <button
                           className="mt-3 px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700"
                           onClick={() => {
                             if (!rollResults) return;
                             const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
-                            onUseResult(parsed.netSuccess, parsed.netAdvantage);
+                            onUseResult(parsed.netSuccess, parsed.netAdvantage, parsed);
                             setDicePopup(null);
                           }}
                         >

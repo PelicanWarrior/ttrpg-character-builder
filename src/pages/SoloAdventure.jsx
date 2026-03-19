@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import DicePoolPopup from './DicePoolPopup';
+import { SOLO_ADVENTURE_FALLBACK_CHECKS } from '../data/soloAdventureFallbackChecks';
 
 const USER_COLUMNS = ['User_ID', 'user_number', 'user_id', 'userID', 'playerID'];
 const CHARACTER_NAME_COLUMNS = ['name', 'Name', 'character_name', 'CharacterName', 'character', 'Character'];
@@ -80,6 +82,8 @@ const sanitizeInteger = (value, fallback = 0) => {
   return numeric;
 };
 
+const normalizeLookupText = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
 const isStarWarsSystem = (systemRow) => {
   if (!systemRow) return false;
   const initials = normalizeInitials(systemRow);
@@ -101,95 +105,6 @@ const countSkillRanksFromCsv = (skillsRankCsv) => {
       accumulator[skillName] = (accumulator[skillName] || 0) + 1;
       return accumulator;
     }, {});
-};
-
-const parseSwRollResults = (poolResultsArray, diffResultsArray) => {
-  const counts = {
-    success: 0,
-    failure: 0,
-    triumph: 0,
-    despair: 0,
-    advantage: 0,
-    threat: 0,
-  };
-
-  const parseResultText = (text) => {
-    if (!text) return;
-    const lc = String(text).toLowerCase();
-
-    const successMatches = lc.match(/success/g);
-    const failureMatches = lc.match(/failure/g);
-    const triumphMatches = lc.match(/triumph/g);
-    const despairMatches = lc.match(/despair/g);
-    const advantageMatches = lc.match(/advantage/g);
-    const threatMatches = lc.match(/threat/g);
-
-    if (successMatches) counts.success += successMatches.length;
-    if (failureMatches) counts.failure += failureMatches.length;
-    if (triumphMatches) counts.triumph += triumphMatches.length;
-    if (despairMatches) counts.despair += despairMatches.length;
-    if (advantageMatches) counts.advantage += advantageMatches.length;
-    if (threatMatches) counts.threat += threatMatches.length;
-  };
-
-  (poolResultsArray || []).forEach((result) => parseResultText(result));
-  (diffResultsArray || []).forEach((result) => parseResultText(result));
-
-  const totalSuccess = counts.success + counts.triumph;
-  const totalFailure = counts.failure + counts.despair;
-
-  const netSuccess = Math.max(0, totalSuccess - totalFailure);
-  const netFailure = Math.max(0, totalFailure - totalSuccess);
-  const netAdvantage = Math.max(0, counts.advantage - counts.threat);
-  const netThreat = Math.max(0, counts.threat - counts.advantage);
-
-  return {
-    counts,
-    netSuccess,
-    netFailure,
-    netAdvantage,
-    netThreat,
-    totalSuccess,
-    totalFailure,
-  };
-};
-
-const getSwDieFaces = async (colour, cache) => {
-  if (cache[colour]) return cache[colour];
-
-  const { data: singleRow, error: singleErr } = await supabase
-    .from('SW_dice')
-    .select('*')
-    .eq('colour', colour)
-    .maybeSingle();
-
-  let available = [];
-  if (!singleErr && singleRow) {
-    for (let side = 1; side <= 12; side++) {
-      const variants = [`side${side}`, `Side${side}`, `Side ${side}`, `side ${side}`];
-      for (const key of variants) {
-        if (Object.prototype.hasOwnProperty.call(singleRow, key) && singleRow[key] != null) {
-          available.push(singleRow[key]);
-          break;
-        }
-      }
-    }
-  }
-
-  if (available.length === 0) {
-    const { data: rows } = await supabase
-      .from('SW_dice')
-      .select('side, result')
-      .eq('colour', colour)
-      .in('side', Array.from({ length: 12 }, (_, index) => index + 1));
-
-    if (rows && rows.length > 0) {
-      available = rows.map((row) => row.result).filter((result) => result != null);
-    }
-  }
-
-  cache[colour] = available;
-  return available;
 };
 
 const getCharacterStatValue = (characterRow, statName) => {
@@ -228,6 +143,9 @@ export default function SoloAdventure() {
   const [runPath, setRunPath] = useState([]);
   const [runCompleted, setRunCompleted] = useState(false);
   const [lastSkillCheck, setLastSkillCheck] = useState(null);
+  const [dicePopup, setDicePopup] = useState(null);
+  const [pendingChoiceCheck, setPendingChoiceCheck] = useState(null);
+  const [choiceDicePools, setChoiceDicePools] = useState({});
 
   const [builderAdventures, setBuilderAdventures] = useState([]);
   const [builderSelectedAdventureId, setBuilderSelectedAdventureId] = useState('__new__');
@@ -253,6 +171,8 @@ export default function SoloAdventure() {
   const [builderChoiceCheckSkill, setBuilderChoiceCheckSkill] = useState('');
   const [builderChoiceCheckDifficulty, setBuilderChoiceCheckDifficulty] = useState('2');
   const [builderChoiceFailureNodeId, setBuilderChoiceFailureNodeId] = useState('');
+  const [builderChoiceAdvantageNodeId, setBuilderChoiceAdvantageNodeId] = useState('');
+  const [builderChoiceDisadvantageNodeId, setBuilderChoiceDisadvantageNodeId] = useState('');
   const [builderSkillOptions, setBuilderSkillOptions] = useState([]);
   const [builderSkillOptionsLoading, setBuilderSkillOptionsLoading] = useState(false);
   const [builderSkillOptionsHint, setBuilderSkillOptionsHint] = useState('');
@@ -303,6 +223,8 @@ export default function SoloAdventure() {
     setRunPath([]);
     setRunCompleted(false);
     setLastSkillCheck(null);
+    setDicePopup(null);
+    setPendingChoiceCheck(null);
   };
 
   const resetBuilderAdventureForm = () => {
@@ -333,6 +255,8 @@ export default function SoloAdventure() {
     setBuilderChoiceCheckSkill('');
     setBuilderChoiceCheckDifficulty('2');
     setBuilderChoiceFailureNodeId('');
+    setBuilderChoiceAdvantageNodeId('');
+    setBuilderChoiceDisadvantageNodeId('');
     setBuilderChoiceOrder('0');
   };
 
@@ -569,7 +493,8 @@ export default function SoloAdventure() {
     if (rows.length > 0) setSelectedAdventureId(String(rows[0].id));
   }, [isAdmin]);
 
-  const loadAdventureGraph = async (adventureId) => {
+  const loadAdventureGraph = async (adventure) => {
+    const adventureId = adventure?.id;
     const { data: nodes, error: nodeError } = await supabase
       .from('Solo_Adventure_Nodes')
       .select('id, Adventure_ID, Node_Title, Node_Content, Display_Order, Is_Start')
@@ -585,7 +510,7 @@ export default function SoloAdventure() {
     }
 
     const nodeIds = nodeList.map((node) => node.id);
-    const fullChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Check_Enabled, Check_Skill, Check_Difficulty, Check_Failure_Next_Node_ID, Display_Order';
+    const fullChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Check_Enabled, Check_Skill, Check_Difficulty, Check_Success_Next_Node_ID, Check_Failure_Next_Node_ID, Check_Advantage_Next_Node_ID, Check_Disadvantage_Next_Node_ID, Display_Order';
     const fallbackChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Display_Order';
 
     let choices = [];
@@ -595,6 +520,52 @@ export default function SoloAdventure() {
       .in('Node_ID', nodeIds)
       .order('Display_Order', { ascending: true })
       .order('id', { ascending: true });
+
+    const fallbackChecks = SOLO_ADVENTURE_FALLBACK_CHECKS[String(adventure?.Title || '')] || [];
+
+    const enrichChoicesWithFallbackChecks = (choiceRows) => {
+      if (!fallbackChecks.length) return choiceRows;
+
+      const nodeById = {};
+      const nodeIdByTitle = {};
+      nodeList.forEach((node) => {
+        nodeById[node.id] = node;
+        nodeIdByTitle[normalizeLookupText(node.Node_Title)] = node.id;
+      });
+
+      const fallbackByNodeAndChoice = {};
+      fallbackChecks.forEach((entry) => {
+        const key = `${normalizeLookupText(entry.nodeTitle)}||${normalizeLookupText(entry.choiceText)}`;
+        fallbackByNodeAndChoice[key] = entry;
+      });
+
+      return (choiceRows || []).map((choice) => {
+        const hasCheckData = Boolean(choice.Check_Enabled && choice.Check_Skill && sanitizeInteger(choice.Check_Difficulty, 0) > 0);
+        if (hasCheckData) return choice;
+
+        const node = nodeById[choice.Node_ID];
+        if (!node) return choice;
+
+        const lookupKey = `${normalizeLookupText(node.Node_Title)}||${normalizeLookupText(choice.Choice_Text)}`;
+        const match = fallbackByNodeAndChoice[lookupKey];
+        if (!match) return choice;
+
+        const failureNodeId = match.failureNodeTitle
+          ? (nodeIdByTitle[normalizeLookupText(match.failureNodeTitle)] ?? null)
+          : null;
+
+        return {
+          ...choice,
+          Check_Enabled: true,
+          Check_Skill: match.checkSkill || null,
+          Check_Difficulty: Math.max(1, sanitizeInteger(match.checkDifficulty, 1)),
+          Check_Success_Next_Node_ID: choice.Check_Success_Next_Node_ID ?? choice.Next_Node_ID,
+          Check_Failure_Next_Node_ID: choice.Check_Failure_Next_Node_ID ?? failureNodeId,
+          Check_Advantage_Next_Node_ID: choice.Check_Advantage_Next_Node_ID ?? null,
+          Check_Disadvantage_Next_Node_ID: choice.Check_Disadvantage_Next_Node_ID ?? null,
+        };
+      });
+    };
 
     if (fullChoiceError) {
       if (!isMissingColumnError(fullChoiceError)) throw fullChoiceError;
@@ -613,10 +584,14 @@ export default function SoloAdventure() {
         Check_Enabled: false,
         Check_Skill: null,
         Check_Difficulty: 0,
+        Check_Success_Next_Node_ID: null,
         Check_Failure_Next_Node_ID: null,
+        Check_Advantage_Next_Node_ID: null,
+        Check_Disadvantage_Next_Node_ID: null,
       }));
+      choices = enrichChoicesWithFallbackChecks(choices);
     } else {
-      choices = fullChoices || [];
+      choices = enrichChoicesWithFallbackChecks(fullChoices || []);
     }
 
     const nodesById = {};
@@ -639,16 +614,13 @@ export default function SoloAdventure() {
     };
   };
 
-  const runSwSkillCheck = async (characterRow, skillName, difficulty) => {
+  const prepareSwSkillCheck = async (characterRow, skillName, difficulty) => {
     const normalizedSkillName = String(skillName || '').trim();
     if (!normalizedSkillName) {
       return { error: 'This choice requires a skill name.' };
     }
 
-    const parsedDifficulty = Math.max(0, sanitizeInteger(difficulty, 0));
-    if (parsedDifficulty < 1) {
-      return { error: 'Difficulty must be at least 1 for a skill check.' };
-    }
+    const parsedDifficulty = Math.max(1, sanitizeInteger(difficulty, 2));
 
     const { data: skillsData, error: skillError } = await supabase
       .from('skills')
@@ -680,31 +652,18 @@ export default function SoloAdventure() {
       dicePool = poolChars.join('');
     }
 
-    const dieFacesCache = {};
-    const poolResults = [];
-    for (const colour of dicePool.split('')) {
-      const available = await getSwDieFaces(colour, dieFacesCache);
-      poolResults.push(available.length > 0 ? available[Math.floor(Math.random() * available.length)] : '—');
-    }
-
-    const diffResults = [];
-    for (let index = 0; index < parsedDifficulty; index++) {
-      const available = await getSwDieFaces('P', dieFacesCache);
-      diffResults.push(available.length > 0 ? available[Math.floor(Math.random() * available.length)] : '—');
-    }
-
-    const summary = parseSwRollResults(poolResults, diffResults);
-    const passed = summary.netSuccess > 0;
-
     return {
       skill: matchedSkill.skill,
       difficulty: parsedDifficulty,
       dicePool,
-      poolResults,
-      diffResults,
-      summary,
-      passed,
+      baseStat,
+      rank,
     };
+  };
+
+  const closeDicePopup = () => {
+    setDicePopup(null);
+    setPendingChoiceCheck(null);
   };
 
   const startAdventureRun = async () => {
@@ -716,7 +675,7 @@ export default function SoloAdventure() {
     }
 
     try {
-      const graph = await loadAdventureGraph(selectedAdventure.id);
+      const graph = await loadAdventureGraph(selectedAdventure);
       const pathStart = [{ nodeId: graph.startNode.id, at: new Date().toISOString() }];
 
       setGraphNodesById(graph.nodesById);
@@ -754,54 +713,23 @@ export default function SoloAdventure() {
     }
   };
 
-  const choosePath = async (choice) => {
+  const applyChoiceOutcome = async (choice, nextNodeId, skillCheckSummary = null) => {
     if (!choice) return;
 
-    let nextNodeId = choice.Next_Node_ID;
-    let skillCheckSummary = null;
-
-    if (!choice.Check_Enabled) {
-      setLastSkillCheck(null);
-    }
-
-    if (choice.Check_Enabled) {
-      if (!isStarWarsSystem(selectedSystem)) {
-        setError('Skill checks are currently supported for Star Wars adventures only.');
-        return;
-      }
-
-      const result = await runSwSkillCheck(selectedCharacter?.raw, choice.Check_Skill, choice.Check_Difficulty);
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-
-      setError('');
-      setLastSkillCheck(result);
-      skillCheckSummary = {
-        skill: result.skill,
-        difficulty: result.difficulty,
-        passed: result.passed,
-        netSuccess: result.summary.netSuccess,
-        netFailure: result.summary.netFailure,
-      };
-
-      nextNodeId = result.passed ? choice.Next_Node_ID : choice.Check_Failure_Next_Node_ID;
-    }
-
+    const resolvedNextNodeId = nextNodeId == null ? null : Number(nextNodeId);
     const timestamp = new Date().toISOString();
     const nextPath = [
       ...runPath,
       {
         nodeId: activeNodeId,
         choiceId: choice.id,
-        nextNodeId,
+        nextNodeId: resolvedNextNodeId,
         ...(skillCheckSummary ? { skillCheck: skillCheckSummary } : {}),
         at: timestamp,
       },
     ];
 
-    if (nextNodeId == null || !graphNodesById[nextNodeId]) {
+    if (resolvedNextNodeId == null || !graphNodesById[resolvedNextNodeId]) {
       setRunPath(nextPath);
       setRunCompleted(true);
       setActiveNodeId(null);
@@ -820,17 +748,115 @@ export default function SoloAdventure() {
     }
 
     setRunPath(nextPath);
-    setActiveNodeId(nextNodeId);
+    setActiveNodeId(resolvedNextNodeId);
 
     if (runId != null) {
       await supabase
         .from('Solo_Adventure_Runs')
         .update({
-          Node_ID: nextNodeId,
+          Node_ID: resolvedNextNodeId,
           Path: nextPath,
           Completed: false,
         })
         .eq('id', runId);
+    }
+  };
+
+  const handleUseSkillCheckResult = async (netSuccess, netAdvantage, parsedResult) => {
+    if (!pendingChoiceCheck?.choice) return;
+
+    const checkContext = pendingChoiceCheck;
+    const choice = checkContext.choice;
+    const parsed = parsedResult || {};
+    const normalizedNetSuccess = Number(netSuccess) > 0 ? Number(netSuccess) : 0;
+    const normalizedNetAdvantage = Number(netAdvantage) > 0 ? Number(netAdvantage) : 0;
+    const normalizedNetFailure = Math.max(0, Number(parsed.netFailure ?? 0));
+    const normalizedNetThreat = Math.max(0, Number(parsed.netThreat ?? 0));
+    const passed = normalizedNetSuccess > 0;
+
+    let branchOutcome = passed ? 'success' : 'failure';
+    const successNodeId = choice.Check_Success_Next_Node_ID != null ? choice.Check_Success_Next_Node_ID : choice.Next_Node_ID;
+    let nextNodeId = passed ? successNodeId : choice.Check_Failure_Next_Node_ID;
+
+    if (passed && normalizedNetAdvantage > 0 && choice.Check_Advantage_Next_Node_ID != null) {
+      nextNodeId = choice.Check_Advantage_Next_Node_ID;
+      branchOutcome = 'advantage';
+    }
+
+    if (!passed && normalizedNetThreat > 0 && choice.Check_Disadvantage_Next_Node_ID != null) {
+      nextNodeId = choice.Check_Disadvantage_Next_Node_ID;
+      branchOutcome = 'disadvantage';
+    }
+
+    const summary = {
+      skill: checkContext.skill,
+      difficulty: checkContext.difficulty,
+      dicePool: checkContext.dicePool,
+      passed,
+      branchOutcome,
+      summary: {
+        netSuccess: normalizedNetSuccess,
+        netFailure: normalizedNetFailure,
+        netAdvantage: normalizedNetAdvantage,
+        netThreat: normalizedNetThreat,
+      },
+    };
+
+    setLastSkillCheck(summary);
+    setError('');
+    setPendingChoiceCheck(null);
+
+    await applyChoiceOutcome(choice, nextNodeId, {
+      skill: summary.skill,
+      difficulty: summary.difficulty,
+      passed: summary.passed,
+      branchOutcome: summary.branchOutcome,
+      netSuccess: summary.summary.netSuccess,
+      netFailure: summary.summary.netFailure,
+      netAdvantage: summary.summary.netAdvantage,
+      netThreat: summary.summary.netThreat,
+    });
+  };
+
+  const choosePath = async (choice) => {
+    if (!choice) return;
+
+    if (!choice.Check_Enabled) {
+      setLastSkillCheck(null);
+      await applyChoiceOutcome(choice, choice.Next_Node_ID);
+      return;
+    }
+
+    if (choice.Check_Enabled) {
+      if (!isStarWarsSystem(selectedSystem)) {
+        setError('Skill checks are currently supported for Star Wars adventures only.');
+        return;
+      }
+
+      const result = await prepareSwSkillCheck(selectedCharacter?.raw, choice.Check_Skill, choice.Check_Difficulty);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
+      setError('');
+      setPendingChoiceCheck({
+        choice,
+        skill: result.skill,
+        difficulty: result.difficulty,
+        dicePool: result.dicePool,
+      });
+
+      setDicePopup({
+        label: `${result.skill} Check`,
+        pool: result.dicePool,
+        details: result.dicePool.split('').map((color) => ({ color, name: 'Unknown' })),
+        boosts: [],
+        setbacks: [],
+        difficulty: result.difficulty,
+        difficultyLocked: true,
+      });
+      return;
     }
   };
 
@@ -874,7 +900,7 @@ export default function SoloAdventure() {
       return;
     }
 
-    const fullChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Check_Enabled, Check_Skill, Check_Difficulty, Check_Failure_Next_Node_ID, Display_Order';
+    const fullChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Check_Enabled, Check_Skill, Check_Difficulty, Check_Success_Next_Node_ID, Check_Failure_Next_Node_ID, Check_Advantage_Next_Node_ID, Check_Disadvantage_Next_Node_ID, Display_Order';
     const fallbackChoiceSelect = 'id, Node_ID, Choice_Text, Next_Node_ID, Display_Order';
 
     const { data: fullData, error: fullChoiceError } = await supabase
@@ -906,7 +932,10 @@ export default function SoloAdventure() {
       Check_Enabled: false,
       Check_Skill: null,
       Check_Difficulty: 0,
+      Check_Success_Next_Node_ID: null,
       Check_Failure_Next_Node_ID: null,
+      Check_Advantage_Next_Node_ID: null,
+      Check_Disadvantage_Next_Node_ID: null,
     })));
     resetBuilderChoiceForm();
   };
@@ -1122,11 +1151,14 @@ export default function SoloAdventure() {
     if (!selected) return;
 
     setBuilderChoiceText(selected.Choice_Text || '');
-    setBuilderChoiceNextNodeId(selected.Next_Node_ID != null ? String(selected.Next_Node_ID) : '');
+    const selectedSuccessNodeId = selected.Check_Success_Next_Node_ID != null ? selected.Check_Success_Next_Node_ID : selected.Next_Node_ID;
+    setBuilderChoiceNextNodeId(selectedSuccessNodeId != null ? String(selectedSuccessNodeId) : '');
     setBuilderChoiceRequiresCheck(Boolean(selected.Check_Enabled));
     setBuilderChoiceCheckSkill(selected.Check_Skill || '');
     setBuilderChoiceCheckDifficulty(String(selected.Check_Difficulty ?? 2));
     setBuilderChoiceFailureNodeId(selected.Check_Failure_Next_Node_ID != null ? String(selected.Check_Failure_Next_Node_ID) : '');
+    setBuilderChoiceAdvantageNodeId(selected.Check_Advantage_Next_Node_ID != null ? String(selected.Check_Advantage_Next_Node_ID) : '');
+    setBuilderChoiceDisadvantageNodeId(selected.Check_Disadvantage_Next_Node_ID != null ? String(selected.Check_Disadvantage_Next_Node_ID) : '');
     setBuilderChoiceOrder(String(selected.Display_Order ?? 0));
   };
 
@@ -1163,7 +1195,10 @@ export default function SoloAdventure() {
         Check_Enabled: builderChoiceRequiresCheck,
         Check_Skill: builderChoiceRequiresCheck ? builderChoiceCheckSkill.trim() : null,
         Check_Difficulty: builderChoiceRequiresCheck ? checkDifficulty : 0,
+        Check_Success_Next_Node_ID: builderChoiceRequiresCheck && builderChoiceNextNodeId ? Number(builderChoiceNextNodeId) : null,
         Check_Failure_Next_Node_ID: builderChoiceRequiresCheck && builderChoiceFailureNodeId ? Number(builderChoiceFailureNodeId) : null,
+        Check_Advantage_Next_Node_ID: builderChoiceRequiresCheck && builderChoiceAdvantageNodeId ? Number(builderChoiceAdvantageNodeId) : null,
+        Check_Disadvantage_Next_Node_ID: builderChoiceRequiresCheck && builderChoiceDisadvantageNodeId ? Number(builderChoiceDisadvantageNodeId) : null,
         Display_Order: sanitizeInteger(builderChoiceOrder, 0),
       };
 
@@ -1191,6 +1226,10 @@ export default function SoloAdventure() {
       }
     } catch (saveError) {
       console.error('Failed to save choice:', saveError);
+      if (isMissingColumnError(saveError)) {
+        setError('Skill-check outcome columns are missing in Solo_Adventure_Choices. Run sql/migrate_solo_adventure_skill_check_outcomes.sql in Supabase SQL Editor.');
+        return;
+      }
       setError('Failed to save choice.');
     } finally {
       setSavingChoice(false);
@@ -1290,6 +1329,34 @@ export default function SoloAdventure() {
 
     refreshSkillOptions();
   }, [builderChoiceRequiresCheck, builderSelectedSystem, loadBuilderSkillOptions]);
+
+  // Compute dice pools for all skill-check choices
+  useEffect(() => {
+    const computeChoicePools = async () => {
+      if (!currentNodeChoices || currentNodeChoices.length === 0 || !selectedCharacter?.raw) {
+        setChoiceDicePools({});
+        return;
+      }
+
+      const pools = {};
+      for (const choice of currentNodeChoices) {
+        if (choice.Check_Enabled && choice.Check_Skill) {
+          try {
+            const result = await prepareSwSkillCheck(selectedCharacter.raw, choice.Check_Skill, choice.Check_Difficulty);
+            if (result?.dicePool) {
+              pools[choice.id] = result.dicePool;
+            }
+          } catch (err) {
+            console.error(`Failed to compute pool for choice ${choice.id}:`, err);
+          }
+        }
+      }
+      setChoiceDicePools(pools);
+    };
+
+    computeChoicePools();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentNodeChoices?.map(c => c.id).join(','), selectedCharacter?.raw?.id]);
 
   if (loading) {
     return (
@@ -1475,6 +1542,12 @@ export default function SoloAdventure() {
                           <div className="text-xs mt-1">
                             Net Success: {lastSkillCheck.summary.netSuccess} | Net Failure: {lastSkillCheck.summary.netFailure}
                           </div>
+                          <div className="text-xs mt-1">
+                            Net Advantage: {lastSkillCheck.summary.netAdvantage} | Net Threat: {lastSkillCheck.summary.netThreat}
+                          </div>
+                          <div className="text-xs mt-1">
+                            Outcome Path: {lastSkillCheck.branchOutcome || (lastSkillCheck.passed ? 'success' : 'failure')}
+                          </div>
                         </div>
                       )}
 
@@ -1485,10 +1558,12 @@ export default function SoloAdventure() {
                             onClick={() => choosePath(choice)}
                             className="block w-full rounded border border-indigo-600 bg-indigo-50 px-3 py-2 text-left font-medium text-indigo-700 hover:bg-indigo-100"
                           >
-                            {choice.Choice_Text}
+                            <span>
+                              {choice.Choice_Text}
+                            </span>
                             {choice.Check_Enabled && (
                               <span className="block text-xs text-indigo-900 mt-1">
-                                Skill Check: {choice.Check_Skill || 'Unknown Skill'} (Difficulty {choice.Check_Difficulty || 0})
+                                Your {choice.Check_Skill || 'Unknown Skill'} Dice Pool (D{choice.Check_Difficulty || 0}): {choiceDicePools[choice.id] || '...'}
                               </span>
                             )}
                           </button>
@@ -1720,20 +1795,24 @@ export default function SoloAdventure() {
                   disabled={builderSelectedNodeId === '__new__'}
                 />
 
-                <label className="mb-1 block text-sm font-medium text-gray-700">Go To Page</label>
-                <select
-                  value={builderChoiceNextNodeId}
-                  onChange={(e) => setBuilderChoiceNextNodeId(e.target.value)}
-                  className="mb-3 w-full rounded border border-gray-300 px-3 py-2"
-                  disabled={builderSelectedNodeId === '__new__'}
-                >
-                  <option value="">-- End Adventure (no next page) --</option>
-                  {builderNodes.map((node) => (
-                    <option key={node.id} value={String(node.id)}>
-                      {node.Node_Title || `Page ${node.id}`}
-                    </option>
-                  ))}
-                </select>
+                {!builderChoiceRequiresCheck && (
+                  <>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Go To Page</label>
+                    <select
+                      value={builderChoiceNextNodeId}
+                      onChange={(e) => setBuilderChoiceNextNodeId(e.target.value)}
+                      className="mb-3 w-full rounded border border-gray-300 px-3 py-2"
+                      disabled={builderSelectedNodeId === '__new__'}
+                    >
+                      <option value="">-- End Adventure (no next page) --</option>
+                      {builderNodes.map((node) => (
+                        <option key={node.id} value={String(node.id)}>
+                          {node.Node_Title || `Page ${node.id}`}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
 
                 <label className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-gray-700">
                   <input
@@ -1776,20 +1855,69 @@ export default function SoloAdventure() {
                       disabled={builderSelectedNodeId === '__new__'}
                     />
 
-                    <label className="mb-1 block text-sm font-medium text-gray-700">On Failure Go To Page</label>
-                    <select
-                      value={builderChoiceFailureNodeId}
-                      onChange={(e) => setBuilderChoiceFailureNodeId(e.target.value)}
-                      className="mb-3 w-full rounded border border-gray-300 px-3 py-2"
-                      disabled={builderSelectedNodeId === '__new__'}
-                    >
-                      <option value="">-- End Adventure (no next page) --</option>
-                      {builderNodes.map((node) => (
-                        <option key={node.id} value={String(node.id)}>
-                          {node.Node_Title || `Page ${node.id}`}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mb-1 mt-1 rounded border border-gray-200 bg-white p-2">
+                      <p className="mb-2 text-sm font-semibold text-gray-700">Skill Check Outcomes</p>
+
+                      <label className="mb-1 block text-sm font-medium text-gray-700">On Success Go To Page</label>
+                      <select
+                        value={builderChoiceNextNodeId}
+                        onChange={(e) => setBuilderChoiceNextNodeId(e.target.value)}
+                        className="mb-3 w-full rounded border border-gray-300 px-3 py-2"
+                        disabled={builderSelectedNodeId === '__new__'}
+                      >
+                        <option value="">-- End Adventure (no next page) --</option>
+                        {builderNodes.map((node) => (
+                          <option key={node.id} value={String(node.id)}>
+                            {node.Node_Title || `Page ${node.id}`}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="mb-1 block text-sm font-medium text-gray-700">On Failure Go To Page</label>
+                      <select
+                        value={builderChoiceFailureNodeId}
+                        onChange={(e) => setBuilderChoiceFailureNodeId(e.target.value)}
+                        className="mb-3 w-full rounded border border-gray-300 px-3 py-2"
+                        disabled={builderSelectedNodeId === '__new__'}
+                      >
+                        <option value="">-- End Adventure (no next page) --</option>
+                        {builderNodes.map((node) => (
+                          <option key={node.id} value={String(node.id)}>
+                            {node.Node_Title || `Page ${node.id}`}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="mb-1 block text-sm font-medium text-gray-700">On Advantage Go To Page (optional)</label>
+                      <select
+                        value={builderChoiceAdvantageNodeId}
+                        onChange={(e) => setBuilderChoiceAdvantageNodeId(e.target.value)}
+                        className="mb-3 w-full rounded border border-gray-300 px-3 py-2"
+                        disabled={builderSelectedNodeId === '__new__'}
+                      >
+                        <option value="">-- Use normal success page --</option>
+                        {builderNodes.map((node) => (
+                          <option key={node.id} value={String(node.id)}>
+                            {node.Node_Title || `Page ${node.id}`}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="mb-1 block text-sm font-medium text-gray-700">On Disadvantage Go To Page (optional)</label>
+                      <select
+                        value={builderChoiceDisadvantageNodeId}
+                        onChange={(e) => setBuilderChoiceDisadvantageNodeId(e.target.value)}
+                        className="mb-1 w-full rounded border border-gray-300 px-3 py-2"
+                        disabled={builderSelectedNodeId === '__new__'}
+                      >
+                        <option value="">-- Use normal failure page --</option>
+                        {builderNodes.map((node) => (
+                          <option key={node.id} value={String(node.id)}>
+                            {node.Node_Title || `Page ${node.id}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </>
                 )}
 
@@ -1826,6 +1954,66 @@ export default function SoloAdventure() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {dicePopup && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(0,0,0,0.5)',
+              padding: '16px',
+            }}
+            onClick={closeDicePopup}
+          >
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: '1100px',
+                borderRadius: '10px',
+                border: '3px solid black',
+                backgroundColor: 'white',
+                padding: '16px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                onClick={closeDicePopup}
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  zIndex: 10000,
+                  width: 32,
+                  height: 32,
+                  borderRadius: '999px',
+                  border: 'none',
+                  backgroundColor: 'white',
+                  color: '#dc2626',
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  lineHeight: '1',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                }}
+                aria-label="Close dice popup"
+              >
+                ×
+              </button>
+              <DicePoolPopup
+                dicePopup={dicePopup}
+                setDicePopup={setDicePopup}
+                onUseResult={handleUseSkillCheckResult}
+                fromSkillCheck={true}
+              />
             </div>
           </div>
         )}
