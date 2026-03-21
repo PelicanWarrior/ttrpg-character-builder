@@ -1,0 +1,32 @@
+Campaign 2 Folder Guide
+
+Use this folder split to keep player-facing material separate from GM-only material.
+
+Player-safe files:
+- Root character backstory files such as Tol.txt
+- Player Notes\
+- Locations\
+- NPCs\
+- Factions\
+
+GM-only files:
+- GM Notes\
+- Session Summaries\
+
+Tol-specific files added for this campaign:
+- Player Notes\Tol - Player Brief.txt
+- Locations\Nabat's Lantern.txt
+- NPCs\Bilmil.txt
+- NPCs\Trethi.txt
+- Factions\Iron Vulture Company.txt
+- GM Notes\Tol - Hidden History.txt
+- GM Notes\Tol - Future Hooks.txt
+- GM Notes\Campaign Tracker.txt
+- GM Notes\NPC Tracker.txt
+- GM Notes\Secrets and Reveals.txt
+- Session Summaries\Session 00 - Campaign Setup.txt
+
+Recommended use:
+- Keep anything Tol's player can safely know in the player-safe files.
+- Put survivor truths, betrayal reveals, hidden patrons, and future twists in GM Notes.
+- Update Session Summaries after each game, then roll any lasting consequences into the tracker files.

@@ -28,57 +28,103 @@ const supabase = createClient(
 const handleMulterError = (req, res, next) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
-      console.error('Multer error:', err.message);
       return res.status(400).json({ error: 'File upload error: ' + err.message });
     }
     next();
   });
 };
 
+const pictureDir = path.join(__dirname, '../../');
+
+const getMaxPictureNumberFromDisk = () => {
+  try {
+    const entries = fs.readdirSync(pictureDir, { withFileTypes: true });
+    let max = 0;
+
+    entries.forEach((entry) => {
+      if (!entry.isFile()) return;
+      const match = /^Picture\s+(\d+)\.png$/i.exec(entry.name);
+      if (!match) return;
+      const parsed = Number.parseInt(match[1], 10);
+      if (!Number.isNaN(parsed)) {
+        max = Math.max(max, parsed);
+      }
+    });
+
+    return max;
+  } catch {
+    return 0;
+  }
+};
+
+const getMaxIdFromTable = async (tableName) => {
+  const { data, error } = await supabase
+    .from(tableName)
+    .select('id')
+    .order('id', { ascending: false })
+    .limit(1);
+
+  if (error || !Array.isArray(data) || data.length === 0) return 0;
+  return Number(data[0]?.id) || 0;
+};
+
+const getNextPictureId = async () => {
+  const [diskMax, dndMax, swMax] = await Promise.all([
+    Promise.resolve(getMaxPictureNumberFromDisk()),
+    getMaxIdFromTable('DND_campaign_pictures'),
+    getMaxIdFromTable('SW_pictures'),
+  ]);
+
+  return Math.max(diskMax, dndMax, swMax) + 1;
+};
+
+const createPictureRow = async (userId, desiredId) => {
+  const swInsert = await supabase
+    .from('SW_pictures')
+    .insert([{ id: desiredId, user_ID: userId }])
+    .select('id')
+    .single();
+
+  if (!swInsert.error && swInsert.data?.id != null) {
+    return swInsert.data.id;
+  }
+
+  const fallbackInsert = await supabase
+    .from('DND_campaign_pictures')
+    .insert([{ id: desiredId, user_ID: userId }])
+    .select('id')
+    .single();
+
+  if (fallbackInsert.error) {
+    throw fallbackInsert.error;
+  }
+  return fallbackInsert.data.id;
+};
+
 router.post('/', handleMulterError, async (req, res) => {
   try {
-    console.log('Upload request received');
-    console.log('File:', req.file ? 'present' : 'missing');
-    console.log('Body:', req.body);
-
     const { placeId, userId } = req.body;
     if (!req.file || !placeId || !userId) {
-      console.log('Missing data - file:', !!req.file, 'placeId:', placeId, 'userId:', userId);
       return res.status(400).json({ error: 'Missing file, placeId, or userId' });
     }
 
-    // Insert into SW_pictures and get new id
-    const { data, error } = await supabase
-      .from('SW_pictures')
-      .insert([{ user_ID: userId }])
-      .select('id')
-      .single();
+    const nextPictureId = await getNextPictureId();
+    const pictureId = await createPictureRow(userId, nextPictureId);
 
-    if (error) {
-      console.error('Supabase insert error:', error);
-      return res.status(500).json({ error: error.message });
-    }
-    const pictureId = data.id;
-
-    // Rename file to Picture <ID>.png
     const newPath = path.join(req.file.destination, `Picture ${pictureId}.png`);
     fs.renameSync(req.file.path, newPath);
 
-    // Update SW_campaign_notes with new PictureID
     const { error: updateError } = await supabase
       .from('SW_campaign_notes')
       .update({ PictureID: pictureId })
       .eq('id', placeId);
 
     if (updateError) {
-      console.error('Supabase update error:', updateError);
       return res.status(500).json({ error: updateError.message });
     }
 
-    console.log('Picture upload successful:', { placeId, pictureId });
     res.json({ success: true, pictureId });
   } catch (err) {
-    console.error('Upload error:', err);
     res.status(500).json({ error: err.message || 'Unknown error occurred' });
   }
 });

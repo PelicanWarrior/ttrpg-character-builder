@@ -1,0 +1,15 @@
+NPC Tracker
+
+Tol-related NPCs:
+- Bilmil: Tol's father, watchman and hunter from Nabat's Lantern. Public status unknown to Tol. True status: dead in last stand.
+- Trethi: Tol's mother, healer and storyteller. Public status unknown to Tol. True status: survived the raid and was taken.
+- Verashi: elderly Twi'lek scout and survivor custodian. Hidden protector of enclave memory.
+- Nalen Vri: survivor who later betrayed refugee routes under pressure.
+- Daro Vexis: Zygerrian trade broker linked to the raid.
+- Droven Kalt: former Iron Vulture field officer, Tol's likely recurring personal enemy.
+- Sergeant Vara Sorn: former Iron Vulture claw leader, could be ally, obstacle, or reluctant witness.
+- Jek Marr: former squadmate, likely to remember Tol favorably.
+- Siva Noret: former scout, likely knew the company was rotting before Tol left.
+
+Campaign-wide note:
+Add one line after each session for any NPC who gains new leverage, injuries, secrets, or changed allegiance.

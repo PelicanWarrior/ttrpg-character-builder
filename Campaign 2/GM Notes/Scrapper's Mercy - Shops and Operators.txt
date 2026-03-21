@@ -1,0 +1,133 @@
+Scrapper's Mercy - Shops and Operators
+
+1) The Bent Coil
+Type:
+Ship parts and repair components
+
+What it sells:
+- Hyperdrive couplings (mostly refurbished)
+- Power relays, shield emitters, and control boards
+- Hull patch kits and pressure seals
+- Tool bundles for field repairs
+
+Who runs it:
+Patch Kelro (Duros, male)
+A brilliant mechanic with zero patience for fools. Patch can source almost anything mechanical if paid up front or owed a major favor.
+
+Portrait Prompt (3D AI Studio):
+Full-body 3D character model of a blue-green skinned alien humanoid male with a large smooth domed hairless cranium, oversized deep-red eyes, a broad nasal ridge with flattened fused nostrils, and a long narrow tapered chin, lean wiry build, wearing a stained canvas work apron over a grey full-length utility coverall, multiple tool pockets along the thighs, a multi-tool holster clipped to a chest strap, grease-blackened fingers, standing with weight shifted to one hip and arms folded across the chest with a wrench held in one hand, expression of sharp impatient intelligence sizing up the viewer, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, neutral overhead studio lighting with soft fill, no text, no watermark
+
+Notes:
+Patch is the fastest route to getting the infiltrator spaceworthy, but often demands risky side jobs in exchange for premium parts.
+
+2) Red Ledger Exchange
+Type:
+Brokerage and debt office
+
+What it sells:
+- Salvage claims and legal cover papers
+- Introductions to crews, escorts, and muscle
+- Quiet information on who is buying what
+- Emergency credit at punishing rates
+
+Who runs it:
+Nemm Vorr (human male)
+Smooth, calm, and impossible to read. Keeps records on everyone and weaponizes debt better than most gangs weaponize blasters.
+
+Portrait Prompt (3D AI Studio):
+Full-body 3D character model of a middle-aged human male with a lean angular face, close-cropped dark hair greying at the temples, pale cold grey eyes, a clean-shaved sharp jawline, slender precise build, wearing a well-maintained dark long coat with a high stiff collar over a pressed grey undershirt, slim trousers, polished low boots, a datapad tucked under one arm and a stylus held lightly in the other hand, standing with an easy measured posture, weight evenly distributed, expression of controlled calm assessment that reveals nothing, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, soft even studio lighting, no text, no watermark
+
+Notes:
+Great source of hooks and rumors. Also the easiest way for the party to get entangled in settlement politics.
+
+3) Ash and Alloy Arms
+Type:
+Weapons, armor, and personal protection
+
+What it sells:
+- Refitted blasters and carbine frames
+- Armor plates and environmental underlayers
+- Shock batons, restraint kits, and breaching charges
+- Ammunition and power packs
+
+Who runs it:
+Ghar Tannik (Trandoshan male)
+Former convoy raider turned merchant. Values strength and directness; respects buyers who do not haggle in bad faith.
+
+Portrait Prompt (3D AI Studio):
+Full-body 3D character model of a broad-shouldered reptilian alien male with rough olive-green scales darkened to charcoal at the shoulders and spine, a wide flat snout with rows of small blunt teeth, amber slit-pupil eyes, several old blade scars across the jaw and left shoulder, heavy muscular build, wearing a worn leather vest over bare scaled arms, a heavy-duty equipment harness across the chest, cargo trousers with reinforced knee plating, heavy boots, standing behind a low surface with one thick hand resting flat on the counter and the other hanging loosely at his side, expression calm and evaluating with no particular threat displayed, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, hard side key light with deep cast shadows, no text, no watermark
+
+Notes:
+Carries legal and illegal stock depending on who is asking.
+
+4) Filterhouse Nine
+Type:
+Life support and survival supplies
+
+What it sells:
+- Air filters and rebreather cartridges
+- Water recycler membranes
+- Medgel, antiseptics, and trauma wraps
+- Long-duration ration packs
+
+Who runs it:
+Sera Moll (human female)
+Ex-field medic who built a business around keeping people alive in toxic zones. Protective of civilians and refugees.
+
+Portrait Prompt (3D AI Studio):
+Full-body 3D character model of a human woman in her late thirties with a weathered tan complexion, dark brown eyes, short practical hair pushed back from her face, a faded scar across the bridge of her nose and a smaller scar on the left forearm, medium capable build, wearing a worn field medic jacket with patched elbows and rolled-up sleeves, a thermal underlayer visible at the collar, a rebreather unit hanging loose around the neck, a worn trauma kit slung over one shoulder, utility belt with small medical pouches, standing in a calm forward-weighted posture with arms loosely at her sides as if ready to act, expression tired but quietly resolute, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, cool neutral studio lighting with soft shadow fill, no text, no watermark
+
+Notes:
+If supplies run low, social tension in Scrapper's Mercy spikes fast.
+
+5) Null Signal Kiosk
+Type:
+Slicing, comms spoofing, and data recovery
+
+What it sells:
+- Comms scramblers and signal masks
+- Navigation map fragments and old scans
+- Data decryption and locked core extraction
+- Temporary identity scrub services
+
+Who runs it:
+Ixo-3 (modified droid)
+A heavily customized utility droid with a dry sense of humor and strict transactional ethics.
+
+Portrait Prompt (3D AI Studio):
+Full-body 3D character model of a humanoid utility droid with heavily mismatched armour plating in dull brushed silver and dark charcoal panels, one intact round blue photoreceptor eye and one eye socket replaced with a compact cluster of three multi-lens apertures of different sizes, exposed bundled wiring along the neck joint and lower forearm sections, a compact dual-antenna array bolted to the left shoulder, worn articulated gripper hands with a fine slicing tool attachment mounted on the right index finger, standing in a still upright posture with the head tilted slightly as if mid-calculation, a data slate held flat in one hand, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, cool blue-tinted rim lighting with soft neutral fill, no text, no watermark
+
+Notes:
+Can help access damaged Sith-era data, but logs every favor owed.
+
+6) The Last Ratchet
+Type:
+Cantina, hiring floor, and rumor pit
+
+What it sells:
+- Food, drink, and temporary bunk rental
+- Crew hiring board and short-term labor
+- Rumors, gossip, and off-book contracts
+
+Who runs it:
+Hira Vonn (Twi'lek female)
+Unofficial settlement anchor. Practical, watchful, and ruthless about keeping open violence off her floor.
+
+Portrait Prompt (3D AI Studio):
+Full-body 3D character model of an alien humanoid woman with smooth pale blue skin, two long flexible head-tails extending from the back of the skull bound in dark worn leather cord pinched with small tarnished metal bands at intervals, sharp amber eyes, high angular cheekbones, a small firm mouth set in a calm measuring expression, athletic lean build, wearing a sleeveless close-fitted dark tunic, a wide utility belt with flat pouches, close-cut trousers, low-heeled boots, a single compact hold-out blaster holstered low on the right thigh, standing with arms loosely folded across the chest and weight shifted to one side in a relaxed but watchful posture, expression cool and appraising, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, warm amber key light from one side with cool blue shadow fill from the other, no text, no watermark
+
+Notes:
+Best social hub for introducing NPCs, rival crews, and session hooks.
+
+Suggested First-Session Shopping List For The Infiltrator:
+- Primary power distributor array
+- Hyperdrive coolant manifolds
+- Shield relay matrix
+- Structural hull sealant packs
+- Two encrypted nav-core adapters
+
+Suggested Pressure Events While Shopping:
+- Rival salvage crew claims the same part lot
+- Sudden filter shortage causes crowd unrest
+- Anonymous buyer offers to overpay for infiltrator-related components
+- Dock alarms report an unauthorized shuttle arrival

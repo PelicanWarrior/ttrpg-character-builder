@@ -1,0 +1,43 @@
+Malachor V
+
+Type:
+Dead, unstable ruin world
+
+Use In Session:
+Primary operation zone for the Sith infiltrator recovery mission.
+
+Atmospheric Entry Read-Aloud:
+Malachor V is a wounded world.
+The sky feels wrong before you even land: bruised clouds, ash-choked light, and a constant metallic taste in the air like burned circuitry and old blood. The ground is a graveyard of black glass, jagged obsidian ridges, and crater fields where nothing grows naturally for long. Gravity anomalies tug at motion in subtle, nauseating ways, and every gust of wind carries whispers from shattered rock canyons.
+It is a planet that remembers violence.
+
+Landing Check:
+Skill: Piloting (Planetary)
+Difficulty: 3
+
+Results:
+
+Success (1+):
+The pilot finds a viable landing site and sets down without incident.
+
+Failure (1+ with no success):
+The pilot cannot locate a suitable landing site through the ash clouds and gravity distortion. They must either hold orbit and try again next round or abort approach. If they try again, apply one Setback die to the next roll.
+
+Advantage (1+ on any result):
+The pilot identifies a particularly sheltered approach corridor. Grant 1 Boost die to the next Piloting roll made to land or take off from this site, for any crew member.
+
+Disadvantage (per symbol):
+The ship is punished by the unpredictable thermals and gravitational shear. The ship suffers 2 Hull Trauma and 1 System Strain per Disadvantage symbol rolled, applied after the landing resolves.
+
+Triumph:
+In addition to success, the pilot locates a position with natural concealment from orbital scans. The ship is harder to detect while grounded here.
+
+Despair:
+In addition to any other result, a landing strut, access ramp, or external component is damaged on contact with the unstable surface. GM chooses which.
+
+GM Notes:
+- Treat atmospheric entry as a tone-setting scene before any checks.
+- Use sensory details (taste, wind, pressure shifts, static) to reinforce dread.
+- If players linger outside shelter, apply environmental pressure quickly.
+- Run the landing check immediately after the read-aloud, before the players describe their approach.
+- The Disadvantage wound and strain apply to the ship, not the crew — use Hull Trauma and System Strain as normal for the vessel.

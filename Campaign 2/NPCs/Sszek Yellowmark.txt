@@ -1,0 +1,33 @@
+Sszek Yellowmark
+
+Role:
+Pursuit scout and sign cutter
+
+Description:
+Lean Trandoshan with broken horn-spines and a bright yellow handprint painted across chest armor. Fast-moving tracker who manipulates trails and panic.
+
+Stat Profile:
+- Brawn: 2
+- Agility: 4
+- Intellect: 2
+- Cunning: 4
+- Willpower: 2
+- Presence: 2
+- Soak: 3
+- Wound: 12
+- Strain: 12
+
+Abilities:
+- Sign Reader: Adds +1 boost die to tracking and pursuit checks.
+- False Trail: Once per encounter, impose +1 setback die on enemies attempting to follow.
+- Ambush Instinct: Gains +1 defense in first round of combat if not surprised.
+- Panic Signal: Can trigger a fear-based distraction on weak-willed bystanders.
+
+Combat Style:
+Harass, flank, isolate, and herd targets toward kill zones.
+
+Narrative Use:
+Ideal for chase scenes and stealth complications.
+
+3D AI Studio Prompt:
+Full-body 3D character model of a wiry reptilian pursuit scout with broken horn-spines and a bright yellow handprint painted across chest armor, agile frame, dark moss-green scales with yellow paint smears, light scout armor with straps, climbing hooks, tracking pouches, and short blade, sharp cunning expression, standing in a ready scout stance with slight forward lean and one foot angled for movement, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, cool directional lighting, no text, no watermark

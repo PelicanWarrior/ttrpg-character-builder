@@ -1,0 +1,33 @@
+Vek'thar Pale-Eye
+
+Role:
+Marksman and long-range tracker
+
+Description:
+Trandoshan with a milky left eye and a burn scar running from brow to throat. Known for patient overwatch and precise finishing shots.
+
+Stat Profile:
+- Brawn: 3
+- Agility: 4
+- Intellect: 2
+- Cunning: 4
+- Willpower: 2
+- Presence: 1
+- Soak: 4
+- Wound: 13
+- Strain: 11
+
+Abilities:
+- Cold Sight: Remove 1 setback die from ranged attacks in poor visibility.
+- Marked Target: Once per encounter, designate one target; first hit against that target gains +1 damage.
+- Silent Relocation: May reposition once per round after a ranged attack if in cover.
+- Scarred Survivor: Gains +1 defense against fear effects.
+
+Combat Style:
+Ambush fire, overwatch lanes, and patient tracking.
+
+Narrative Use:
+Perfect for hunting scenes and sniper pressure in forest or ruin encounters.
+
+3D AI Studio Prompt:
+Full-body 3D character model of a lean reptilian marksman with a milky left eye and a long burn scar from brow to throat, mottled green-brown scales with pale scar tissue, tactical hunter gear with weathered cloak, long-range rifle slung low, ammo straps and tracking tools, cold focused expression, standing in a relaxed sniper-at-rest stance with one hand near weapon grip, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, crisp studio rim light and soft fill, no text, no watermark

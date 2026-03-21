@@ -1,0 +1,33 @@
+Krassk Ironjaw
+
+Role:
+Leader of the Bonefang Pursuit Pack
+
+Description:
+Towering Trandoshan with an iron jaw brace riveted across his snout. Commands through intimidation and ritualized violence.
+
+Stat Profile:
+- Brawn: 4
+- Agility: 2
+- Intellect: 2
+- Cunning: 3
+- Willpower: 3
+- Presence: 2
+- Soak: 5
+- Wound: 16
+- Strain: 12
+
+Abilities:
+- Pack Commander: Allied hunters in short range gain +1 boost die on coordinated attacks.
+- Terrifying Presence: Once per encounter, force one target in medium range to make a fear check.
+- Relentless Pursuit: Ignores 1 setback from rough terrain while chasing prey.
+- Trophy Discipline: Gains +1 setback resistance against social intimidation attempts.
+
+Combat Style:
+Close-quarters brutality, command barks, and pressure tactics.
+
+Narrative Use:
+Primary recurring antagonist for Lowhhrick's revenge arc.
+
+3D AI Studio Prompt:
+Full-body 3D character model of a towering reptilian warlord with an iron jaw brace riveted across the snout, heavy scarred scales in dark olive and charcoal tones, broad shoulders, thick neck, imposing muscular build, brutal trophy-hunter armor made of worn plates and leather straps, bone trophies hanging from belt, command posture, standing still with arms slightly away from body as if ready to strike, harsh predatory expression, cinematic realism, high-detail game-ready sculpt, PBR textures, neutral plain background, dramatic side lighting, no text, no watermark

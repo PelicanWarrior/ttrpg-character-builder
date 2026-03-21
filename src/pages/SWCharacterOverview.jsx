@@ -60,9 +60,21 @@ export default function SWCharacterOverview() {
 
   const [diceMap, setDiceMap] = useState({});
   const [racePictures, setRacePictures] = useState([]);
+  const backstoryTextareaRef = useRef(null);
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  const autoResizeBackstoryTextarea = (textareaEl) => {
+    if (!textareaEl) return;
+    textareaEl.style.height = 'auto';
+    textareaEl.style.height = `${textareaEl.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    if (!editingBackstory) return;
+    autoResizeBackstoryTextarea(backstoryTextareaRef.current);
+  }, [editingBackstory, backstoryDraft]);
 
   const getEquipment = () => {
     return equipment.find(e => e.name === selectedEquipment);
@@ -2318,10 +2330,15 @@ export default function SWCharacterOverview() {
 
           {editingBackstory ? (
             <textarea
+              ref={backstoryTextareaRef}
               value={backstoryDraft}
-              onChange={(e) => setBackstoryDraft(e.target.value)}
-              rows={12}
+              onChange={(e) => {
+                setBackstoryDraft(e.target.value);
+                autoResizeBackstoryTextarea(e.currentTarget);
+              }}
+              rows={6}
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-left"
+              style={{ resize: 'none', overflow: 'hidden' }}
               placeholder="Enter character backstory..."
             />
           ) : (

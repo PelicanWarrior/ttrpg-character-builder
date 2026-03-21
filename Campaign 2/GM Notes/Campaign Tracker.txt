@@ -1,0 +1,34 @@
+Campaign Tracker
+
+Campaign premise:
+Campaign 2 centers on the aftermath of Mos Espa, the group's shared history, and the dangerous pull of Sith-era ruins, secrets, and unfinished personal histories.
+
+Core party threads:
+- Eril wants to stop another atrocity like Mos Espa
+- IG-07 carries a Sith holocron and hidden Old Republic purpose
+- Lowhhrick is driven by oaths, family grief, and vengeance
+- Nyx carries loss, technical skill, and enemies from her past
+- Rapa is drawn to dangerous Force relics but distrusts institutions
+- Tol carries guilt, anti-slaver conviction, and unresolved family history
+- Vapan triggered the current arc by discovering the Sith facility and reactivating IG-07
+
+Current Tol thread status:
+- Home enclave named: Nabat's Lantern
+- Father: Bilmil
+- Mother: Trethi
+- Known enemy faction: Zygerrian Slave Empire
+- Former mercenary unit: Iron Vulture Company
+- Personal antagonist: Droven Kalt
+- Survivor truth: GM-only
+
+Questions to answer during play:
+- Who else knows about the holocron?
+- What is the real mission embedded in IG-07?
+- Which character's past will collide with the main plot first?
+- What did the Mos Espa visions awaken in the group?
+- How and when should Tol learn the truth about Nabat's Lantern?
+
+Update rhythm:
+- After each session, update Session Summaries first
+- Then update NPC Tracker, Plot Threads, and Secrets and Reveals
+- Move any resolved threads into a Completed section instead of deleting them

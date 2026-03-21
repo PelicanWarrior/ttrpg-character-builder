@@ -98,6 +98,56 @@ app.post('/F_Pictures/api/write-timeline', (req, res) => {
   }
 });
 
+// Delete a SW note/NPC picture: clears PictureID and removes image file.
+app.post('/SW_Pictures/api/delete-picture', async (req, res) => {
+  const { pictureId, entityType, entityId } = req.body || {};
+
+  const parsedPictureId = Number.parseInt(String(pictureId), 10);
+  const parsedEntityId = Number.parseInt(String(entityId), 10);
+
+  if (!Number.isInteger(parsedPictureId) || parsedPictureId <= 0) {
+    return res.status(400).json({ error: 'Invalid pictureId' });
+  }
+
+  if (!Number.isInteger(parsedEntityId) || parsedEntityId <= 0) {
+    return res.status(400).json({ error: 'Invalid entityId' });
+  }
+
+  if (entityType !== 'note' && entityType !== 'npc') {
+    return res.status(400).json({ error: 'Invalid entityType' });
+  }
+
+  try {
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    const tableName = entityType === 'note' ? 'SW_campaign_notes' : 'SW_campaign_NPC';
+
+    const { error: clearPictureError } = await supabase
+      .from(tableName)
+      .update({ PictureID: null })
+      .eq('id', parsedEntityId);
+
+    if (clearPictureError) {
+      return res.status(500).json({ error: clearPictureError.message });
+    }
+
+    // Cleanup picture rows if they exist in either table.
+    await supabase.from('SW_pictures').delete().eq('id', parsedPictureId);
+    await supabase.from('DND_campaign_pictures').delete().eq('id', parsedPictureId);
+
+    const picturePath = path.join(__dirname, 'public', 'SW_Pictures', `Picture ${parsedPictureId}.png`);
+    if (fs.existsSync(picturePath)) {
+      fs.unlinkSync(picturePath);
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to delete SW picture:', err);
+    return res.status(500).json({ error: 'Failed to delete picture' });
+  }
+});
+
 // Global error handlers for debugging
 process.on('uncaughtException', err => {
   console.error('Uncaught Exception:', err);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
@@ -66,6 +66,18 @@ export default function SWEotECharacterCreator() {
   const [availableCharacterPictures, setAvailableCharacterPictures] = useState([]);
   const [selectedCharacterPictureId, setSelectedCharacterPictureId] = useState(null);
   const [showCharacterPictureSelector, setShowCharacterPictureSelector] = useState(false);
+  const backstoryTextareaRef = useRef(null);
+
+  const autoResizeBackstoryTextarea = (textareaEl) => {
+    if (!textareaEl) return;
+    textareaEl.style.height = 'auto';
+    textareaEl.style.height = `${textareaEl.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'Backstory') return;
+    autoResizeBackstoryTextarea(backstoryTextareaRef.current);
+  }, [activeTab, backstory]);
 
   const handlePublishForceTreesChange = async (e) => {
     const newValue = e.target.checked;
@@ -2504,9 +2516,15 @@ export default function SWEotECharacterCreator() {
         <div className="border-2 border-black rounded-lg p-2 sm:p-4 w-full text-center mb-4" style={{ minHeight: '500px' }}>
           <h2 className="font-bold text-base sm:text-lg mb-3">Backstory</h2>
           <textarea
+            ref={backstoryTextareaRef}
             value={backstory}
-            onChange={(e) => setBackstory(e.target.value)}
-            className="border border-black rounded p-2 w-full h-96 text-left text-sm sm:text-base"
+            onChange={(e) => {
+              setBackstory(e.target.value);
+              autoResizeBackstoryTextarea(e.currentTarget);
+            }}
+            className="border border-black rounded p-2 w-full text-left text-sm sm:text-base"
+            rows={8}
+            style={{ resize: 'none', overflow: 'hidden' }}
             placeholder="Enter your character's backstory here..."
           />
         </div>

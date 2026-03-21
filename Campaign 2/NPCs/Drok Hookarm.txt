@@ -1,0 +1,33 @@
+Drok Hookarm
+
+Role:
+Breacher and captor
+
+Description:
+Broad-shouldered Trandoshan with a crude mechanical right arm ending in hooked claws. Specializes in forcing entries and physically subduing targets.
+
+Stat Profile:
+- Brawn: 5
+- Agility: 2
+- Intellect: 1
+- Cunning: 2
+- Willpower: 3
+- Presence: 1
+- Soak: 6
+- Wound: 18
+- Strain: 10
+
+Abilities:
+- Hydraulic Hook: Unarmed attacks gain Pierce 2 against armor-like targets.
+- Doorbreaker: Gains +2 success equivalent on checks to break barriers or restraints.
+- Drag and Chain: On a successful grapple, target suffers movement penalty until escape.
+- Pain-Forged: Reduces critical injury severity by 10 once per session.
+
+Combat Style:
+Frontline shock, grapples, and barrier breaking.
+
+Narrative Use:
+High-threat brute for rescue missions or prisoner extraction scenes.
+
+3D AI Studio Prompt:
+Full-body 3D character model of a massive reptilian breacher with a crude mechanical right arm ending in hooked claws, battered scales in swamp green and rust tones, thick armored torso, reinforced shoulder plating, heavy chain restraints hanging from belt, chipped fang details, intimidating brute posture, standing firmly with weight forward and mechanical arm slightly raised, aggressive expression, realistic proportions, high-detail game-ready sculpt, PBR textures, neutral plain background, hard key light with deep shadows, no text, no watermark
