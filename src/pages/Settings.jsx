@@ -65,6 +65,7 @@ export default function Settings() {
   const [existingForceTrees, setExistingForceTrees] = useState([]);
   const [selectedForceTreeId, setSelectedForceTreeId] = useState('__new__');
   const [showAddEquipmentForm, setShowAddEquipmentForm] = useState(false);
+  const [showAddShipForm, setShowAddShipForm] = useState(false);
   const [showAddCareerForm, setShowAddCareerForm] = useState(false);
   const [existingCareers, setExistingCareers] = useState([]);
   const [careerBooks, setCareerBooks] = useState([]);
@@ -319,6 +320,39 @@ export default function Settings() {
   const [selectedSwEquipmentId, setSelectedSwEquipmentId] = useState('__new__');
 
   // -----------------------------------------------------------------
+  // 2f. Add Ship Form State
+  // -----------------------------------------------------------------
+  const [shipName, setShipName] = useState('');
+  const [shipClass, setShipClass] = useState('');
+  const [shipSilhouette, setShipSilhouette] = useState('');
+  const [shipSpeed, setShipSpeed] = useState('');
+  const [shipHandling, setShipHandling] = useState('');
+  const [shipArmor, setShipArmor] = useState('');
+  const [shipDefenceFore, setShipDefenceFore] = useState('');
+  const [shipDefencePort, setShipDefencePort] = useState('');
+  const [shipDefenceStarboard, setShipDefenceStarboard] = useState('');
+  const [shipDefenceAft, setShipDefenceAft] = useState('');
+  const [shipHullThreshold, setShipHullThreshold] = useState('');
+  const [shipSystemThreshold, setShipSystemThreshold] = useState('');
+  const [shipManufacturer, setShipManufacturer] = useState('');
+  const [shipHyperdrivePrimary, setShipHyperdrivePrimary] = useState('');
+  const [shipHyperdriveBackup, setShipHyperdriveBackup] = useState('');
+  const [shipNavicomputer, setShipNavicomputer] = useState('');
+  const [shipSensorRange, setShipSensorRange] = useState('');
+  const [shipComplement, setShipComplement] = useState('');
+  const [shipEncumbranceCapacity, setShipEncumbranceCapacity] = useState('');
+  const [shipPassengerCapacity, setShipPassengerCapacity] = useState('');
+  const [shipConsumables, setShipConsumables] = useState('');
+  const [shipPriceCredits, setShipPriceCredits] = useState('');
+  const [shipRarity, setShipRarity] = useState('');
+  const [shipCustomizationHardPoints, setShipCustomizationHardPoints] = useState('');
+  const [shipWeapons, setShipWeapons] = useState('');
+  const [shipSource, setShipSource] = useState('');
+  const [shipDescription, setShipDescription] = useState('');
+  const [existingSwShips, setExistingSwShips] = useState([]);
+  const [selectedSwShipId, setSelectedSwShipId] = useState('__new__');
+
+  // -----------------------------------------------------------------
   // 3. Data
   // -----------------------------------------------------------------
   const [raceData, setRaceData] = useState([]); // { id, name, pictures: [{ id, careerSpec }] }
@@ -543,6 +577,28 @@ export default function Settings() {
 
     fetchSwEquipment();
   }, [showAddEquipmentForm]);
+
+  // Fetch existing SW ships for editing/deleting when form is shown
+  useEffect(() => {
+    const fetchSwShips = async () => {
+      if (!showAddShipForm) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('SW_ships')
+          .select('id, name, class, silhouette, speed, handling, armor, defence_fore, defence_port, defence_starboard, defence_aft, hull_trauma_threshold, system_strain_threshold, manufacturer, hyperdrive_primary, hyperdrive_backup, navicomputer, sensor_range, ship_complement, encumbrance_capacity, passenger_capacity, consumables, price_credits, rarity, customization_hard_points, weapons, source, description')
+          .order('name');
+
+        if (error) throw error;
+
+        setExistingSwShips(data || []);
+      } catch (err) {
+        console.error('Failed to fetch SW ships:', err);
+      }
+    };
+
+    fetchSwShips();
+  }, [showAddShipForm]);
 
   // Fetch careers when Add Specialization form is shown
   useEffect(() => {
@@ -1038,6 +1094,7 @@ export default function Settings() {
     setShowAddSpeciesForm(false);
     setShowAddSpecializationForm(false);
     setShowAddEquipmentForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
     // Collapse Pathfinder section and its forms
     setShowPathfinderSection(false);
@@ -1054,6 +1111,7 @@ export default function Settings() {
     setShowAddSpeciesForm(false);
     setShowAddSpecializationForm(false);
     setShowAddEquipmentForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
     setShowAddPathfinderRaceForm(false);
     setShowDndSection(false);
@@ -1069,6 +1127,7 @@ export default function Settings() {
     setShowAddSpeciesForm(false);
     setShowAddSpecializationForm(false);
     setShowAddEquipmentForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
     setShowAddForceTreeForm(false);
     setShowAddPathfinderRaceForm(false);
@@ -1081,6 +1140,7 @@ export default function Settings() {
     setShowAddSpeciesForm(false);
     setShowAddSpecializationForm(false);
     setShowAddEquipmentForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
     loadPathfinderRaces();
   };
@@ -1091,6 +1151,7 @@ export default function Settings() {
     setShowCareerPictures(false);
     setShowAddSpeciesForm(false);
     setShowAddSpecializationForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
   };
 
@@ -1099,6 +1160,7 @@ export default function Settings() {
     setShowRacePictures(false);
     setShowAddSpeciesForm(false);
     setShowAddSpecializationForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
   };
 
@@ -1106,6 +1168,7 @@ export default function Settings() {
     setShowAddSpeciesForm(true);
     setShowAddSpecializationForm(false);
     setShowAddEquipmentForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -1117,6 +1180,7 @@ export default function Settings() {
     setShowAddForceTreeForm(false);
     setShowAddSpeciesForm(false);
     setShowAddEquipmentForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -1127,6 +1191,7 @@ export default function Settings() {
     setShowAddSpecializationForm(false);
     setShowAddSpeciesForm(false);
     setShowAddEquipmentForm(false);
+    setShowAddShipForm(false);
     setShowAddCareerForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
@@ -1343,12 +1408,25 @@ export default function Settings() {
     setShowAddSpecializationForm(false);
     setShowAddSpeciesForm(false);
     setShowAddEquipmentForm(false);
+    setShowAddShipForm(false);
     setShowRacePictures(false);
     setShowCareerPictures(false);
   };
 
   const handleAddEquipment = () => {
     setShowAddEquipmentForm(true);
+    setShowAddForceTreeForm(false);
+    setShowAddSpecializationForm(false);
+    setShowAddSpeciesForm(false);
+    setShowAddCareerForm(false);
+    setShowAddShipForm(false);
+    setShowRacePictures(false);
+    setShowCareerPictures(false);
+  };
+
+  const handleAddShip = () => {
+    setShowAddShipForm(true);
+    setShowAddEquipmentForm(false);
     setShowAddForceTreeForm(false);
     setShowAddSpecializationForm(false);
     setShowAddSpeciesForm(false);
@@ -3932,6 +4010,140 @@ export default function Settings() {
     setEquipmentConsumable(selected.consumable === true);
   };
 
+  const resetShipForm = () => {
+    setSelectedSwShipId('__new__');
+    setShipName('');
+    setShipClass('');
+    setShipSilhouette('');
+    setShipSpeed('');
+    setShipHandling('');
+    setShipArmor('');
+    setShipDefenceFore('');
+    setShipDefencePort('');
+    setShipDefenceStarboard('');
+    setShipDefenceAft('');
+    setShipHullThreshold('');
+    setShipSystemThreshold('');
+    setShipManufacturer('');
+    setShipHyperdrivePrimary('');
+    setShipHyperdriveBackup('');
+    setShipNavicomputer('');
+    setShipSensorRange('');
+    setShipComplement('');
+    setShipEncumbranceCapacity('');
+    setShipPassengerCapacity('');
+    setShipConsumables('');
+    setShipPriceCredits('');
+    setShipRarity('');
+    setShipCustomizationHardPoints('');
+    setShipWeapons('');
+    setShipSource('');
+    setShipDescription('');
+  };
+
+  const handleSelectShip = (shipId) => {
+    if (!shipId || shipId === '__new__') {
+      resetShipForm();
+      return;
+    }
+
+    const selected = existingSwShips.find((item) => String(item.id) === String(shipId));
+    if (!selected) return;
+
+    setSelectedSwShipId(String(selected.id));
+    setShipName(selected.name || '');
+    setShipClass(selected.class || '');
+    setShipSilhouette(selected.silhouette != null ? String(selected.silhouette) : '');
+    setShipSpeed(selected.speed != null ? String(selected.speed) : '');
+    setShipHandling(selected.handling != null ? String(selected.handling) : '');
+    setShipArmor(selected.armor != null ? String(selected.armor) : '');
+    setShipDefenceFore(selected.defence_fore != null ? String(selected.defence_fore) : '');
+    setShipDefencePort(selected.defence_port != null ? String(selected.defence_port) : '');
+    setShipDefenceStarboard(selected.defence_starboard != null ? String(selected.defence_starboard) : '');
+    setShipDefenceAft(selected.defence_aft != null ? String(selected.defence_aft) : '');
+    setShipHullThreshold(selected.hull_trauma_threshold != null ? String(selected.hull_trauma_threshold) : '');
+    setShipSystemThreshold(selected.system_strain_threshold != null ? String(selected.system_strain_threshold) : '');
+    setShipManufacturer(selected.manufacturer || '');
+    setShipHyperdrivePrimary(selected.hyperdrive_primary || '');
+    setShipHyperdriveBackup(selected.hyperdrive_backup || '');
+    setShipNavicomputer(selected.navicomputer || '');
+    setShipSensorRange(selected.sensor_range || '');
+    setShipComplement(selected.ship_complement || '');
+    setShipEncumbranceCapacity(selected.encumbrance_capacity || '');
+    setShipPassengerCapacity(selected.passenger_capacity || '');
+    setShipConsumables(selected.consumables || '');
+    setShipPriceCredits(selected.price_credits != null ? String(selected.price_credits) : '');
+    setShipRarity(selected.rarity != null ? String(selected.rarity) : '');
+    setShipCustomizationHardPoints(selected.customization_hard_points != null ? String(selected.customization_hard_points) : '');
+    setShipWeapons(selected.weapons || '');
+    setShipSource(selected.source || '');
+    setShipDescription(selected.description || '');
+  };
+
+  const handleSaveShip = async () => {
+    if (!shipName.trim()) {
+      alert('Ship name is required');
+      return;
+    }
+
+    const payload = {
+      name: shipName.trim(),
+      class: shipClass.trim() || null,
+      silhouette: parseNumberOrNull(shipSilhouette),
+      speed: parseNumberOrNull(shipSpeed),
+      handling: parseNumberOrNull(shipHandling),
+      armor: parseNumberOrNull(shipArmor),
+      defence_fore: parseNumberOrNull(shipDefenceFore),
+      defence_port: parseNumberOrNull(shipDefencePort),
+      defence_starboard: parseNumberOrNull(shipDefenceStarboard),
+      defence_aft: parseNumberOrNull(shipDefenceAft),
+      hull_trauma_threshold: parseNumberOrNull(shipHullThreshold) ?? 0,
+      system_strain_threshold: parseNumberOrNull(shipSystemThreshold) ?? 0,
+      manufacturer: shipManufacturer.trim() || null,
+      hyperdrive_primary: shipHyperdrivePrimary.trim() || null,
+      hyperdrive_backup: shipHyperdriveBackup.trim() || null,
+      navicomputer: shipNavicomputer.trim() || null,
+      sensor_range: shipSensorRange.trim() || null,
+      ship_complement: shipComplement.trim() || null,
+      encumbrance_capacity: shipEncumbranceCapacity.trim() || null,
+      passenger_capacity: shipPassengerCapacity.trim() || null,
+      consumables: shipConsumables.trim() || null,
+      price_credits: parseNumberOrNull(shipPriceCredits),
+      rarity: parseNumberOrNull(shipRarity),
+      customization_hard_points: parseNumberOrNull(shipCustomizationHardPoints),
+      weapons: shipWeapons.trim() || null,
+      source: shipSource.trim() || null,
+      description: shipDescription.trim() || null,
+    };
+
+    try {
+      let error;
+      if (selectedSwShipId && selectedSwShipId !== '__new__') {
+        ({ error } = await supabase
+          .from('SW_ships')
+          .update(payload)
+          .eq('id', selectedSwShipId));
+      } else {
+        ({ error } = await supabase
+          .from('SW_ships')
+          .insert(payload));
+      }
+
+      if (error) {
+        console.error('Error saving ship:', error);
+        alert('Failed to save ship.');
+        return;
+      }
+
+      alert(selectedSwShipId && selectedSwShipId !== '__new__' ? 'Ship updated' : 'Ship saved');
+      resetShipForm();
+      setShowAddShipForm(false);
+    } catch (err) {
+      console.error('Unexpected error saving ship:', err);
+      alert('Failed to save ship.');
+    }
+  };
+
   const handleSaveEquipment = async () => {
     if (!equipmentName.trim()) {
       alert('Name is required');
@@ -4093,6 +4305,26 @@ export default function Settings() {
     setExistingSwEquipment((prev) => prev.filter((row) => String(row.id) !== String(selectedSwEquipmentId)));
     resetEquipmentForm();
     alert('Equipment deleted.');
+  };
+
+  const handleDeleteShip = async () => {
+    if (!selectedSwShipId || selectedSwShipId === '__new__') return;
+    if (!confirm('Delete this ship?')) return;
+
+    const { error } = await supabase
+      .from('SW_ships')
+      .delete()
+      .eq('id', selectedSwShipId);
+
+    if (error) {
+      console.error('Failed to delete ship:', error);
+      alert('Failed to delete ship.');
+      return;
+    }
+
+    setExistingSwShips((prev) => prev.filter((row) => String(row.id) !== String(selectedSwShipId)));
+    resetShipForm();
+    alert('Ship deleted.');
   };
 
   const handleSaveSpecialization = async ({ forceCreateSpec = false, updateSpec = false, abilityMode: abilityModeOverride = null, specIdOverride = null } = {}) => {
@@ -8078,6 +8310,13 @@ export default function Settings() {
                 >
                   Add Equipment
                 </button>
+
+                <button
+                  onClick={handleAddShip}
+                  className="flex-1 px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700 transition text-sm font-medium"
+                >
+                  Add Ship
+                </button>
               </div>
 
               {showAddForceTreeForm && (
@@ -9726,6 +9965,302 @@ export default function Settings() {
                     )}
                     <button
                       onClick={() => { resetEquipmentForm(); setShowAddEquipmentForm(false); }}
+                      className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddShipForm && (
+                <div className="mt-6 p-6 bg-gray-100 rounded-lg border border-gray-300">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Add Ship</h3>
+                  <div className="mb-4 p-3 bg-white border border-gray-300 rounded">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Existing Ship</label>
+                    <select
+                      value={selectedSwShipId}
+                      onChange={(e) => handleSelectShip(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="__new__">-- Create New Ship --</option>
+                      {existingSwShips
+                        .slice()
+                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                        .map((item) => (
+                          <option key={item.id} value={String(item.id)}>{item.name}</option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={shipName}
+                        onChange={(e) => setShipName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Hull Type/Class</label>
+                      <input
+                        type="text"
+                        value={shipClass}
+                        onChange={(e) => setShipClass(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Silhouette</label>
+                      <input
+                        type="number"
+                        value={shipSilhouette}
+                        onChange={(e) => setShipSilhouette(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Speed</label>
+                      <input
+                        type="number"
+                        value={shipSpeed}
+                        onChange={(e) => setShipSpeed(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Handling</label>
+                      <input
+                        type="number"
+                        value={shipHandling}
+                        onChange={(e) => setShipHandling(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Armor</label>
+                      <input
+                        type="number"
+                        value={shipArmor}
+                        onChange={(e) => setShipArmor(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Defence Fore</label>
+                      <input
+                        type="number"
+                        value={shipDefenceFore}
+                        onChange={(e) => setShipDefenceFore(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Defence Port</label>
+                      <input
+                        type="number"
+                        value={shipDefencePort}
+                        onChange={(e) => setShipDefencePort(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Defence Starboard</label>
+                      <input
+                        type="number"
+                        value={shipDefenceStarboard}
+                        onChange={(e) => setShipDefenceStarboard(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Defence Aft</label>
+                      <input
+                        type="number"
+                        value={shipDefenceAft}
+                        onChange={(e) => setShipDefenceAft(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Hull Trauma Threshold</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={shipHullThreshold}
+                        onChange={(e) => setShipHullThreshold(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">System Strain Threshold</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={shipSystemThreshold}
+                        onChange={(e) => setShipSystemThreshold(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+                      <input
+                        type="text"
+                        value={shipManufacturer}
+                        onChange={(e) => setShipManufacturer(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Hyperdrive Primary</label>
+                      <input
+                        type="text"
+                        value={shipHyperdrivePrimary}
+                        onChange={(e) => setShipHyperdrivePrimary(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Hyperdrive Backup</label>
+                      <input
+                        type="text"
+                        value={shipHyperdriveBackup}
+                        onChange={(e) => setShipHyperdriveBackup(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Navicomputer</label>
+                      <input
+                        type="text"
+                        value={shipNavicomputer}
+                        onChange={(e) => setShipNavicomputer(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sensor Range</label>
+                      <input
+                        type="text"
+                        value={shipSensorRange}
+                        onChange={(e) => setShipSensorRange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ship's Complement</label>
+                      <input
+                        type="text"
+                        value={shipComplement}
+                        onChange={(e) => setShipComplement(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Encumbrance Capacity</label>
+                      <input
+                        type="text"
+                        value={shipEncumbranceCapacity}
+                        onChange={(e) => setShipEncumbranceCapacity(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Passenger Capacity</label>
+                      <input
+                        type="text"
+                        value={shipPassengerCapacity}
+                        onChange={(e) => setShipPassengerCapacity(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Consumables</label>
+                      <input
+                        type="text"
+                        value={shipConsumables}
+                        onChange={(e) => setShipConsumables(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Price (Credits)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={shipPriceCredits}
+                        onChange={(e) => setShipPriceCredits(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Rarity</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={shipRarity}
+                        onChange={(e) => setShipRarity(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Customization Hard Points</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={shipCustomizationHardPoints}
+                        onChange={(e) => setShipCustomizationHardPoints(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+                      <input
+                        type="text"
+                        value={shipSource}
+                        onChange={(e) => setShipSource(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Weapons</label>
+                      <textarea
+                        value={shipWeapons}
+                        onChange={(e) => setShipWeapons(e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        value={shipDescription}
+                        onChange={(e) => setShipDescription(e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-3 flex-wrap">
+                    <button
+                      onClick={handleSaveShip}
+                      className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-bold"
+                    >
+                      {selectedSwShipId !== '__new__' ? 'Update Ship' : 'Save Ship'}
+                    </button>
+                    {selectedSwShipId !== '__new__' && (
+                      <button
+                        onClick={handleDeleteShip}
+                        className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-bold"
+                      >
+                        Delete Ship
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { resetShipForm(); setShowAddShipForm(false); }}
                       className="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition font-bold"
                     >
                       Cancel

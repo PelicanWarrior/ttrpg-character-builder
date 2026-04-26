@@ -31,6 +31,9 @@ export default function SWCharacterOverview() {
   const [inventory, setInventory] = useState([]);
   const [armour, setArmour] = useState([]);
   const [otherItems, setOtherItems] = useState([]);
+  const [shipCatalog, setShipCatalog] = useState([]);
+  const [characterShips, setCharacterShips] = useState([]);
+  const [selectedShipId, setSelectedShipId] = useState('');
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
   const [customItemName, setCustomItemName] = useState('');
   const [customItemDescription, setCustomItemDescription] = useState('');
@@ -53,6 +56,11 @@ export default function SWCharacterOverview() {
   const [forceRating, setForceRating] = useState(0);
   const [canEdit, setCanEdit] = useState(true);
   const [campaignOwnerId, setCampaignOwnerId] = useState(null);
+  const [campaignIdState, setCampaignIdState] = useState(null);
+  const [campaignCharacters, setCampaignCharacters] = useState([]); // other chars in same campaign
+  const [crewAssignments, setCrewAssignments] = useState({}); // key: `${characterShipId}_${role}_${slot}` -> assignedCharId
+  const [crewAssignedShips, setCrewAssignedShips] = useState([]); // ships where this character is assigned as crew
+  const [crewShipAssignments, setCrewShipAssignments] = useState({}); // key: `${characterShipId}` -> {role, slot, ownerName}
 
   // NEW: Dynamic popup state
   const [dicePopup, setDicePopup] = useState(null); // { pool, details, x, y }
@@ -584,6 +592,7 @@ export default function SWCharacterOverview() {
       let ownerId = null;
       const campaignId = location?.state?.campaignId;
       if (campaignId) {
+        setCampaignIdState(campaignId);
         const { data: campData, error: campErr } = await supabase
           .from('SW_campaign')
           .select('playerID')
@@ -593,6 +602,12 @@ export default function SWCharacterOverview() {
           ownerId = campData.playerID;
           setCampaignOwnerId(ownerId);
         }
+        // Fetch all characters in this campaign for crew allocation dropdowns
+        const { data: campChars } = await supabase
+          .from('SW_player_characters')
+          .select('id, name, race')
+          .eq('campaign_joined', campaignId);
+        if (campChars) setCampaignCharacters(campChars);
       }
 
       const isOwner = playerId === characterData.user_number;
@@ -851,6 +866,17 @@ export default function SWCharacterOverview() {
       setEquipment(equipmentData);
       const activeCharacterId = characterData.id;
 
+      const { data: shipData, error: shipError } = await supabase
+        .from('SW_ships')
+        .select('id, name, class, silhouette, speed, handling, armor, defence_fore, defence_port, defence_starboard, defence_aft, hull_trauma_threshold, system_strain_threshold, manufacturer, hyperdrive_primary, hyperdrive_backup, navicomputer, sensor_range, ship_complement, encumbrance_capacity, passenger_capacity, consumables, price_credits, rarity, customization_hard_points, weapons, source, description')
+        .order('name', { ascending: true });
+      if (shipError) {
+        console.error('Error fetching ship catalog:', shipError);
+        setShipCatalog([]);
+      } else {
+        setShipCatalog(shipData || []);
+      }
+
       if (activeCharacterId) {
         const { data: inventoryData, error: invError } = await supabase
           .from('SW_character_equipment')
@@ -904,6 +930,169 @@ export default function SWCharacterOverview() {
           setInventory(enrichedInventory.filter(item => !item.soak && !item.consumable));
           setArmour(enrichedInventory.filter(item => item.soak));
           setOtherItems([...consumableItems, ...customItems]);
+        }
+
+        const { data: characterShipData, error: characterShipError } = await supabase
+          .from('SW_character_ships')
+          .select('id, characterID, shipID, hull_trauma_current, system_strain_current')
+          .eq('characterID', activeCharacterId);
+
+        if (characterShipError) {
+          console.error('Error fetching character ships:', characterShipError);
+          setCharacterShips([]);
+        } else if (characterShipData && shipData) {
+          const shipMap = new Map(shipData.map((ship) => [ship.id, ship]));
+          const enrichedShips = characterShipData
+            .map((row) => {
+              const ship = shipMap.get(Number.parseInt(row.shipID, 10));
+              if (!ship) return null;
+              return {
+                id: row.id,
+                characterID: row.characterID,
+                shipID: row.shipID,
+                name: ship.name || '',
+                class: ship.class || '',
+                silhouette: ship.silhouette ?? '',
+                speed: ship.speed ?? '',
+                handling: ship.handling ?? '',
+                armor: ship.armor ?? '',
+                defence_fore: ship.defence_fore ?? '',
+                defence_port: ship.defence_port ?? '',
+                defence_starboard: ship.defence_starboard ?? '',
+                defence_aft: ship.defence_aft ?? '',
+                manufacturer: ship.manufacturer || '',
+                hyperdrive_primary: ship.hyperdrive_primary || '',
+                hyperdrive_backup: ship.hyperdrive_backup || '',
+                navicomputer: ship.navicomputer || '',
+                sensor_range: ship.sensor_range || '',
+                ship_complement: ship.ship_complement || '',
+                encumbrance_capacity: ship.encumbrance_capacity || '',
+                passenger_capacity: ship.passenger_capacity || '',
+                consumables: ship.consumables || '',
+                price_credits: ship.price_credits ?? '',
+                rarity: ship.rarity ?? '',
+                customization_hard_points: ship.customization_hard_points ?? '',
+                weapons: ship.weapons || '',
+                source: ship.source || '',
+                description: ship.description || '',
+                hull_trauma_threshold: ship.hull_trauma_threshold ?? 0,
+                system_strain_threshold: ship.system_strain_threshold ?? 0,
+                hull_trauma_current: row.hull_trauma_current ?? 0,
+                system_strain_current: row.system_strain_current ?? 0,
+              };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+          setCharacterShips(enrichedShips);
+
+          // Fetch crew assignments for these ships
+          const shipIds = enrichedShips.map((s) => s.id);
+          if (shipIds.length > 0) {
+            const { data: crewData } = await supabase
+              .from('SW_ship_crew_assignments')
+              .select('id, character_ship_id, role, role_slot, assigned_character_id')
+              .in('character_ship_id', shipIds);
+            if (crewData) {
+              const map = {};
+              for (const row of crewData) {
+                map[`${row.character_ship_id}_${row.role}_${row.role_slot}`] = row.assigned_character_id;
+              }
+              setCrewAssignments(map);
+            }
+          }
+        }
+
+        // Fetch crew-assigned ships (where this character is assigned as crew)
+        const { data: crewAssignmentRows } = await supabase
+          .from('SW_ship_crew_assignments')
+          .select('character_ship_id, role, role_slot')
+          .eq('assigned_character_id', activeCharacterId);
+
+        if (crewAssignmentRows && crewAssignmentRows.length > 0) {
+          const characterShipIds = crewAssignmentRows.map((row) => row.character_ship_id);
+          const { data: crewShipData } = await supabase
+            .from('SW_character_ships')
+            .select('id, characterID, shipID, hull_trauma_current, system_strain_current')
+            .in('id', characterShipIds);
+
+          if (crewShipData && shipData) {
+            const shipMap = new Map(shipData.map((ship) => [ship.id, ship]));
+            const enrichedCrewShips = crewShipData
+              .map((row) => {
+                const ship = shipMap.get(Number.parseInt(row.shipID, 10));
+                if (!ship) return null;
+                const assignment = crewAssignmentRows.find((a) => a.character_ship_id === row.id);
+                return {
+                  id: row.id,
+                  characterID: row.characterID,
+                  shipID: row.shipID,
+                  name: ship.name || '',
+                  class: ship.class || '',
+                  silhouette: ship.silhouette ?? '',
+                  speed: ship.speed ?? '',
+                  handling: ship.handling ?? '',
+                  armor: ship.armor ?? '',
+                  defence_fore: ship.defence_fore ?? '',
+                  defence_port: ship.defence_port ?? '',
+                  defence_starboard: ship.defence_starboard ?? '',
+                  defence_aft: ship.defence_aft ?? '',
+                  manufacturer: ship.manufacturer || '',
+                  hyperdrive_primary: ship.hyperdrive_primary || '',
+                  hyperdrive_backup: ship.hyperdrive_backup || '',
+                  navicomputer: ship.navicomputer || '',
+                  sensor_range: ship.sensor_range || '',
+                  ship_complement: ship.ship_complement || '',
+                  encumbrance_capacity: ship.encumbrance_capacity || '',
+                  passenger_capacity: ship.passenger_capacity || '',
+                  consumables: ship.consumables || '',
+                  price_credits: ship.price_credits ?? '',
+                  rarity: ship.rarity ?? '',
+                  customization_hard_points: ship.customization_hard_points ?? '',
+                  weapons: ship.weapons || '',
+                  source: ship.source || '',
+                  description: ship.description || '',
+                  hull_trauma_threshold: ship.hull_trauma_threshold ?? 0,
+                  system_strain_threshold: ship.system_strain_threshold ?? 0,
+                  hull_trauma_current: row.hull_trauma_current ?? 0,
+                  system_strain_current: row.system_strain_current ?? 0,
+                  role: assignment?.role || '',
+                  roleSlot: assignment?.role_slot || 1,
+                };
+              })
+              .filter(Boolean)
+              .sort((a, b) => a.name.localeCompare(b.name));
+
+            setCrewAssignedShips(enrichedCrewShips);
+
+            // Fetch owner names for crew-assigned ships
+            const ownerCharIds = [...new Set(crewShipData.map((row) => row.characterID))];
+            if (ownerCharIds.length > 0) {
+              const { data: ownerData } = await supabase
+                .from('SW_player_characters')
+                .select('id, name')
+                .in('id', ownerCharIds);
+
+              if (ownerData) {
+                const ownerMap = {};
+                for (const owner of ownerData) {
+                  ownerMap[owner.id] = owner.name;
+                }
+                const assignmentMap = {};
+                for (const ship of enrichedCrewShips) {
+                  assignmentMap[ship.id] = {
+                    role: ship.role,
+                    slot: ship.roleSlot,
+                    ownerName: ownerMap[ship.characterID] || 'Unknown Owner',
+                  };
+                }
+                setCrewShipAssignments(assignmentMap);
+              }
+            }
+          }
+        } else {
+          setCrewAssignedShips([]);
+          setCrewShipAssignments({});
         }
       }
 
@@ -1375,6 +1564,174 @@ export default function SWCharacterOverview() {
     if (error) console.error('Error updating credits:', error);
   };
 
+  // Parse "1 pilot, 2 gunners" or "one pilot, one gunner" into [{role:'Pilot',slot:1}, ...]
+  const parseShipComplement = (complementStr) => {
+    if (!complementStr) return [];
+    const wordNums = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 };
+    const slots = [];
+    const parts = complementStr.split(',');
+    for (const part of parts) {
+      const trimmed = part.trim().toLowerCase();
+      const match = trimmed.match(/^(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(.+?)s?$/);
+      if (match) {
+        const count = wordNums[match[1]] ?? parseInt(match[1], 10);
+        const rawRole = match[2].trim();
+        const role = rawRole.charAt(0).toUpperCase() + rawRole.slice(1);
+        for (let i = 1; i <= count; i++) {
+          slots.push({ role, slot: i });
+        }
+      } else {
+        // fallback: treat whole part as single role
+        const role = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+        slots.push({ role, slot: 1 });
+      }
+    }
+    return slots;
+  };
+
+  const handleCrewAssign = async (characterShipId, role, slot, assignedCharacterId) => {
+    const key = `${characterShipId}_${role}_${slot}`;
+    const charId = assignedCharacterId ? Number(assignedCharacterId) : null;
+    setCrewAssignments((prev) => ({ ...prev, [key]: charId }));
+
+    if (charId) {
+      await supabase
+        .from('SW_ship_crew_assignments')
+        .upsert(
+          { character_ship_id: characterShipId, role, role_slot: slot, assigned_character_id: charId },
+          { onConflict: 'character_ship_id,role,role_slot' }
+        );
+    } else {
+      await supabase
+        .from('SW_ship_crew_assignments')
+        .delete()
+        .eq('character_ship_id', characterShipId)
+        .eq('role', role)
+        .eq('role_slot', slot);
+    }
+  };
+
+  const handleAddShipToCharacter = async () => {
+    const parsedShipId = Number.parseInt(selectedShipId, 10);
+    if (!characterId || !parsedShipId) return;
+
+    const alreadyAdded = characterShips.some((ship) => Number.parseInt(ship.shipID, 10) === parsedShipId);
+    if (alreadyAdded) {
+      alert('This ship is already added to the character.');
+      return;
+    }
+
+    const shipDef = shipCatalog.find((s) => s.id === parsedShipId);
+    const { data, error } = await supabase
+      .from('SW_character_ships')
+      .insert({
+        characterID: characterId,
+        shipID: parsedShipId,
+        hull_trauma_current: shipDef?.hull_trauma_threshold ?? 0,
+        system_strain_current: shipDef?.system_strain_threshold ?? 0,
+      })
+      .select('id, characterID, shipID, hull_trauma_current, system_strain_current')
+      .single();
+
+    if (error) {
+      console.error('Error adding ship to character:', error);
+      alert('Failed to add ship.');
+      return;
+    }
+
+    const shipDefinition = shipCatalog.find((ship) => ship.id === parsedShipId);
+    if (!shipDefinition || !data) {
+      setSelectedShipId('');
+      return;
+    }
+
+    const newCharacterShip = {
+      id: data.id,
+      characterID: data.characterID,
+      shipID: data.shipID,
+      name: shipDefinition.name || '',
+      class: shipDefinition.class || '',
+      silhouette: shipDefinition.silhouette ?? '',
+      speed: shipDefinition.speed ?? '',
+      handling: shipDefinition.handling ?? '',
+      armor: shipDefinition.armor ?? '',
+      defence_fore: shipDefinition.defence_fore ?? '',
+      defence_port: shipDefinition.defence_port ?? '',
+      defence_starboard: shipDefinition.defence_starboard ?? '',
+      defence_aft: shipDefinition.defence_aft ?? '',
+      manufacturer: shipDefinition.manufacturer || '',
+      hyperdrive_primary: shipDefinition.hyperdrive_primary || '',
+      hyperdrive_backup: shipDefinition.hyperdrive_backup || '',
+      navicomputer: shipDefinition.navicomputer || '',
+      sensor_range: shipDefinition.sensor_range || '',
+      ship_complement: shipDefinition.ship_complement || '',
+      encumbrance_capacity: shipDefinition.encumbrance_capacity || '',
+      passenger_capacity: shipDefinition.passenger_capacity || '',
+      consumables: shipDefinition.consumables || '',
+      price_credits: shipDefinition.price_credits ?? '',
+      rarity: shipDefinition.rarity ?? '',
+      customization_hard_points: shipDefinition.customization_hard_points ?? '',
+      weapons: shipDefinition.weapons || '',
+      source: shipDefinition.source || '',
+      description: shipDefinition.description || '',
+      hull_trauma_threshold: shipDefinition.hull_trauma_threshold ?? 0,
+      system_strain_threshold: shipDefinition.system_strain_threshold ?? 0,
+      hull_trauma_current: data.hull_trauma_current ?? 0,
+      system_strain_current: data.system_strain_current ?? 0,
+    };
+
+    setCharacterShips((prev) => [...prev, newCharacterShip].sort((a, b) => a.name.localeCompare(b.name)));
+    setSelectedShipId('');
+  };
+
+  const handleCharacterShipStatChange = async (characterShipId, field, delta) => {
+    const ship = characterShips.find((entry) => entry.id === characterShipId);
+    if (!ship) return;
+
+    const threshold = field === 'hull_trauma_current'
+      ? Number(ship.hull_trauma_threshold) || 0
+      : Number(ship.system_strain_threshold) || 0;
+
+    const current = Number(ship[field]) || 0;
+    const nextValue = Math.max(0, Math.min(current + delta, threshold));
+    if (nextValue === current) return;
+
+    setCharacterShips((prev) =>
+      prev.map((entry) => (entry.id === characterShipId ? { ...entry, [field]: nextValue } : entry))
+    );
+
+    const { error } = await supabase
+      .from('SW_character_ships')
+      .update({ [field]: nextValue })
+      .eq('id', characterShipId);
+
+    if (error) {
+      console.error(`Error updating ${field}:`, error);
+      setCharacterShips((prev) =>
+        prev.map((entry) => (entry.id === characterShipId ? { ...entry, [field]: current } : entry))
+      );
+      alert('Failed to update ship stat.');
+    }
+  };
+
+  const handleRemoveCharacterShip = async (characterShipId, shipName) => {
+    const confirmDelete = confirm(`Do you really want to remove ${shipName}?`);
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from('SW_character_ships')
+      .delete()
+      .eq('id', characterShipId);
+
+    if (error) {
+      console.error('Error removing ship from character:', error);
+      alert('Failed to remove ship.');
+      return;
+    }
+
+    setCharacterShips((prev) => prev.filter((ship) => ship.id !== characterShipId));
+  };
+
   const racialAbilityList = [];
   if (raceAbilities.Race_Attack) {
     const parts = raceAbilities.Race_Attack.split(':');
@@ -1804,6 +2161,7 @@ export default function SWCharacterOverview() {
           <button className={`px-4 py-2 font-bold ${activeTab === 'stats' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('stats')}>Stats</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
+          <button className={`px-4 py-2 font-bold ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
         </div>
 
@@ -2139,6 +2497,313 @@ export default function SWCharacterOverview() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* ==================== SHIPS TAB ==================== */}
+        {activeTab === 'ships' && (
+          <div className="flex-1 text-left" style={{ minHeight: '600px' }}>
+            <h2 className="font-bold text-lg mb-3">Ships</h2>
+
+            {canEdit && (
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <select
+                  value={selectedShipId}
+                  onChange={(e) => setSelectedShipId(e.target.value)}
+                  className="border-2 border-black rounded-lg p-2 min-w-[280px]"
+                >
+                  <option value="">Select a ship...</option>
+                  {shipCatalog
+                    .filter((ship) => !characterShips.some((owned) => Number.parseInt(owned.shipID, 10) === ship.id))
+                    .map((ship) => (
+                      <option key={ship.id} value={ship.id}>
+                        {ship.name} {ship.class ? `(${ship.class})` : ''}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  onClick={handleAddShipToCharacter}
+                  disabled={!selectedShipId}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400"
+                >
+                  Add Ship
+                </button>
+              </div>
+            )}
+
+            {characterShips.length === 0 ? (
+              <p className="text-gray-600">No ships added for this character yet.</p>
+            ) : (
+              <table className="border border-black w-full text-left" style={{ tableLayout: 'fixed' }}>
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-black py-1 px-2" style={{ minWidth: '220px' }}>Ship</th>
+                    <th className="border border-black py-1 px-2" style={{ minWidth: '220px' }}>Stats</th>
+                    <th className="border border-black py-1 px-2" style={{ minWidth: '200px' }}>Crew</th>
+                    <th className="border border-black py-1 px-2" style={{ minWidth: '220px' }}>Condition</th>
+                    {canEdit && <th className="border border-black py-1 px-2" style={{ minWidth: '90px' }}>Remove</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {characterShips.map((ship) => (
+                    <tr key={ship.id} className="bg-gray-100 align-top">
+                      <td className="border border-black py-1 px-2">
+                        <div className="font-semibold">{ship.name}</div>
+                        {ship.class && <div>{ship.class}</div>}
+                        {ship.description && <div className="text-xs mt-1 whitespace-pre-wrap">{ship.description}</div>}
+                      </td>
+                      <td className="border border-black py-1 px-2">
+                        <div>Silhouette: {ship.silhouette}</div>
+                        <div>Speed: {ship.speed}</div>
+                        <div>Handling: {ship.handling}</div>
+                        <div>Armor: {ship.armor}</div>
+                        <div>Defence (F/P/S/A): {ship.defence_fore || 0} / {ship.defence_port || 0} / {ship.defence_starboard || 0} / {ship.defence_aft || 0}</div>
+                        {ship.manufacturer && <div>Manufacturer: {ship.manufacturer}</div>}
+                        {ship.hyperdrive_primary && <div>Hyperdrive (Primary): {ship.hyperdrive_primary}</div>}
+                        {ship.hyperdrive_backup && <div>Hyperdrive (Backup): {ship.hyperdrive_backup}</div>}
+                        {ship.navicomputer && <div>Navicomputer: {ship.navicomputer}</div>}
+                        {ship.sensor_range && <div>Sensor Range: {ship.sensor_range}</div>}
+                        {ship.ship_complement && <div>Ship's Complement: {ship.ship_complement}</div>}
+                        {ship.encumbrance_capacity && <div>Encumbrance Capacity: {ship.encumbrance_capacity}</div>}
+                        {ship.passenger_capacity && <div>Passenger Capacity: {ship.passenger_capacity}</div>}
+                        {ship.consumables && <div>Consumables: {ship.consumables}</div>}
+                        {(ship.price_credits || ship.rarity) && (
+                          <div>
+                            Price/Rarity: {ship.price_credits ? `${ship.price_credits} credits` : 'N/A'} / {ship.rarity || 'N/A'}
+                          </div>
+                        )}
+                        {ship.customization_hard_points !== '' && ship.customization_hard_points != null && (
+                          <div>Customization Hard Points: {ship.customization_hard_points}</div>
+                        )}
+                        {ship.source && <div>Source: {ship.source}</div>}
+                        {ship.weapons && (
+                          <div className="whitespace-pre-wrap mt-1">
+                            Weapons: <ItemQualityText text={ship.weapons} onQualityClick={handleItemQualityClick} />
+                          </div>
+                        )}
+                      </td>
+                      <td className="border border-black py-1 px-2 align-top">
+                        {ship.ship_complement && campaignIdState ? (
+                          <>
+                            <div className="text-xs font-bold text-gray-800 mb-2">Crew Allocation</div>
+                            {parseShipComplement(ship.ship_complement).map(({ role, slot }) => {
+                              const key = `${ship.id}_${role}_${slot}`;
+                              const assigned = crewAssignments[key] ?? '';
+                              const label = parseShipComplement(ship.ship_complement).filter(s => s.role === role).length > 1
+                                ? `${role} ${slot}`
+                                : role;
+                              return (
+                                <div key={key} className="flex items-center gap-2 mb-1">
+                                  <span className="text-xs font-semibold text-gray-700 w-24 flex-shrink-0">{label}:</span>
+                                  {canEdit ? (
+                                    <select
+                                      value={assigned || ''}
+                                      onChange={(e) => handleCrewAssign(ship.id, role, slot, e.target.value || null)}
+                                      className="border border-gray-300 rounded text-xs px-1 py-0.5 flex-1"
+                                    >
+                                      <option value="">— Unassigned —</option>
+                                      {campaignCharacters.map((c) => (
+                                        <option key={c.id} value={c.id}>{c.name}{c.race ? ` (${c.race})` : ''}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <span className="text-xs text-gray-700">
+                                      {assigned
+                                        ? (campaignCharacters.find(c => c.id === Number(assigned))?.name ?? 'Unknown')
+                                        : 'Unassigned'}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {/* Dice pool buttons for roles the current character is assigned to */}
+                            {(() => {
+                              const complement = parseShipComplement(ship.ship_complement);
+                              const isAssignedAs = (roleName) => complement.some(({ role, slot }) =>
+                                role.toLowerCase() === roleName.toLowerCase() &&
+                                Number(crewAssignments[`${ship.id}_${role}_${slot}`]) === characterId
+                              );
+                              const isPilot = isAssignedAs('pilot');
+                              const isGunner = isAssignedAs('gunner');
+                              if (!isPilot && !isGunner) return null;
+                              return (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {isPilot && (
+                                    <>
+                                      <button
+                                        className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold rounded cursor-pointer"
+                                        onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Piloting - Space', skills.find(s => s.skill === 'Piloting - Space')?.stat || 'agility'), 'Piloting - Space')}
+                                      >
+                                        Piloting - Space ({getFinalDicePool('Piloting - Space', skills.find(s => s.skill === 'Piloting - Space')?.stat || 'agility')})
+                                      </button>
+                                      <button
+                                        className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold rounded cursor-pointer"
+                                        onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Piloting - Planetary', skills.find(s => s.skill === 'Piloting - Planetary')?.stat || 'agility'), 'Piloting - Planetary')}
+                                      >
+                                        Piloting - Planetary ({getFinalDicePool('Piloting - Planetary', skills.find(s => s.skill === 'Piloting - Planetary')?.stat || 'agility')})
+                                      </button>
+                                    </>
+                                  )}
+                                  {isGunner && (
+                                    <button
+                                      className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold rounded cursor-pointer"
+                                      onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Gunnery', skills.find(s => s.skill === 'Gunnery')?.stat || 'agility'), 'Gunnery')}
+                                    >
+                                      Gunnery ({getFinalDicePool('Gunnery', skills.find(s => s.skill === 'Gunnery')?.stat || 'agility')})
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-400">{campaignIdState ? 'No complement defined' : 'Open from campaign to allocate'}</span>
+                        )}
+                      </td>
+                      <td className="border border-black py-1 px-2">
+                        <div className="font-semibold text-xs text-gray-600 mb-1">Hull Trauma</div>
+                        <div className="font-semibold mb-2">{ship.hull_trauma_current} / {ship.hull_trauma_threshold}</div>
+                        {canEdit && (
+                          <div className="flex gap-2 mb-3">
+                            <button
+                              onClick={() => handleCharacterShipStatChange(ship.id, 'hull_trauma_current', -1)}
+                              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                            >
+                              -
+                            </button>
+                            <button
+                              onClick={() => handleCharacterShipStatChange(ship.id, 'hull_trauma_current', 1)}
+                              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                        <div className="font-semibold text-xs text-gray-600 mb-1">System Strain</div>
+                        <div className="font-semibold mb-2">{ship.system_strain_current} / {ship.system_strain_threshold}</div>
+                        {canEdit && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleCharacterShipStatChange(ship.id, 'system_strain_current', -1)}
+                              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                            >
+                              -
+                            </button>
+                            <button
+                              onClick={() => handleCharacterShipStatChange(ship.id, 'system_strain_current', 1)}
+                              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      {canEdit && (
+                        <td className="border border-black py-2 px-2 text-center align-middle">
+                          <button
+                            onClick={() => handleRemoveCharacterShip(ship.id, ship.name)}
+                            className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {/* Crew-assigned ships section */}
+            {crewAssignedShips.filter((ship) => !characterShips.some((ownedShip) => ownedShip.id === ship.id)).length > 0 && (
+              <div className="mt-8 border-t border-gray-400 pt-4">
+                <h3 className="font-bold text-lg mb-4">Crew Assignments</h3>
+                {crewAssignedShips.filter((ship) => !characterShips.some((ownedShip) => ownedShip.id === ship.id)).map((ship) => {
+                  const assignment = crewShipAssignments[ship.id];
+                  return (
+                    <div key={ship.id} className="mb-6 border border-gray-300 rounded p-4 bg-blue-50">
+                      <div className="mb-3 p-3 bg-blue-100 rounded text-sm">
+                        <p className="font-semibold text-gray-800">
+                          You have been assigned as <span className="text-blue-700 font-bold">{assignment?.role}</span> on the ship{' '}
+                          <span className="text-blue-700 font-bold">{ship.name}</span> by{' '}
+                          <span className="text-blue-700 font-bold">{assignment?.ownerName}</span>
+                        </p>
+                      </div>
+
+                      <div className="mb-3 p-3 bg-white rounded border border-gray-300">
+                        <div className="font-bold text-lg text-gray-800">{ship.name}</div>
+                        <div className="text-sm text-gray-700 mt-1">
+                          Position: <span className="font-semibold">{assignment?.role}</span>
+                        </div>
+                      </div>
+
+                      {/* Only show relevant section based on role */}
+                      {assignment?.role?.toLowerCase() === 'gunner' && ship.weapons && (
+                        <div className="p-3 bg-white rounded border border-gray-300">
+                          <div className="font-semibold text-gray-800 mb-2">Weapons Systems</div>
+                          <div className="text-sm whitespace-pre-wrap text-gray-700 mb-3">
+                            <ItemQualityText text={ship.weapons} onQualityClick={handleItemQualityClick} />
+                          </div>
+                          <button
+                            className="px-3 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-semibold rounded cursor-pointer"
+                            onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Gunnery', skills.find(s => s.skill === 'Gunnery')?.stat || 'agility'), 'Gunnery')}
+                          >
+                            Gunnery ({getFinalDicePool('Gunnery', skills.find(s => s.skill === 'Gunnery')?.stat || 'agility')})
+                          </button>
+                        </div>
+                      )}
+
+                      {assignment?.role?.toLowerCase() === 'pilot' && (
+                        <div className="p-3 bg-white rounded border border-gray-300">
+                          <div className="font-semibold text-gray-800 mb-2">Flight Systems</div>
+                          <div className="text-sm text-gray-700 mb-3">
+                            <div>Speed: {ship.speed}</div>
+                            <div>Handling: {ship.handling}</div>
+                            <div>Silhouette: {ship.silhouette}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              className="px-3 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-semibold rounded cursor-pointer"
+                              onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Piloting - Space', skills.find(s => s.skill === 'Piloting - Space')?.stat || 'agility'), 'Piloting - Space')}
+                            >
+                              Piloting - Space ({getFinalDicePool('Piloting - Space', skills.find(s => s.skill === 'Piloting - Space')?.stat || 'agility')})
+                            </button>
+                            <button
+                              className="px-3 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-semibold rounded cursor-pointer"
+                              onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Piloting - Planetary', skills.find(s => s.skill === 'Piloting - Planetary')?.stat || 'agility'), 'Piloting - Planetary')}
+                            >
+                              Piloting - Planetary ({getFinalDicePool('Piloting - Planetary', skills.find(s => s.skill === 'Piloting - Planetary')?.stat || 'agility')})
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {assignment?.role?.toLowerCase() === 'engineer' && (
+                        <div className="p-3 bg-white rounded border border-gray-300">
+                          <div className="font-semibold text-gray-800 mb-2">Engineering Systems</div>
+                          <div className="text-sm text-gray-700">
+                            <div>Hull Trauma: {ship.hull_trauma_current} / {ship.hull_trauma_threshold}</div>
+                            <div>System Strain: {ship.system_strain_current} / {ship.system_strain_threshold}</div>
+                            {ship.hyperdrive_primary && <div>Primary Hyperdrive: {ship.hyperdrive_primary}</div>}
+                            {ship.hyperdrive_backup && <div>Backup Hyperdrive: {ship.hyperdrive_backup}</div>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* General info for all positions except gunners */}
+                      {assignment?.role?.toLowerCase() !== 'gunner' && (
+                        <div className="mt-3 p-3 bg-white rounded border border-gray-300 text-sm text-gray-700">
+                          <div><span className="font-semibold">Class:</span> {ship.class}</div>
+                          <div><span className="font-semibold">Armor:</span> {ship.armor}</div>
+                          <div><span className="font-semibold">Defence (F/P/S/A):</span> {ship.defence_fore || 0} / {ship.defence_port || 0} / {ship.defence_starboard || 0} / {ship.defence_aft || 0}</div>
+                          {ship.sensor_range && <div><span className="font-semibold">Sensor Range:</span> {ship.sensor_range}</div>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
