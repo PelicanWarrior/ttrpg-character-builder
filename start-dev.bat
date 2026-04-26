@@ -8,7 +8,7 @@ echo Starting TTRPG Character Builder...
 echo.
 echo This will start:
 echo 1. Backend server on http://localhost:3001
-echo 2. Vite dev server on http://localhost:5173
+echo 2. Vite dev server on http://localhost:5176
 echo.
 
 npm run dev:full

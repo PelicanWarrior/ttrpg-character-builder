@@ -3,8 +3,11 @@ Malachor V
 Type:
 Dead, unstable ruin world
 
+Buried Ship:
+The Ashen Testament — a Sith war vessel buried beneath the surface. Mostly underground. Only a fracture seam in the obsidian marks its entry point.
+
 Use In Session:
-Primary operation zone for the Sith infiltrator recovery mission.
+Primary operation zone for the Sith infiltrator recovery mission aboard The Ashen Testament.
 
 Atmospheric Entry Read-Aloud:
 Malachor V is a wounded world.

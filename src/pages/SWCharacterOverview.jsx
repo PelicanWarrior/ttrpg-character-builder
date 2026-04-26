@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import ItemQualityText from '../components/ItemQualityText';
 
 export default function SWCharacterOverview() {
   const [characterName, setCharacterName] = useState('');
@@ -55,6 +56,7 @@ export default function SWCharacterOverview() {
 
   // NEW: Dynamic popup state
   const [dicePopup, setDicePopup] = useState(null); // { pool, details, x, y }
+  const [itemQualityPopup, setItemQualityPopup] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [rollResults, setRollResults] = useState(null); // { poolResults: [], diffResults: [] }
 
@@ -214,6 +216,19 @@ export default function SWCharacterOverview() {
 
     setDicePopup({ pool, details, x, y, label: label || pool, boosts: [], setbacks: [] });
     setRollResults(null); // clear previous roll results when opening a new popup
+  };
+
+  const handleItemQualityClick = (e, details) => {
+    if (!details) return;
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popupWidth = 460;
+    const maxLeft = Math.max(8, window.innerWidth - popupWidth - 8);
+    const left = Math.min(Math.max(8, rect.left), maxLeft);
+    const top = Math.min(rect.bottom + 8, window.innerHeight - 120);
+
+    setItemQualityPopup({ ...details, left, top });
   };
 
   const getDiceColorStyle = (letter) => {
@@ -504,11 +519,14 @@ export default function SWCharacterOverview() {
 
   // Close popup when clicking anywhere else
   useEffect(() => {
-    if (!dicePopup) return;
-    const handler = () => setDicePopup(null);
+    if (!dicePopup && !itemQualityPopup) return;
+    const handler = () => {
+      setDicePopup(null);
+      setItemQualityPopup(null);
+    };
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
-  }, [dicePopup]);
+  }, [dicePopup, itemQualityPopup]);
 
   // Handle closing equipment dropdown when clicking outside
   useEffect(() => {
@@ -2028,7 +2046,9 @@ export default function SWCharacterOverview() {
                         </td>
                         <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>
                           <div>Damage: {item.damage || ''}, Critical: {item.critical || ''}</div>
-                          <div>{item.special || ''}</div>
+                          <div>
+                            <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
+                          </div>
                         </td>
                         {canEdit && (
                           <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
@@ -2060,7 +2080,9 @@ export default function SWCharacterOverview() {
                       </td>
                       <td className="border border-black py-1" style={{ minWidth: '250px', wordWrap: 'break-word' }}>
                         <div>{item.equipment_name}</div>
-                        <div>{item.special}</div>
+                        <div>
+                          <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
+                        </div>
                       </td>
                       <td className="border border-black py-1" style={{ minWidth: '150px', wordWrap: 'break-word' }}>
                         <div>Soak: {item.soak}</div>
@@ -2107,7 +2129,7 @@ export default function SWCharacterOverview() {
                         {item.description || ''}
                       </td>
                       <td className="border border-black py-1" style={{ wordWrap: 'break-word' }}>
-                        {item.special || ''}
+                        <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
                       </td>
                       <td className="border border-black py-1 text-center">
                         <button onClick={() => handleOtherItemDelete(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
@@ -2154,7 +2176,9 @@ export default function SWCharacterOverview() {
                         </td>
                         <td className="border border-black py-1" style={{ minWidth: '700px', wordWrap: 'break-word' }}>
                           <div>Damage: {item.damage || ''}, Critical: {item.critical || ''}</div>
-                          <div>{item.special || ''}</div>
+                          <div>
+                            <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
+                          </div>
                         </td>
                       </tr>
                     );
@@ -2186,7 +2210,11 @@ export default function SWCharacterOverview() {
                         </td>
                         <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
                           <div>{item.description || ''}</div>
-                          {item.special && <div>Special: {item.special}</div>}
+                          {item.special && (
+                            <div>
+                              Special: <ItemQualityText text={item.special} onQualityClick={handleItemQualityClick} />
+                            </div>
+                          )}
                         </td>
                         {canEdit && (
                           <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
@@ -2721,6 +2749,43 @@ export default function SWCharacterOverview() {
                 </div>
               )}
             </div>
+            </div>
+          </div>
+        )}
+
+        {itemQualityPopup && (
+          <div
+            style={{
+              position: 'fixed',
+              left: `${itemQualityPopup.left}px`,
+              top: `${itemQualityPopup.top}px`,
+              backgroundColor: 'white',
+              border: '2px solid #111827',
+              borderRadius: '8px',
+              boxShadow: '0 12px 24px rgba(0,0,0,0.25)',
+              zIndex: 10001,
+              maxWidth: '460px',
+              width: 'calc(100vw - 16px)',
+              padding: '12px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h4 className="font-bold text-sm text-gray-900">
+                  {itemQualityPopup.qualityName}
+                  {itemQualityPopup.rating !== null ? ` ${itemQualityPopup.rating}` : ''}
+                </h4>
+                <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{itemQualityPopup.detailText}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setItemQualityPopup(null)}
+                className="text-red-600 hover:text-red-800 font-bold"
+                aria-label="Close item quality popup"
+              >
+                x
+              </button>
             </div>
           </div>
         )}

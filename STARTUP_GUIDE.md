@@ -33,7 +33,7 @@ When you run `npm run dev:full` or use `start-dev.bat`, two servers start automa
    - Manages picture storage
    - Communicates with Supabase
 
-2. **Frontend Dev Server** (http://localhost:5173)
+2. **Frontend Dev Server** (http://localhost:5176)
    - React development server
    - Hot reload enabled
    - Proxies upload requests to backend
@@ -42,7 +42,7 @@ When you run `npm run dev:full` or use `start-dev.bat`, two servers start automa
 
 Once both servers are running, open your browser and go to:
 ```
-http://localhost:5173
+http://localhost:5176
 ```
 
 ## Picture Upload
@@ -56,7 +56,7 @@ Picture uploads now work through the Vite proxy, which automatically routes requ
 
 **If uploads fail:**
 1. Make sure both servers are running (check terminal output)
-2. Check that port 3001 and 5173 are not in use
+2. Check that port 3001 and 5176 are not in use
 3. Verify your `.env` file has correct Supabase credentials
 
 **To stop the servers:**

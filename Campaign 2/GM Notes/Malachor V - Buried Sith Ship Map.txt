@@ -1,0 +1,233 @@
+Malachor V - The Ashen Testament Mini Dungeon (Session 0)
+
+Ship Name:
+The Ashen Testament
+
+GM Description:
+The Ashen Testament is a Sith war vessel of late-Republic era construction, built low and predatory — all swept angles, black durasteel, and deliberate ritual geometry. It went down during the ancient battle that fractured Malachor V and has been entombed under volcanic glass and compacted ash ever since. The ship is roughly intact: structural collapse is localised to the upper access corridor and a few forward sections. The deeper interior is sealed by pressure failures and dormant systems rather than physical damage, which is why salvage has always been possible in theory and lethal in practice.
+
+Warships of this class were built for both warfare and ceremony. The interior reflects that duality — corridor geometry is architectural, almost reverent, and certain chambers served double roles as command spaces and ritual sites. The ship still holds residual dark side resonance. It manifests as localised gravity drift, harmonic vibration in the metal framework, and a persistent sense of being observed. The ship is not haunted in any supernatural sense. It simply remembers.
+
+The mission objective is a Sith interceptor suspended in the lower gantry vault. The ship's override systems need to be manually unlocked from the command dais at the far end of the vessel before the interceptor's launch corridor can be cleared. That means traversing the full length of the ship.
+
+Key Facts for the GM:
+- Hull material: black durasteel with inscribed geometric panelling (Sith architectural style)
+- Age: late Republic era, pre-Empire
+- Condition: structurally intact below R2; R1-R2 are collapsed but passable
+- Atmosphere: partial — breathable in interior rooms after R3 repressurisation, thin and toxic near entry
+- Gravity: functional but unstable in R4 and near the reactor section
+- Dark side resonance: present throughout — use for mood, not mechanics, unless players engage with it
+- Crew: none surviving; no organic remains (consumed by the resonance over centuries)
+
+Read-Aloud (Approach to the Entrance):
+"The slope rises into black glass and packed ash, and the storm does not let up. The mountain ahead is featureless at first — just rock and dark and the sound of wind scraping against nothing. But as you push closer, something shifts in the stone. A seam runs along the face of the rock where there should only be solid ground. It does not look like a door. It does not look like anything made. And then it opens."
+
+Skill Check — Finding the Entrance:
+Skill: Survival
+Difficulty: 2 (purple dice)
+
+Outcomes:
+- Success: Vapan locates the entrance. The seam responds to his approach and opens.
+- Failure (per failure): Vapan suffers 1 strain. He misjudges the terrain, walks into a dead face of rock, or loses the seam in a gust before finding it again.
+- Advantage: Vapan reads the surface well. He gains a Boost die (blue) on all Survival checks made on the planet's surface for the rest of the session.
+- Disadvantage: The wind and ash disorient him. He gains a Setback die (black) on all Survival checks made on the planet's surface for the rest of the session.
+
+Purpose:
+Session 0 mini dungeon for Vapan and IG-07 inside the buried Sith ship known as The Ashen Testament.
+Exploration-first structure with hazards, lore, and system recovery pressure instead of shipboard combat encounters.
+IG-07 starts offline and is discovered before any combat encounters.
+
+Holocron Plot Hook (Selected: 3 + 5):
+- Core premise: IG-07 was built as a courier unit for a concealed Sith holocron, and this ship still recognizes that courier protocol.
+- Next arc premise: the holocron points to a second hidden Sith manufacturing/archive site (a forge-node) that contains mission data and advanced salvage.
+- Activation condition: the holocron remains inert unless a Force-sensitive being is nearby. Nix or Rapa within short range of IG-07 can trigger resonance.
+
+Trigger Rule (GM):
+- Passive state: no Force-sensitive nearby -> no signal, no map, no voiceprint.
+- Active state: Force-sensitive nearby -> holocron emits heat pulse, red seam-light through IG-07 chest plate, and opens one encrypted route fragment.
+- Suggested reveal location: R8 during override start (strongest dramatic timing), with optional early foreshadow in R9.
+
+Destination Reveal (for next session):
+- Designation: Archive-Forge Node KHAR-VOSS.
+- Directive: "Courier Unit IG-07. Delivery incomplete. Proceed to KHAR-VOSS."
+- Reward promise: factory schematics, interceptor-grade components, and missing command keys for deeper ship/facility access.
+
+Party Tuning:
+- Designed for 2 PCs (Vapan + IG-07).
+- Keep non-boss combat short (2-3 rounds).
+- Use hazards, repairs, and time pressure as main tension.
+
+Legend:
+- <-> = two-way path
+- -> = one-way path
+- [Locked] = requires successful check or key action
+- [Optional] = side route
+
+Encounter Species:
+- Malachor Ashclaw: native burrowing carrion hunters that nest in warm machinery voids.
+- Brood and queen forms are tracked as Malachor V surface fauna, not ship-interior encounters.
+
+Room Index:
+R1  Surface Scar Entrance
+R2  Collapsed Access Throat
+R3  Pressure Lock Vestibule
+R4  Hall of Resonant Ribs
+R5  Droid Maintenance Bay
+R6  Reactor Feed Crypt
+R7  Interceptor Gantry Vault
+R8  Ghost Bridge Override
+R9  Sealed Reliquary Side Chamber [Optional]
+R10 Emergency Vent Ladder [Optional Shortcut]
+
+Primary Route:
+R1 <-> R2 <-> R3 <-> R4 <-> R5 <-> R6 <-> R7 <-> R8
+
+Branches and Special Links:
+R4 <-> R9 [Locked]
+R3 <-> R10 [Locked]
+R10 -> R6 [one-way drop]
+R8 -> R3 [one-way emergency return corridor]
+
+ASCII Layout (Top Down Abstract):
+
+             [R9 Sealed Reliquary]
+                     |
+                  [Locked]
+                     |
+[R1]--[R2]--[R3]--[R4]--[R5]--[R6]--[R7]--[R8]
+              |                      ^       |
+           [Locked]                  |       |
+              |                    [Drop]    |
+            [R10 Vent Ladder]--------------->|
+
+Room Notes, Links, and Encounters:
+
+R1 Surface Scar Entrance
+- Description: Exterior fracture seam in ash and obsidian; entrance barely visible.
+- Link: East -> R2 (deeper into the wreck).
+- Challenge: Spot safe approach path before ash gust closes visibility.
+
+R2 Collapsed Access Throat
+- Description: Choke point with unstable debris and bent hull struts.
+- Links: West -> R1 (back to surface); East -> R3 (pressure lock).
+- Challenge: Clear or climb safely without losing gear.
+
+R3 Pressure Lock Vestibule
+- Description: Dead control bank, manual override wheels, partial atmosphere restore, and an emergency maintenance alcove where IG-07 is found offline.
+- Links: West -> R2 (access throat); East -> R4 (resonant hall); South -> R10 [Locked] (vent shaft); West (one-way arrival only from R8 emergency return corridor).
+- Challenge: Repressurize enough to access main interior and reactivate IG-07 before opening the route to R4.
+- Story Beat: IG-07 comes online here, allowing both PCs to face the first encounter together.
+- IG-07 Reboot State: IG-07 starts with 1 Wound and 1 Strain upon reactivation. His systems are functional but not clean — long dormancy and cold start degradation. The Droid Maintenance Bay (R5) is the earliest opportunity to address this.
+
+R4 Hall of Resonant Ribs
+- Description: Vaulted corridor with gravity wobble and harmonic metal resonance.
+- Links: West -> R3 (vestibule); East -> R5 (droid maintenance bay); North -> R9 [Locked] (reliquary side chamber).
+- Hazard: Harmonic surges can destabilize ceiling plating and add environmental strain.
+
+R5 Droid Maintenance Bay
+- Description: Former servicing station for the ship's maintenance droid pool. Droid berths, wall-mounted tool arrays, and a central diagnostic cradle still holding partial power.
+- Links: West -> R4 (resonant hall); East -> R6 (reactor crypt).
+- Roleplay/Utility: Place IG-07 in the diagnostic cradle for a full post-reboot calibration — improves his repair and combat actions for the rest of the session. Also a safe pause to treat wounds before the reactor push.
+
+R6 Reactor Feed Crypt
+- Description: Auxiliary feed lines and brittle conduit stacks.
+- Links: West -> R5 (droid maintenance bay); East -> R7 (gantry vault); North (one-way arrival from R10 drop — no return via shaft).
+- Challenge: Route stable power to gantry without triggering feedback.
+
+R7 Interceptor Gantry Vault
+- Description: Sith interceptor in magnetic cradle, partially repaired. Ship designation: The Ashen Talon (see child note).
+- Links: West -> R6 (reactor crypt); East -> R8 (command override).
+- Objective: Final prep and clamp release sequence before override room.
+- Note: Full ship stats, weapons, abilities, and repair checklists are in the child tab (The Ashen Talon).
+
+R8 Ghost Bridge Override
+- Description: Command dais with fractured control halo and red pulse lighting.
+- Links: West -> R7 (gantry vault); West (emergency return corridor, one-way -> R3 only — bypasses R4-R7).
+- Objective: Complete launch corridor override while stabilizing bridge systems under pressure.
+- Holocron Trigger: If Nix or Rapa is present/nearby, IG-07's chest holocron resonates with the bridge and outputs the KHAR-VOSS route fragment.
+
+R9 Sealed Reliquary Side Chamber [Optional]
+- Description: Lore vault and salvage cache.
+- Links: South -> R4 [Locked] (resonant hall — only exit).
+- Reward ideas: rare part, old nav fragment, temporary stealth modifier for interceptor.
+- Optional Foreshadow: A reliquary spindle bears the same courier glyph found in IG-07 internal diagnostics; it remains inert until a Force-sensitive enters the chamber.
+
+R10 Emergency Vent Ladder [Optional Shortcut]
+- Description: Narrow maintenance shaft with one-way drop to lower engineering.
+- Links: North -> R3 [Locked] (vestibule — entry from R3 only, no climb back); Down (one-way drop) -> R6 (reactor crypt).
+- Tradeoff: Faster route, higher risk of strain and equipment damage.
+
+Session 0 Flow (Recommended):
+1. Entry pressure and IG-07 reactivation: R1 -> R2 -> R3
+2. First major ship hazard challenge: R4 (after IG-07 is online)
+3. Recovery and prep: R5 -> R6 -> R7
+4. Override climax and holocron reveal: R8
+5. Exit or loop-back via R8 -> R3
+
+Fail-Forward Guidance:
+- Failed checks add strain, ship wear, or delay, but never hard-stop progression.
+- If players underperform in R4, soften system instability penalties at R8.
+- If players overperform in R6/R7, grant one tactical advantage at override start (positioning, cover, or initiative edge).
+
+Room Descriptions and Read-Aloud:
+
+R1 Surface Scar Entrance
+GM Description:
+The "door" is a long fracture hidden in black glass and wind-packed ash. The hull edge is almost fused into the terrain, and the opening only becomes visible when lightning-like static ripples across the stone. Wind noise here masks other sounds, making this room excellent for paranoia and misdirection.
+Read-Aloud:
+"You stand on a dead slope of obsidian and ash where the storm chews at your armor and fills your mouth with metal. At first there is no entrance, only broken rock, then a hard seam catches the light and you realize the mountain is not a mountain at all. Something vast is buried under you, and the crack ahead is its mouth."
+
+R2 Collapsed Access Throat
+GM Description:
+This corridor descends at an angle through twisted bulkhead braces, collapsed decking, and razor-edged glass splinters. Every movement sends dust drifting down from above. The space feels unstable but passable, and there are clear signs that one person forced a route through recently.
+Read-Aloud:
+"The passage narrows into a slanted tunnel of broken plating and bent ribs of metal. Your boots scrape over ash, cables, and old fragments that ring like glass when kicked. Somewhere above, debris shifts with a grinding moan, and the whole throat of the ship feels one bad step away from caving in."
+
+R3 Pressure Lock Vestibule
+GM Description:
+A circular lock chamber with dead consoles, manual pressure wheels, and fogged indicator strips. In a recessed maintenance alcove lies IG-07, powered down but intact, partially buried under a thermal tarp and tools. This is the narrative handoff where Vapan gets IG-07 online before the first fight.
+IG-07 Reboot Condition: When IG-07 comes back online he starts with 1 Wound and 1 Strain. Cold start after extended dormancy — his core systems are running but his chassis registers minor structural stress and his motivator is drawing unevenly. He is fully functional and combat-ready, but not at full health. Direct the players to the Droid Maintenance Bay (R5) to clear both before the reactor section.
+Read-Aloud:
+"The next chamber is round and silent, a pressure lock with dead screens and cracked status lights. Frost rims the seams of the inner door. In a side alcove, under a torn maintenance cover, you find a familiar droid frame slumped against the wall. IG-07 is here, dark and motionless, as if the ship itself set him aside and forgot him. When power reaches him, his photoreceptors flicker once — amber, then red, then a steadier orange — and a long dormant voice cuts through the static: systems nominal. Damage detected."
+
+R4 Hall of Resonant Ribs
+GM Description:
+A huge vaulted corridor framed by rib-like supports, with slight gravity drift and low harmonic vibration. The acoustics are strange; footsteps echo before they happen. The hall itself is the threat: harmonic surges, shifting footing, and unstable plating.
+Read-Aloud:
+"The corridor opens into a vast ribbed hall, each arch rising into shadow like the bones of something enormous. The air hums through the metal, and the floor seems to tug at your balance in tiny, nauseating pulses. As your lights sweep the walls, movement answers from warm cracks in the plating."
+
+R5 Droid Maintenance Bay
+GM Description:
+A low-ceilinged bay fitted with droid berths running along both walls, wall-mounted tool arrays, and a central diagnostic cradle. The cradle still draws partial power from an independent cell — enough to run a full systems calibration. Whoever crewed this ship did not travel without mechanical support; the berths held at least a dozen units. Most are empty now, stripped or inert. The cradle remains, and it responds when IG-07 is placed in it. Use this room as the safe beat between the resonant hall and the reactor push.
+Read-Aloud:
+"The room is low and close, lined on both sides with empty droid berths, their clamps hanging open like hands that dropped what they held. At the centre, a diagnostic cradle pulses with a dull amber glow. The rest of the ship is dark. This is not. Something in here is still waiting to be useful."
+
+R6 Reactor Feed Crypt
+GM Description:
+Tall, claustrophobic engineering shaft lined with brittle conduits and dormant feed columns. Red warning glyphs pulse dimly across cracked housings. Power can be rerouted here, but every error has consequences in heat, strain, and unstable feedback.
+Read-Aloud:
+"You enter a vertical chamber crowded with conduit towers and severed feed lines that disappear into darkness above and below. Faint red symbols crawl over damaged casings like embers under ash. The place smells of burned insulation and old heat, and every cable looks one touch away from arcing."
+
+R7 Interceptor Gantry Vault
+GM Description:
+A deep hangar shaft with the interceptor suspended in a magnetic cradle. Service arms, clamp housings, and temporary repair scaffolds surround the craft. The ship is named The Ashen Talon — a personal interceptor carried aboard The Ashen Testament, built for speed, stealth, and one-way courier runs. Its stats, weapons, abilities, and full repair checklist are in the child note. This room should feel like payoff: the objective is real, close, and still dangerous to activate.
+Read-Aloud:
+"The vault falls away beneath your feet, and there it is: a knife-shaped interceptor hanging in a web of clamps and field emitters. Pale armor catches the light in cold bands while exposed internals glow faintly through opened panels. It looks ready to fly and ready to kill, depending on who finishes the repairs first."
+
+R8 Ghost Bridge Override
+GM Description:
+Command chamber built like a ritual dais: layered control rings, fractured holo-projectors, and a central override spine. When the override sequence starts, dormant systems surge and the chamber becomes the final pressure room: objective completion under unstable conditions.
+Read-Aloud:
+"The bridge is less a cockpit than a shrine, all stepped platforms and dead control halos circling a central spine of black metal. Red light pulses through cracks in the deck like a heartbeat. As you begin the override, sealed panels snap open around the dais and old war protocols wake with a violent systems surge."
+
+R9 Sealed Reliquary Side Chamber [Optional]
+GM Description:
+A compact vault space with relic plinths, broken cases, and sealed drawers. Most valuables are long gone, but one or two useful pieces remain if the players take time to search. Good for optional lore drops or a technical bonus before the boss.
+Read-Aloud:
+"Beyond the sealed door is a smaller chamber lined with narrow plinths and cracked display housings. Dust lies thick across everything, broken only by a few drag marks and the shine of one intact case. The room feels untouched and watched at the same time, like it is waiting to see what you think is worth taking."
+
+R10 Emergency Vent Ladder [Optional Shortcut]
+GM Description:
+A maintenance shaft with ladder rungs, narrow crawl sections, and a final one-way drop to lower engineering. Loud, cramped, and stressful, but effective for players who want speed. Use this room to trade safety for momentum.
+Read-Aloud:
+"A service hatch opens into a thin vertical shaft barely wide enough for your shoulders. Metal rungs vanish into dark, and every movement sends hollow clangs through the ship. Far below, a loose grate hangs open over a drop that leads deeper, faster, and with no easy way back."

@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { DragHandle } from '../assets/DragHandle';
 import DicePoolPopup from './DicePoolPopup';
 import AddNPCModal from './AddNPCModal';
+import ItemQualityText from '../components/ItemQualityText';
 
 export default function SWNotes() {
   const navigate = useNavigate();
@@ -1778,6 +1779,7 @@ export default function SWNotes() {
 
   // Dice pool click-to-roll popup state
   const [dicePopup, setDicePopup] = useState(null);
+  const [itemQualityPopup, setItemQualityPopup] = useState(null);
   const [diceMap, setDiceMap] = useState({});
 
   // Handler for dice pool click
@@ -1795,6 +1797,26 @@ export default function SWNotes() {
     
     setDicePopup({ pool, details, x, y, label, boosts: [], setbacks: [] });
   };
+
+  const handleItemQualityClick = (e, details) => {
+    if (!details) return;
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popupWidth = 460;
+    const maxLeft = Math.max(8, window.innerWidth - popupWidth - 8);
+    const left = Math.min(Math.max(8, rect.left), maxLeft);
+    const top = Math.min(rect.bottom + 8, window.innerHeight - 120);
+
+    setItemQualityPopup({ ...details, left, top });
+  };
+
+  useEffect(() => {
+    if (!itemQualityPopup) return;
+    const closePopup = () => setItemQualityPopup(null);
+    document.addEventListener('click', closePopup);
+    return () => document.removeEventListener('click', closePopup);
+  }, [itemQualityPopup]);
 
   // Refs for scrolling notes and NPCs into view
   const noteRefs = useRef({});
@@ -2176,7 +2198,9 @@ export default function SWNotes() {
                       />
                     </div>
                   )}
-                  <p className="text-gray-700 text-xs whitespace-pre-wrap break-words">{place.Description}</p>
+                  <div className="text-gray-700 text-xs whitespace-pre-wrap break-words">
+                    <ItemQualityText text={place.Description} onQualityClick={handleItemQualityClick} />
+                  </div>
 
                   {getSkillChecksForNote(place.id).length > 0 && (
                     <div className="mt-3">
@@ -2782,7 +2806,12 @@ export default function SWNotes() {
                                 {eq.range && <div><span className="font-semibold">Range:</span> {eq.range}</div>}
                                 {eq.damage && <div><span className="font-semibold">Damage:</span> {eq.damage}</div>}
                                 {eq.critical && <div><span className="font-semibold">Critical:</span> {eq.critical}</div>}
-                                {eq.special && <div><span className="font-semibold">Special:</span> {eq.special}</div>}
+                                {eq.special && (
+                                  <div>
+                                    <span className="font-semibold">Special:</span>{' '}
+                                    <ItemQualityText text={eq.special} onQualityClick={handleItemQualityClick} />
+                                  </div>
+                                )}
                                 {eq.soak && <div><span className="font-semibold">Soak:</span> {eq.soak}</div>}
                                 {eq.defence_range && <div><span className="font-semibold">Defence (Ranged):</span> {eq.defence_range}</div>}
                                 {eq.defence_melee && <div><span className="font-semibold">Defence (Melee):</span> {eq.defence_melee}</div>}
@@ -3813,6 +3842,43 @@ export default function SWNotes() {
             setDicePopup={setDicePopup}
             selectedNPC={selectedNPC}
           />
+        </div>
+      )}
+
+      {itemQualityPopup && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${itemQualityPopup.left}px`,
+            top: `${itemQualityPopup.top}px`,
+            backgroundColor: 'white',
+            border: '2px solid #111827',
+            borderRadius: '8px',
+            boxShadow: '0 12px 24px rgba(0,0,0,0.25)',
+            zIndex: 10001,
+            maxWidth: '460px',
+            width: 'calc(100vw - 16px)',
+            padding: '12px',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h4 className="font-bold text-sm text-gray-900">
+                {itemQualityPopup.qualityName}
+                {itemQualityPopup.rating !== null ? ` ${itemQualityPopup.rating}` : ''}
+              </h4>
+              <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{itemQualityPopup.detailText}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setItemQualityPopup(null)}
+              className="text-red-600 hover:text-red-800 font-bold"
+              aria-label="Close item quality popup"
+            >
+              x
+            </button>
+          </div>
         </div>
       )}
 
