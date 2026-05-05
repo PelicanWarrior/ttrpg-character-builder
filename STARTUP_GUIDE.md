@@ -8,7 +8,7 @@ Simply double-click `start-dev.bat` in the project folder. This will automatical
 ### Option 2: Using npm Command
 Open a terminal in the project folder and run:
 ```bash
-npm run dev:full
+npm run dev
 ```
 
 ### Option 3: Manual (Advanced)
@@ -21,12 +21,12 @@ npm run server
 
 **Terminal 2 - Frontend Dev Server:**
 ```bash
-npm run dev
+npm run dev:web
 ```
 
 ## What Gets Started
 
-When you run `npm run dev:full` or use `start-dev.bat`, two servers start automatically:
+When you run `npm run dev` (or `npm run dev:full`) or use `start-dev.bat`, two servers start automatically:
 
 1. **Backend Server** (http://localhost:3001)
    - Handles file uploads

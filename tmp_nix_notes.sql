@@ -1,0 +1,1 @@
+SELECT id, "Place_Name", "Part_of_Place", left("Description", 500) AS desc FROM public."SW_campaign_notes" WHERE "CampaignID" = 2 AND ("Place_Name" ILIKE '%nix%' OR "Place_Name" ILIKE '%nyx%' OR "Place_Name" ILIKE '%backstory%') ORDER BY id;

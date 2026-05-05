@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host localhost --port 5176 --strictPort",
+    "dev": "concurrently \"npm run server\" \"npm run dev:web\"",
+    "dev:web": "vite --host :: --port 5176 --strictPort",
     "server": "node server.cjs",
-    "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
+    "dev:full": "npm run dev",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -5,19 +5,19 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    host: 'localhost',
+    host: '::',
     port: 5176,
     strictPort: true,
     middlewareMode: false,
     historyApiFallback: true,
     proxy: {
       '/SW_Pictures/api': {
-        target: 'http://localhost:3001',
+        target: 'http://127.0.0.1:3001',
         changeOrigin: true,
         ws: true,
       },
       '/F_Pictures/api': {
-        target: 'http://localhost:3001',
+        target: 'http://127.0.0.1:3001',
         changeOrigin: true,
         ws: true,
       },
