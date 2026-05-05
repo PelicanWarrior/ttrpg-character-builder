@@ -3425,6 +3425,7 @@ export default function SWCharacterOverview() {
               left: `${itemQualityPopup.left}px`,
               top: `${itemQualityPopup.top}px`,
               backgroundColor: 'white',
+              color: '#111827',
               border: '2px solid #111827',
               borderRadius: '8px',
               boxShadow: '0 12px 24px rgba(0,0,0,0.25)',
@@ -3437,11 +3438,11 @@ export default function SWCharacterOverview() {
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h4 className="font-bold text-sm text-gray-900">
+                <h4 className="font-bold text-sm text-gray-900" style={{ color: '#111827' }}>
                   {itemQualityPopup.qualityName}
                   {itemQualityPopup.rating !== null ? ` ${itemQualityPopup.rating}` : ''}
                 </h4>
-                <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{itemQualityPopup.detailText}</p>
+                <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap" style={{ color: '#374151' }}>{itemQualityPopup.detailText}</p>
               </div>
               <button
                 type="button"

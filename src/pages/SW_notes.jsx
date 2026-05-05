@@ -50,8 +50,6 @@ export default function SWNotes() {
   const [skillChecksByNote, setSkillChecksByNote] = useState({});
   const [editingSkillCheckId, setEditingSkillCheckId] = useState(null);
   const [expandedSkillChecks, setExpandedSkillChecks] = useState({});
-  const [editingGroupMode, setEditingGroupMode] = useState(false);
-  const [editingGroupOriginalName, setEditingGroupOriginalName] = useState('');
 
   // NPC form state
   const [npcName, setNpcName] = useState('');
@@ -88,24 +86,6 @@ export default function SWNotes() {
 
   // Helper: can the current user upload pictures?
   const canUploadPictures = () => isAdmin || uploadPicturesEnabled;
-
-  const swApiCandidates = import.meta.env.DEV
-    ? ['', 'http://localhost:3001', 'http://127.0.0.1:3001']
-    : [''];
-  const buildSwApiUrl = (base, path) => `${base}${path}`;
-  const fetchSwApi = async (path, options) => {
-    let lastNetworkError = null;
-
-    for (const baseUrl of swApiCandidates) {
-      try {
-        return await fetch(buildSwApiUrl(baseUrl, path), options);
-      } catch (err) {
-        lastNetworkError = err;
-      }
-    }
-
-    throw lastNetworkError || new TypeError('Failed to fetch');
-  };
 
   const getSwPictureUrl = (pictureId) => `/SW_Pictures/Picture ${pictureId}.png?t=${Date.now()}`;
 
@@ -242,27 +222,9 @@ export default function SWNotes() {
   const resetSkillCheckForm = () => {
     setShowInlineAddSkillCheck(null);
     setEditingSkillCheckId(null);
-    setEditingGroupMode(false);
-    setEditingGroupOriginalName('');
     setSkillCheckName('');
     setSkillCheckSkill('');
     setSkillCheckDifficulty('0');
-    setSkillCheckFieldsLocked(false);
-    setSkillCheckOutcome('');
-    setSkillCheckEffect('');
-  };
-
-  const openEditGroupForm = (noteId, checkName, skillName, difficulty, anchorEl = null) => {
-    if (anchorEl) {
-      setSkillCheckFormPos(getAnchoredPopupPosition(anchorEl, 420, 300));
-    }
-    setShowInlineAddSkillCheck(Number(noteId));
-    setEditingSkillCheckId(null);
-    setEditingGroupMode(true);
-    setEditingGroupOriginalName((checkName || 'General').trim());
-    setSkillCheckName(checkName || '');
-    setSkillCheckSkill(skillName || '');
-    setSkillCheckDifficulty(String(difficulty ?? '0'));
     setSkillCheckFieldsLocked(false);
     setSkillCheckOutcome('');
     setSkillCheckEffect('');
@@ -911,7 +873,7 @@ export default function SWNotes() {
           formData.append('placeId', String(place.id));
           formData.append('userId', String(userId));
 
-          const uploadResponse = await fetchSwApi('/SW_Pictures/api/upload-picture', {
+          const uploadResponse = await fetch('/SW_Pictures/api/upload-picture', {
             method: 'POST',
             body: formData,
           });
@@ -929,7 +891,7 @@ export default function SWNotes() {
         } catch (err) {
           console.error('Error uploading picture:', err);
           if (err instanceof TypeError && String(err.message || '').toLowerCase().includes('fetch')) {
-            alert('Could not reach the upload server. Start backend with "npm run dev:full" (or "npm run server") and try again.');
+            alert('Could not reach the upload server. Please ensure backend is running on port 3001.');
           } else {
             alert('Error uploading picture: ' + (err.message || 'Unknown error'));
           }
@@ -966,7 +928,7 @@ export default function SWNotes() {
           formData.append('npcId', String(npc.id));
           formData.append('userId', String(userId));
 
-          const uploadResponse = await fetchSwApi('/SW_Pictures/api/upload-npc-picture', {
+          const uploadResponse = await fetch('/SW_Pictures/api/upload-npc-picture', {
             method: 'POST',
             body: formData,
           });
@@ -990,7 +952,7 @@ export default function SWNotes() {
         } catch (err) {
           console.error('Error uploading NPC picture:', err);
           if (err instanceof TypeError && String(err.message || '').toLowerCase().includes('fetch')) {
-            alert('Could not reach the upload server. Start backend with "npm run dev:full" (or "npm run server") and try again.');
+            alert('Could not reach the upload server. Please ensure backend is running on port 3001.');
           } else {
             alert('Error uploading NPC picture: ' + (err.message || 'Unknown error'));
           }
@@ -1011,7 +973,7 @@ export default function SWNotes() {
     }
 
     try {
-      const response = await fetchSwApi('/SW_Pictures/api/delete-picture', {
+      const response = await fetch('/SW_Pictures/api/delete-picture', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1042,7 +1004,7 @@ export default function SWNotes() {
     }
 
     try {
-      const response = await fetchSwApi('/SW_Pictures/api/delete-picture', {
+      const response = await fetch('/SW_Pictures/api/delete-picture', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1138,52 +1100,7 @@ export default function SWNotes() {
     }));
   };
 
-  const handleSaveGroupEdit = async (noteId) => {
-    if (!skillCheckName.trim()) {
-      alert('Skill Check Name is required');
-      return;
-    }
-    try {
-      const newName = skillCheckName.trim();
-      const newSkill = skillCheckSkill.trim();
-      const newDifficulty = Number.parseInt(skillCheckDifficulty, 10) || 0;
-      const normalizedNoteId = Number(noteId);
-
-      const { error } = await supabase
-        .from('SW_note_skill_checks')
-        .update({ check_name: newName, skill_name: newSkill, difficulty: newDifficulty })
-        .eq('note_id', normalizedNoteId)
-        .eq('CampaignID', Number(campaignId))
-        .eq('check_name', editingGroupOriginalName);
-
-      if (error) throw error;
-
-      setSkillChecksByNote(prev => {
-        const key = normalizedNoteId;
-        const current = prev[key] || [];
-        return {
-          ...prev,
-          [key]: current.map(row =>
-            (row.check_name || 'General').trim() === editingGroupOriginalName
-              ? { ...row, check_name: newName, skill_name: newSkill, difficulty: newDifficulty }
-              : row
-          ),
-        };
-      });
-
-      resetSkillCheckForm();
-    } catch (err) {
-      console.error('Failed to update skill check group:', err);
-      alert('Failed to save changes');
-    }
-  };
-
   const handleSaveInlineSkillCheck = async (noteId) => {
-    if (editingGroupMode) {
-      await handleSaveGroupEdit(noteId);
-      return;
-    }
-
     if (!skillCheckName.trim() || !skillCheckSkill.trim() || !skillCheckOutcome.trim() || !skillCheckEffect.trim()) {
       alert('Skill Check Name, Skill, Outcome and Effect are required');
       return;
@@ -2313,33 +2230,19 @@ export default function SWNotes() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex gap-1 flex-shrink-0">
-                                <button
-                                  onClick={(e) => openEditGroupForm(
-                                    place.id,
-                                    checkName,
-                                    rows[0]?.skill_name || '',
-                                    rows[0]?.difficulty ?? 0,
-                                    e.currentTarget
-                                  )}
-                                  className="px-2 py-0.5 text-[11px] font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 transition"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={(e) => openSkillCheckForm(
-                                    place.id,
-                                    checkName,
-                                    rows[0]?.skill_name || '',
-                                    rows[0]?.difficulty ?? 0,
-                                    true,
-                                    e.currentTarget
-                                  )}
-                                  className="px-2 py-0.5 text-[11px] font-semibold bg-emerald-600 text-white rounded hover:bg-emerald-700 transition"
-                                >
-                                  Add Result
-                                </button>
-                              </div>
+                              <button
+                                onClick={(e) => openSkillCheckForm(
+                                  place.id,
+                                  checkName,
+                                  rows[0]?.skill_name || '',
+                                  rows[0]?.difficulty ?? 0,
+                                  true,
+                                  e.currentTarget
+                                )}
+                                className="px-2 py-0.5 text-[11px] font-semibold bg-emerald-600 text-white rounded hover:bg-emerald-700 transition flex-shrink-0"
+                              >
+                                Add Result
+                              </button>
                             </div>
                             {isExpanded && (
                               <div className="overflow-x-auto rounded border border-gray-300 bg-white">
@@ -3401,7 +3304,7 @@ export default function SWNotes() {
         >
           <div className="bg-white rounded-lg p-4">
             <h4 className="font-bold text-gray-800 mb-3 text-sm">
-              {editingGroupMode ? 'Edit Skill Check' : editingSkillCheckId ? 'Edit Skill Check Result' : 'Add Skill Check to'} {selectedHierarchy.find(p => p.id === showInlineAddSkillCheck)?.Place_Name || 'Note'}
+              {editingSkillCheckId ? 'Edit Skill Check' : 'Add Skill Check to'} {selectedHierarchy.find(p => p.id === showInlineAddSkillCheck)?.Place_Name || 'Note'}
             </h4>
             <div className="flex gap-2 mb-3">
               <button
@@ -3459,30 +3362,26 @@ export default function SWNotes() {
                   <option value="5">5</option>
                 </select>
               </div>
-              {!editingGroupMode && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Outcome</label>
-                    <input
-                      type="text"
-                      value={skillCheckOutcome}
-                      onChange={(e) => setSkillCheckOutcome(e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. Success 1+"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Effect</label>
-                    <textarea
-                      value={skillCheckEffect}
-                      onChange={(e) => setSkillCheckEffect(e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
-                      rows={4}
-                      placeholder="Describe what happens for this outcome"
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Outcome</label>
+                <input
+                  type="text"
+                  value={skillCheckOutcome}
+                  onChange={(e) => setSkillCheckOutcome(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                  placeholder="e.g. Success 1+"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Effect</label>
+                <textarea
+                  value={skillCheckEffect}
+                  onChange={(e) => setSkillCheckEffect(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                  rows={4}
+                  placeholder="Describe what happens for this outcome"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -3953,6 +3852,7 @@ export default function SWNotes() {
             left: `${itemQualityPopup.left}px`,
             top: `${itemQualityPopup.top}px`,
             backgroundColor: 'white',
+            color: '#111827',
             border: '2px solid #111827',
             borderRadius: '8px',
             boxShadow: '0 12px 24px rgba(0,0,0,0.25)',
@@ -3965,11 +3865,11 @@ export default function SWNotes() {
         >
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h4 className="font-bold text-sm text-gray-900">
+              <h4 className="font-bold text-sm text-gray-900" style={{ color: '#111827' }}>
                 {itemQualityPopup.qualityName}
                 {itemQualityPopup.rating !== null ? ` ${itemQualityPopup.rating}` : ''}
               </h4>
-              <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{itemQualityPopup.detailText}</p>
+              <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap" style={{ color: '#374151' }}>{itemQualityPopup.detailText}</p>
             </div>
             <button
               type="button"
