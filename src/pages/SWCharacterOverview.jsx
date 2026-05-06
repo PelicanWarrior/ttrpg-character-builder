@@ -2534,41 +2534,37 @@ export default function SWCharacterOverview() {
             {characterShips.length === 0 ? (
               <p className="text-gray-600">No ships added for this character yet.</p>
             ) : (
-              <table className="border border-black w-full text-left" style={{ tableLayout: 'fixed' }}>
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-black py-1 px-2" style={{ minWidth: '220px' }}>Ship</th>
-                    <th className="border border-black py-1 px-2" style={{ minWidth: '220px' }}>Stats</th>
-                    <th className="border border-black py-1 px-2" style={{ minWidth: '200px' }}>Crew</th>
-                    <th className="border border-black py-1 px-2" style={{ minWidth: '220px' }}>Condition</th>
-                    {canEdit && <th className="border border-black py-1 px-2" style={{ minWidth: '90px' }}>Remove</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {characterShips.map((ship) => (
-                    <tr key={ship.id} className="bg-gray-100 align-top">
-                      <td className="border border-black py-1 px-2">
-                        <div className="font-semibold">{ship.name}</div>
-                        {ship.class && <div>{ship.class}</div>}
-                        {ship.description && <div className="text-xs mt-1 whitespace-pre-wrap">{ship.description}</div>}
-                      </td>
-                      <td className="border border-black py-1 px-2">
+              <div className="flex flex-col gap-6">
+                {characterShips.map((ship) => (
+                  <div key={ship.id} className="border-2 border-black rounded-lg overflow-hidden">
+
+                    {/* Ship name / class */}
+                    <div className="bg-gray-200 px-3 py-2 border-b border-black">
+                      <div className="font-bold text-base">{ship.name}</div>
+                      {ship.class && <div className="text-sm text-gray-700">{ship.class}</div>}
+                      {ship.description && <div className="text-xs mt-1 whitespace-pre-wrap text-gray-600">{ship.description}</div>}
+                    </div>
+
+                    {/* Stats */}
+                    <div className="px-3 py-2 border-b border-black">
+                      <div className="font-semibold text-xs uppercase text-gray-500 mb-1">Stats</div>
+                      <div className="text-sm grid grid-cols-2 gap-x-4 gap-y-0.5">
                         <div>Silhouette: {ship.silhouette}</div>
                         <div>Speed: {ship.speed}</div>
                         <div>Handling: {ship.handling}</div>
                         <div>Armor: {ship.armor}</div>
-                        <div>Defence (F/P/S/A): {ship.defence_fore || 0} / {ship.defence_port || 0} / {ship.defence_starboard || 0} / {ship.defence_aft || 0}</div>
-                        {ship.manufacturer && <div>Manufacturer: {ship.manufacturer}</div>}
+                        <div className="col-span-2">Defence (F/P/S/A): {ship.defence_fore || 0} / {ship.defence_port || 0} / {ship.defence_starboard || 0} / {ship.defence_aft || 0}</div>
+                        {ship.manufacturer && <div className="col-span-2">Manufacturer: {ship.manufacturer}</div>}
                         {ship.hyperdrive_primary && <div>Hyperdrive (Primary): {ship.hyperdrive_primary}</div>}
                         {ship.hyperdrive_backup && <div>Hyperdrive (Backup): {ship.hyperdrive_backup}</div>}
-                        {ship.navicomputer && <div>Navicomputer: {ship.navicomputer}</div>}
+                        {ship.navicomputer && <div className="col-span-2">Navicomputer: {ship.navicomputer}</div>}
                         {ship.sensor_range && <div>Sensor Range: {ship.sensor_range}</div>}
-                        {ship.ship_complement && <div>Ship's Complement: {ship.ship_complement}</div>}
+                        {ship.ship_complement && <div className="col-span-2">Ship's Complement: {ship.ship_complement}</div>}
                         {ship.encumbrance_capacity && <div>Encumbrance Capacity: {ship.encumbrance_capacity}</div>}
                         {ship.passenger_capacity && <div>Passenger Capacity: {ship.passenger_capacity}</div>}
                         {ship.consumables && <div>Consumables: {ship.consumables}</div>}
                         {(ship.price_credits || ship.rarity) && (
-                          <div>
+                          <div className="col-span-2">
                             Price/Rarity: {ship.price_credits ? `${ship.price_credits} credits` : 'N/A'} / {ship.rarity || 'N/A'}
                           </div>
                         )}
@@ -2576,142 +2572,147 @@ export default function SWCharacterOverview() {
                           <div>Customization Hard Points: {ship.customization_hard_points}</div>
                         )}
                         {ship.source && <div>Source: {ship.source}</div>}
-                        {ship.weapons && (
-                          <div className="whitespace-pre-wrap mt-1">
-                            Weapons: <ItemQualityText text={ship.weapons} onQualityClick={handleItemQualityClick} />
-                          </div>
-                        )}
-                      </td>
-                      <td className="border border-black py-1 px-2 align-top">
-                        {ship.ship_complement && campaignIdState ? (
-                          <>
-                            <div className="text-xs font-bold text-gray-800 mb-2">Crew Allocation</div>
-                            {parseShipComplement(ship.ship_complement).map(({ role, slot }) => {
-                              const key = `${ship.id}_${role}_${slot}`;
-                              const assigned = crewAssignments[key] ?? '';
-                              const label = parseShipComplement(ship.ship_complement).filter(s => s.role === role).length > 1
-                                ? `${role} ${slot}`
-                                : role;
-                              return (
-                                <div key={key} className="flex items-center gap-2 mb-1">
-                                  <span className="text-xs font-semibold text-gray-700 w-24 flex-shrink-0">{label}:</span>
-                                  {canEdit ? (
-                                    <select
-                                      value={assigned || ''}
-                                      onChange={(e) => handleCrewAssign(ship.id, role, slot, e.target.value || null)}
-                                      className="border border-gray-300 rounded text-xs px-1 py-0.5 flex-1"
-                                    >
-                                      <option value="">— Unassigned —</option>
-                                      {campaignCharacters.map((c) => (
-                                        <option key={c.id} value={c.id}>{c.name}{c.race ? ` (${c.race})` : ''}</option>
-                                      ))}
-                                    </select>
-                                  ) : (
-                                    <span className="text-xs text-gray-700">
-                                      {assigned
-                                        ? (campaignCharacters.find(c => c.id === Number(assigned))?.name ?? 'Unknown')
-                                        : 'Unassigned'}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                            {/* Dice pool buttons for roles the current character is assigned to */}
-                            {(() => {
-                              const complement = parseShipComplement(ship.ship_complement);
-                              const isAssignedAs = (roleName) => complement.some(({ role, slot }) =>
-                                role.toLowerCase() === roleName.toLowerCase() &&
-                                Number(crewAssignments[`${ship.id}_${role}_${slot}`]) === characterId
-                              );
-                              const isPilot = isAssignedAs('pilot');
-                              const isGunner = isAssignedAs('gunner');
-                              if (!isPilot && !isGunner) return null;
-                              return (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {isPilot && (
-                                    <>
-                                      <button
-                                        className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold rounded cursor-pointer"
-                                        onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Piloting - Space', skills.find(s => s.skill === 'Piloting - Space')?.stat || 'agility'), 'Piloting - Space')}
-                                      >
-                                        Piloting - Space ({getFinalDicePool('Piloting - Space', skills.find(s => s.skill === 'Piloting - Space')?.stat || 'agility')})
-                                      </button>
-                                      <button
-                                        className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold rounded cursor-pointer"
-                                        onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Piloting - Planetary', skills.find(s => s.skill === 'Piloting - Planetary')?.stat || 'agility'), 'Piloting - Planetary')}
-                                      >
-                                        Piloting - Planetary ({getFinalDicePool('Piloting - Planetary', skills.find(s => s.skill === 'Piloting - Planetary')?.stat || 'agility')})
-                                      </button>
-                                    </>
-                                  )}
-                                  {isGunner && (
+                      </div>
+                      {ship.weapons && (
+                        <div className="text-sm whitespace-pre-wrap mt-2">
+                          <span className="font-semibold">Weapons:</span>{' '}
+                          <ItemQualityText text={ship.weapons} onQualityClick={handleItemQualityClick} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Condition */}
+                    <div className="px-3 py-2 border-b border-black">
+                      <div className="font-semibold text-xs uppercase text-gray-500 mb-2">Condition</div>
+                      <div className="flex flex-wrap gap-6">
+                        <div>
+                          <div className="text-xs font-semibold text-gray-600 mb-1">Hull Trauma</div>
+                          <div className="font-semibold mb-2">{ship.hull_trauma_current} / {ship.hull_trauma_threshold}</div>
+                          {canEdit && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleCharacterShipStatChange(ship.id, 'hull_trauma_current', -1)}
+                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                              >-</button>
+                              <button
+                                onClick={() => handleCharacterShipStatChange(ship.id, 'hull_trauma_current', 1)}
+                                className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                              >+</button>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-gray-600 mb-1">System Strain</div>
+                          <div className="font-semibold mb-2">{ship.system_strain_current} / {ship.system_strain_threshold}</div>
+                          {canEdit && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleCharacterShipStatChange(ship.id, 'system_strain_current', -1)}
+                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                              >-</button>
+                              <button
+                                onClick={() => handleCharacterShipStatChange(ship.id, 'system_strain_current', 1)}
+                                className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                              >+</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Crew */}
+                    <div className="px-3 py-2 border-b border-black">
+                      <div className="font-semibold text-xs uppercase text-gray-500 mb-2">Crew</div>
+                      {ship.ship_complement && campaignIdState ? (
+                        <>
+                          {parseShipComplement(ship.ship_complement).map(({ role, slot }) => {
+                            const key = `${ship.id}_${role}_${slot}`;
+                            const assigned = crewAssignments[key] ?? '';
+                            const label = parseShipComplement(ship.ship_complement).filter(s => s.role === role).length > 1
+                              ? `${role} ${slot}`
+                              : role;
+                            return (
+                              <div key={key} className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-semibold text-gray-700 w-24 flex-shrink-0">{label}:</span>
+                                {canEdit ? (
+                                  <select
+                                    value={assigned || ''}
+                                    onChange={(e) => handleCrewAssign(ship.id, role, slot, e.target.value || null)}
+                                    className="border border-gray-300 rounded text-xs px-1 py-0.5 flex-1"
+                                  >
+                                    <option value="">— Unassigned —</option>
+                                    {campaignCharacters.map((c) => (
+                                      <option key={c.id} value={c.id}>{c.name}{c.race ? ` (${c.race})` : ''}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <span className="text-xs text-gray-700">
+                                    {assigned
+                                      ? (campaignCharacters.find(c => c.id === Number(assigned))?.name ?? 'Unknown')
+                                      : 'Unassigned'}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {(() => {
+                            const complement = parseShipComplement(ship.ship_complement);
+                            const isAssignedAs = (roleName) => complement.some(({ role, slot }) =>
+                              role.toLowerCase() === roleName.toLowerCase() &&
+                              Number(crewAssignments[`${ship.id}_${role}_${slot}`]) === characterId
+                            );
+                            const isPilot = isAssignedAs('pilot');
+                            const isGunner = isAssignedAs('gunner');
+                            if (!isPilot && !isGunner) return null;
+                            return (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {isPilot && (
+                                  <>
                                     <button
                                       className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold rounded cursor-pointer"
-                                      onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Gunnery', skills.find(s => s.skill === 'Gunnery')?.stat || 'agility'), 'Gunnery')}
+                                      onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Piloting - Space', skills.find(s => s.skill === 'Piloting - Space')?.stat || 'agility'), 'Piloting - Space')}
                                     >
-                                      Gunnery ({getFinalDicePool('Gunnery', skills.find(s => s.skill === 'Gunnery')?.stat || 'agility')})
+                                      Piloting - Space ({getFinalDicePool('Piloting - Space', skills.find(s => s.skill === 'Piloting - Space')?.stat || 'agility')})
                                     </button>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </>
-                        ) : (
-                          <span className="text-xs text-gray-400">{campaignIdState ? 'No complement defined' : 'Open from campaign to allocate'}</span>
-                        )}
-                      </td>
-                      <td className="border border-black py-1 px-2">
-                        <div className="font-semibold text-xs text-gray-600 mb-1">Hull Trauma</div>
-                        <div className="font-semibold mb-2">{ship.hull_trauma_current} / {ship.hull_trauma_threshold}</div>
-                        {canEdit && (
-                          <div className="flex gap-2 mb-3">
-                            <button
-                              onClick={() => handleCharacterShipStatChange(ship.id, 'hull_trauma_current', -1)}
-                              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                            >
-                              -
-                            </button>
-                            <button
-                              onClick={() => handleCharacterShipStatChange(ship.id, 'hull_trauma_current', 1)}
-                              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                            >
-                              +
-                            </button>
-                          </div>
-                        )}
-                        <div className="font-semibold text-xs text-gray-600 mb-1">System Strain</div>
-                        <div className="font-semibold mb-2">{ship.system_strain_current} / {ship.system_strain_threshold}</div>
-                        {canEdit && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleCharacterShipStatChange(ship.id, 'system_strain_current', -1)}
-                              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                            >
-                              -
-                            </button>
-                            <button
-                              onClick={() => handleCharacterShipStatChange(ship.id, 'system_strain_current', 1)}
-                              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                            >
-                              +
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      {canEdit && (
-                        <td className="border border-black py-2 px-2 text-center align-middle">
-                          <button
-                            onClick={() => handleRemoveCharacterShip(ship.id, ship.name)}
-                            className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                          >
-                            Remove
-                          </button>
-                        </td>
+                                    <button
+                                      className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold rounded cursor-pointer"
+                                      onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Piloting - Planetary', skills.find(s => s.skill === 'Piloting - Planetary')?.stat || 'agility'), 'Piloting - Planetary')}
+                                    >
+                                      Piloting - Planetary ({getFinalDicePool('Piloting - Planetary', skills.find(s => s.skill === 'Piloting - Planetary')?.stat || 'agility')})
+                                    </button>
+                                  </>
+                                )}
+                                {isGunner && (
+                                  <button
+                                    className="px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold rounded cursor-pointer"
+                                    onClick={(e) => handleDicePoolClick(e, getFinalDicePool('Gunnery', skills.find(s => s.skill === 'Gunnery')?.stat || 'agility'), 'Gunnery')}
+                                  >
+                                    Gunnery ({getFinalDicePool('Gunnery', skills.find(s => s.skill === 'Gunnery')?.stat || 'agility')})
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-400">{campaignIdState ? 'No complement defined' : 'Open from campaign to allocate'}</span>
                       )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    </div>
+
+                    {/* Remove button */}
+                    {canEdit && (
+                      <div className="px-3 py-2">
+                        <button
+                          onClick={() => handleRemoveCharacterShip(ship.id, ship.name)}
+                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                        >
+                          Remove Ship
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
 
             {/* Crew-assigned ships section */}
