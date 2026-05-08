@@ -61,6 +61,7 @@ export default function SWCharacterOverview() {
   const [crewAssignments, setCrewAssignments] = useState({}); // key: `${characterShipId}_${role}_${slot}` -> assignedCharId
   const [crewAssignedShips, setCrewAssignedShips] = useState([]); // ships where this character is assigned as crew
   const [crewShipAssignments, setCrewShipAssignments] = useState({}); // key: `${characterShipId}` -> {role, slot, ownerName}
+  const [savingShipNotes, setSavingShipNotes] = useState({});
 
   // NEW: Dynamic popup state
   const [dicePopup, setDicePopup] = useState(null); // { pool, details, x, y }
@@ -934,7 +935,7 @@ export default function SWCharacterOverview() {
 
         const { data: characterShipData, error: characterShipError } = await supabase
           .from('SW_character_ships')
-          .select('id, characterID, shipID, hull_trauma_current, system_strain_current')
+          .select('*')
           .eq('characterID', activeCharacterId);
 
         if (characterShipError) {
@@ -979,6 +980,7 @@ export default function SWCharacterOverview() {
                 system_strain_threshold: ship.system_strain_threshold ?? 0,
                 hull_trauma_current: row.hull_trauma_current ?? 0,
                 system_strain_current: row.system_strain_current ?? 0,
+                notes: row.notes || '',
               };
             })
             .filter(Boolean)
@@ -1013,7 +1015,7 @@ export default function SWCharacterOverview() {
           const characterShipIds = crewAssignmentRows.map((row) => row.character_ship_id);
           const { data: crewShipData } = await supabase
             .from('SW_character_ships')
-            .select('id, characterID, shipID, hull_trauma_current, system_strain_current')
+            .select('*')
             .in('id', characterShipIds);
 
           if (crewShipData && shipData) {
@@ -1056,6 +1058,7 @@ export default function SWCharacterOverview() {
                   system_strain_threshold: ship.system_strain_threshold ?? 0,
                   hull_trauma_current: row.hull_trauma_current ?? 0,
                   system_strain_current: row.system_strain_current ?? 0,
+                  notes: row.notes || '',
                   role: assignment?.role || '',
                   roleSlot: assignment?.role_slot || 1,
                 };
@@ -1629,8 +1632,9 @@ export default function SWCharacterOverview() {
         shipID: parsedShipId,
         hull_trauma_current: shipDef?.hull_trauma_threshold ?? 0,
         system_strain_current: shipDef?.system_strain_threshold ?? 0,
+        notes: '',
       })
-      .select('id, characterID, shipID, hull_trauma_current, system_strain_current')
+      .select('*')
       .single();
 
     if (error) {
@@ -1678,6 +1682,7 @@ export default function SWCharacterOverview() {
       system_strain_threshold: shipDefinition.system_strain_threshold ?? 0,
       hull_trauma_current: data.hull_trauma_current ?? 0,
       system_strain_current: data.system_strain_current ?? 0,
+      notes: data.notes || '',
     };
 
     setCharacterShips((prev) => [...prev, newCharacterShip].sort((a, b) => a.name.localeCompare(b.name)));
@@ -1711,6 +1716,30 @@ export default function SWCharacterOverview() {
         prev.map((entry) => (entry.id === characterShipId ? { ...entry, [field]: current } : entry))
       );
       alert('Failed to update ship stat.');
+    }
+  };
+
+  const handleCharacterShipNoteChange = (characterShipId, nextValue) => {
+    setCharacterShips((prev) =>
+      prev.map((entry) => (entry.id === characterShipId ? { ...entry, notes: nextValue } : entry))
+    );
+  };
+
+  const handleSaveCharacterShipNote = async (characterShipId) => {
+    const ship = characterShips.find((entry) => entry.id === characterShipId);
+    if (!ship) return;
+
+    setSavingShipNotes((prev) => ({ ...prev, [characterShipId]: true }));
+    const { error } = await supabase
+      .from('SW_character_ships')
+      .update({ notes: ship.notes || '' })
+      .eq('id', characterShipId);
+
+    setSavingShipNotes((prev) => ({ ...prev, [characterShipId]: false }));
+
+    if (error) {
+      console.error('Error saving ship note:', error);
+      alert('Failed to save ship note. Run the ship migration in Supabase if the notes column has not been added yet.');
     }
   };
 
@@ -2618,6 +2647,35 @@ export default function SWCharacterOverview() {
                           )}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div className="px-3 py-2 border-b border-black">
+                      <div className="font-semibold text-xs uppercase text-gray-500 mb-2">Character Ship Note</div>
+                      {canEdit ? (
+                        <>
+                          <textarea
+                            value={ship.notes || ''}
+                            onChange={(e) => handleCharacterShipNoteChange(ship.id, e.target.value)}
+                            placeholder="Add character-specific notes for this ship..."
+                            className="w-full min-h-[110px] border border-gray-300 rounded p-2 text-sm"
+                            style={{ resize: 'vertical' }}
+                          />
+                          <div className="mt-2 flex justify-end">
+                            <button
+                              onClick={() => handleSaveCharacterShipNote(ship.id)}
+                              disabled={!!savingShipNotes[ship.id]}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 text-sm"
+                            >
+                              {savingShipNotes[ship.id] ? 'Saving...' : 'Save Note'}
+                            </button>
+                          </div>
+                        </>
+                      ) : ship.notes ? (
+                        <div className="text-sm whitespace-pre-wrap text-gray-800">{ship.notes}</div>
+                      ) : (
+                        <div className="text-sm text-gray-500 italic">No note for this ship yet.</div>
+                      )}
                     </div>
 
                     {/* Crew */}

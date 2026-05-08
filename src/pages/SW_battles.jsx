@@ -37,6 +37,11 @@ export default function SWBattles() {
   const [localNpcStats, setLocalNpcStats] = useState({}); // {battleNpcId: {wound, strain}}
   const npcStatClickLockRef = useRef({}); // {"battleNpcId:field": timestamp}
   const npcStatApplyTokenRef = useRef({}); // {"battleNpcId:field": token}
+  const initiativeListRef = useRef(null);
+  const sidePanelRef = useRef(null);
+  const [selectedCombatantRowOffset, setSelectedCombatantRowOffset] = useState(0);
+  const [initiativeScrollTop, setInitiativeScrollTop] = useState(0);
+  const [sidePanelHeight, setSidePanelHeight] = useState(220);
 
   useEffect(() => {
     if (campaignId) {
@@ -61,6 +66,14 @@ export default function SWBattles() {
       setSelectedNPCEquipment([]);
     }
   }, [selectedCombatantDetails]);
+
+  useEffect(() => {
+    if (!selectedCombatantDetails || !sidePanelRef.current) return;
+    const measuredHeight = sidePanelRef.current.offsetHeight || 220;
+    if (Math.abs(measuredHeight - sidePanelHeight) > 1) {
+      setSidePanelHeight(measuredHeight);
+    }
+  }, [selectedCombatantDetails, selectedNPCEquipment, sidePanelHeight, showInitiativeOrder]);
 
   const fetchBattles = async () => {
     const { data, error } = await supabase
@@ -124,16 +137,23 @@ export default function SWBattles() {
 
   const calculateDicePopupPosition = (buttonRect, popupWidth = 760) => {
     const padding = 10;
+    const popupHeight = 420;
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
-    // Default: show below the button
-    let top = buttonRect.bottom + padding;
-    let left = buttonRect.left;
+    // Prefer a centered popup so wide dice dialogs stay fully visible.
+    let top = Math.max(padding, Math.round((viewportHeight - popupHeight) / 2));
+    let left = Math.max(padding, Math.round((viewportWidth - popupWidth) / 2));
+
+    // Nudge toward the clicked button when there is room, while keeping the popup centered-ish.
+    if (buttonRect) {
+      const preferredTop = buttonRect.top - popupHeight / 2;
+      top = Math.max(padding, Math.min(preferredTop, viewportHeight - popupHeight - padding));
+    }
     
     // If popup would go off bottom, show above instead
-    if (top + 400 > viewportHeight) {
-      top = buttonRect.top - 400 - padding;
+    if (top + popupHeight > viewportHeight) {
+      top = viewportHeight - popupHeight - padding;
     }
     
     // If popup would go off right, shift it left
@@ -371,6 +391,41 @@ export default function SWBattles() {
     }
 
     return pool;
+  };
+
+  const buildDiceDetails = (pool) => {
+    return (pool || '').split('').map(letter => {
+      const colorMap = {
+        G: { color: 'G', name: 'Ability' },
+        Y: { color: 'Y', name: 'Proficiency' },
+        B: { color: 'B', name: 'Boost' },
+        R: { color: 'R', name: 'Difficulty' },
+        P: { color: 'P', name: 'Challenge' },
+        K: { color: 'K', name: 'Setback' },
+        W: { color: 'W', name: 'Force' }
+      };
+      return colorMap[letter] || { color: letter, name: 'Unknown' };
+    });
+  };
+
+  const calculateNpcSkillDicePool = (npc, skillName) => {
+    if (!npc || !skillName) return '';
+
+    const skillObj = skillsList.find(s => s.skill === skillName);
+    const statName = skillObj?.stat || '';
+    const statValue = parseInt(npc[statName], 10) || 0;
+
+    let rank = 0;
+    if (npc.Skills) {
+      const skillsArr = npc.Skills.split(',').map(s => s.trim());
+      rank = skillsArr.filter(s => s === skillName).length;
+    }
+
+    const yCount = Math.min(rank, statValue);
+    let dicePool = '';
+    dicePool += 'Y'.repeat(yCount);
+    dicePool += 'G'.repeat(statValue - yCount);
+    return dicePool;
   };
   
   const handleUseResult = (netSuccess, netAdvantage) => {
@@ -650,6 +705,27 @@ export default function SWBattles() {
   const selectedPlayerDetails = selectedCombatantDetails?.type === 'player'
     ? getPlayerDetailsById(selectedCombatantDetails.id)
     : null;
+  const initiativeViewportHeight = initiativeListRef.current?.clientHeight || 0;
+  const maxSidePanelTop = Math.max(12, initiativeViewportHeight - sidePanelHeight - 12);
+  const selectedSidePanelTop = Math.min(
+    Math.max(12, selectedCombatantRowOffset - initiativeScrollTop),
+    maxSidePanelTop
+  );
+
+  const handleSelectCombatant = (type, id, event) => {
+    setSelectedCombatantDetails({ type, id });
+
+    const listEl = initiativeListRef.current;
+    if (!listEl || !event?.currentTarget) {
+      setSelectedCombatantRowOffset(0);
+      return;
+    }
+
+    const rowRect = event.currentTarget.getBoundingClientRect();
+    const listRect = listEl.getBoundingClientRect();
+    const offset = rowRect.top - listRect.top + listEl.scrollTop;
+    setSelectedCombatantRowOffset(Math.max(0, offset));
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -776,8 +852,34 @@ export default function SWBattles() {
 
         {/* Battle Modal */}
         {showBattleModal && currentBattleId && (
-          <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50 p-4">
-            <div style={{ backgroundColor: '#1a1a1a' }} className="rounded-xl p-8 max-w-4xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border-2 border-gray-600">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50 p-4"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.95)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '1rem'
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#1a1a1a',
+                border: '2px solid #4b5563',
+                borderRadius: '0.75rem',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+                width: 'min(1100px, 96vw)',
+                maxHeight: '92vh',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '1.5rem'
+              }}
+              className="rounded-xl p-8 max-w-4xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border-2 border-gray-600"
+            >
               <div className="flex justify-between items-center mb-6">
                 <h2 style={{ color: '#ffffff' }} className="text-3xl font-bold">INITIATIVE ORDER</h2>
                 <div className="flex gap-3">
@@ -800,19 +902,31 @@ export default function SWBattles() {
               </div>
 
               {/* Initiative Order - Combined NPCs and Players in Order */}
-              <div className="mb-8">
+              <div className="mb-8" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                 <h3 style={{ color: '#ffffff' }} className="text-2xl font-bold mb-4">Initiative</h3>
-                <div className="flex gap-4">
-                  <div className="flex-1">
+                <div className="flex flex-col xl:flex-row gap-4" style={{ display: 'flex', gap: '1rem', minHeight: 0, height: '100%' }}>
+                  <div className="flex-1" style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
                     {showInitiativeOrder ? (
-                      <div className="space-y-2">
+                      <div style={{ position: 'relative', paddingRight: selectedCombatantDetails ? '22.5rem' : '0', minHeight: 0 }}>
+                        <div
+                          ref={initiativeListRef}
+                          onScroll={(e) => setInitiativeScrollTop(e.currentTarget.scrollTop)}
+                          className="space-y-2"
+                          style={{
+                            overflowY: 'auto',
+                            maxHeight: 'calc(92vh - 260px)',
+                            paddingRight: '0.5rem',
+                            paddingBottom: '3rem',
+                            WebkitOverflowScrolling: 'touch'
+                          }}
+                        >
                         {initiativeOrder.map((combatant, index) => {
                           if (combatant.type === 'npc') {
                             return (
                               <div
                                 key={`npc-order-${combatant.id}`}
                                 className="bg-gray-800 p-3 rounded-lg border border-yellow-400 cursor-pointer hover:border-yellow-300 transition"
-                                onClick={() => setSelectedCombatantDetails({ type: 'npc', id: combatant.id })}
+                                onClick={(e) => handleSelectCombatant('npc', combatant.id, e)}
                               >
                                 <div className="flex items-center justify-between">
                                   <p style={{ color: '#ffffff' }} className="text-lg font-bold">
@@ -827,7 +941,7 @@ export default function SWBattles() {
                             <div
                               key={`player-order-${combatant.id}`}
                               className="bg-gray-800 p-3 rounded-lg border border-blue-400 cursor-pointer hover:border-blue-300 transition"
-                              onClick={() => setSelectedCombatantDetails({ type: 'player', id: combatant.id })}
+                              onClick={(e) => handleSelectCombatant('player', combatant.id, e)}
                             >
                               <div className="flex items-center justify-between">
                                 <p style={{ color: '#ffffff' }} className="text-lg font-bold">
@@ -838,9 +952,190 @@ export default function SWBattles() {
                             </div>
                           );
                         })}
+                        </div>
+                        {selectedCombatantDetails && (
+                          <div
+                            ref={sidePanelRef}
+                            style={{
+                              position: 'absolute',
+                              right: 0,
+                              top: `${selectedSidePanelTop}px`,
+                              width: '21.5rem',
+                              backgroundColor: '#111827',
+                              border: '2px solid #374151',
+                              borderRadius: '0.75rem',
+                              padding: '0.75rem',
+                              boxShadow: '0 20px 35px rgba(0,0,0,0.45)',
+                              maxHeight: 'calc(92vh - 300px)',
+                              overflowY: 'auto',
+                              zIndex: 20
+                            }}
+                          >
+                            <div
+                              aria-hidden="true"
+                              style={{
+                                position: 'absolute',
+                                left: '-2rem',
+                                top: '0.9rem',
+                                fontSize: '2rem',
+                                lineHeight: 1,
+                                color: '#facc15',
+                                fontWeight: 900
+                              }}
+                            >
+                              ⬅
+                            </div>
+                            <div className="flex justify-between items-center mb-2">
+                              <h4 className="font-bold" style={{ color: '#ffffff' }}>
+                                {selectedCombatantDetails?.type === 'npc'
+                                  ? initiativeOrder.find(c => c.type === 'npc' && c.id === selectedCombatantDetails.id)?.name || selectedNpcDetails?.Name || 'NPC'
+                                  : selectedPlayerDetails?.name || 'Details'}
+                              </h4>
+                              <button
+                                onClick={() => setSelectedCombatantDetails(null)}
+                                className="px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
+                              >
+                                ✕ Close
+                              </button>
+                            </div>
+                            {selectedNpcDetails ? (
+                              <div className="space-y-3 text-sm" style={{ color: '#ffffff' }}>
+                                <p><span className="font-bold">Race:</span> {selectedNpcDetails?.races?.name || '-'}</p>
+                                <p><span className="font-bold">Soak:</span> {selectedNpcDetails.Soak ?? '-'}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold">Wound:</span>
+                                  <span>{localNpcStats[selectedCombatantDetails.id]?.wound ?? selectedNpcDetails.Wound ?? '-'}</span>
+                                  <div className="flex gap-1">
+                                    <button
+                                      type="button"
+                                      onPointerDown={(e) => adjustNpcStat(selectedCombatantDetails.id, 'wound', -1, e)}
+                                      className="px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                                      aria-label="Decrease wound"
+                                    >
+                                      −
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onPointerDown={(e) => adjustNpcStat(selectedCombatantDetails.id, 'wound', 1, e)}
+                                      className="px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                                      aria-label="Increase wound"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold">Strain:</span>
+                                  <span>{localNpcStats[selectedCombatantDetails.id]?.strain ?? selectedNpcDetails.Strain ?? '-'}</span>
+                                  <div className="flex gap-1">
+                                    <button
+                                      type="button"
+                                      onPointerDown={(e) => adjustNpcStat(selectedCombatantDetails.id, 'strain', -1, e)}
+                                      className="px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                                      aria-label="Decrease strain"
+                                    >
+                                      −
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onPointerDown={(e) => adjustNpcStat(selectedCombatantDetails.id, 'strain', 1, e)}
+                                      className="px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                                      aria-label="Increase strain"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="pt-2 border-t border-gray-700">
+                                  <p className="font-bold mb-1">Abilities</p>
+                                  {selectedNpcDetails.Abilities ? (
+                                    <div className="space-y-1">
+                                      {selectedNpcDetails.Abilities.split(',').map(a => a.trim()).filter(Boolean).map((ability, idx) => (
+                                        <div key={`ability-${idx}`} className="text-xs bg-gray-700 rounded px-2 py-1">
+                                          {ability}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-gray-300">No abilities listed.</p>
+                                  )}
+                                </div>
+
+                                <div className="pt-2 border-t border-gray-700">
+                                  <p className="font-bold mb-1">Equipment</p>
+                                  {selectedNPCEquipment.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {selectedNPCEquipment.map((eq, idx) => {
+                                        const skillName = eq.skills?.skill || '';
+                                        const dicePool = calculateNpcSkillDicePool(selectedNpcDetails, skillName);
+                                        return (
+                                          <div key={`equip-${idx}`} className="text-xs bg-gray-700 rounded px-2 py-2 border border-gray-600">
+                                            <div className="flex items-start justify-between gap-2 mb-1">
+                                              <div className="font-bold">{eq.name}</div>
+                                              {skillName && dicePool && (
+                                                <button
+                                                  onClick={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setDicePopupPosition(calculateDicePopupPosition(rect));
+                                                    setDicePopup({
+                                                      type: 'npc',
+                                                      npcId: selectedNpcDetails.id,
+                                                      dicePool,
+                                                      skillName,
+                                                      details: buildDiceDetails(dicePool),
+                                                      label: `${skillName} (${selectedNpcDetails.Name})`
+                                                    });
+                                                  }}
+                                                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 rounded text-white font-mono text-xs font-semibold flex-shrink-0 transition"
+                                                  title={`Roll ${skillName}`}
+                                                >
+                                                  {dicePool}
+                                                </button>
+                                              )}
+                                            </div>
+                                            <div className="space-y-0.5">
+                                              {skillName && <div><span className="font-semibold">Skill:</span> {skillName}</div>}
+                                              {eq.range && <div><span className="font-semibold">Range:</span> {eq.range}</div>}
+                                              {eq.damage && <div><span className="font-semibold">Damage:</span> {eq.damage}</div>}
+                                              {eq.critical && <div><span className="font-semibold">Critical:</span> {eq.critical}</div>}
+                                              {eq.special && <div><span className="font-semibold">Special:</span> {eq.special}</div>}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-gray-300">No equipment listed.</p>
+                                  )}
+                                </div>
+                              </div>
+                            ) : selectedPlayerDetails ? (
+                              <div className="space-y-1 text-sm" style={{ color: '#ffffff' }}>
+                                <p><span className="font-bold">Race:</span> {selectedPlayerDetails.race || '-'}</p>
+                                <p><span className="font-bold">Career:</span> {selectedPlayerDetails.career || '-'}</p>
+                                {selectedPlayerDetails.spec && (
+                                  <p><span className="font-bold">Spec:</span> {selectedPlayerDetails.spec}</p>
+                                )}
+                                <p><span className="font-bold">Player:</span> {selectedPlayerDetails.user?.username || 'Unknown'}</p>
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-300">Details not available.</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div
+                        className="space-y-3"
+                        style={{
+                          maxHeight: 'calc(92vh - 260px)',
+                          overflowY: 'auto',
+                          paddingRight: '0.5rem',
+                          paddingBottom: '3rem',
+                          WebkitOverflowScrolling: 'touch'
+                        }}
+                      >
                         {getSortedCombatants().map((combatant) => {
                           if (combatant.type === 'npc') {
                             const item = combatant.data;
@@ -906,7 +1201,7 @@ export default function SWBattles() {
                                     </div>
                                   )}
                                 </div>
-                                <div className="flex gap-4">
+                                <div className="flex flex-wrap gap-4" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
                                   <div className="flex items-center gap-2">
                                     <label style={{ color: '#ffffff' }} className="font-semibold">Success:</label>
                                     <input
@@ -951,7 +1246,7 @@ export default function SWBattles() {
                                   {character.race} | {character.career}{character.spec ? ` - ${character.spec}` : ''}
                                 </p>
                                 <p style={{ color: '#ffffff' }} className="text-sm mb-3">Player: {character.user?.username || 'Unknown'}</p>
-                                <div className="flex gap-4">
+                                <div className="flex flex-wrap gap-4" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
                                   <div className="flex items-center gap-2">
                                     <label style={{ color: '#ffffff' }} className="font-semibold">Success:</label>
                                     <input
@@ -990,7 +1285,7 @@ export default function SWBattles() {
                       </div>
                     )}
                   </div>
-                  {selectedCombatantDetails && (
+                  {selectedCombatantDetails && !showInitiativeOrder && (
                     <div className="w-[28rem] bg-gray-800 border border-gray-600 p-4 rounded-lg overflow-y-auto max-h-[60vh] flex">
                       <div className="flex-1">
                         <div className="flex justify-between items-center mb-3">

@@ -23,11 +23,15 @@ CREATE TABLE IF NOT EXISTS "SW_character_ships" (
   "shipID" BIGINT NOT NULL,
   "hull_trauma_current" INTEGER NOT NULL DEFAULT 0,
   "system_strain_current" INTEGER NOT NULL DEFAULT 0,
+  "notes" TEXT,
   "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT sw_character_ships_hull_current_nonnegative CHECK ("hull_trauma_current" >= 0),
   CONSTRAINT sw_character_ships_system_current_nonnegative CHECK ("system_strain_current" >= 0)
 );
+
+ALTER TABLE "SW_character_ships"
+  ADD COLUMN IF NOT EXISTS "notes" TEXT;
 
 DO $$
 BEGIN
