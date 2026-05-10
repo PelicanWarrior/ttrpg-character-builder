@@ -795,17 +795,25 @@ export default function SWCharacterOverview() {
       setForceAbilities(finalForceAbilities);
 
       if (characterData.career) {
-        const { data: careerData, error: careerError } = await supabase
+        let careerData = null;
+        let careerError = null;
+
+        ({ data: careerData, error: careerError } = await supabase
           .from('SW_career')
           .select('Force_Sensitive')
           .eq('career', characterData.career)
-          .single();
+          .maybeSingle());
 
-        if (!careerError && careerData && careerData.Force_Sensitive === true) {
-          setIsForceSensitive(true);
-        } else {
-          setIsForceSensitive(false);
+        // Some environments store career name under "name" rather than "career".
+        if (careerError) {
+          ({ data: careerData, error: careerError } = await supabase
+            .from('SW_career')
+            .select('Force_Sensitive')
+            .eq('name', characterData.career)
+            .maybeSingle());
         }
+
+        setIsForceSensitive(Boolean(!careerError && careerData && careerData.Force_Sensitive === true));
       } else {
         setIsForceSensitive(false);
       }
@@ -867,16 +875,66 @@ export default function SWCharacterOverview() {
       setEquipment(equipmentData);
       const activeCharacterId = characterData.id;
 
-      const { data: shipData, error: shipError } = await supabase
+      const shipSelectColumns = 'id, name, class, silhouette, speed, handling, armor, defence_fore, defence_port, defence_starboard, defence_aft, hull_trauma_threshold, system_strain_threshold, manufacturer, hyperdrive_primary, hyperdrive_backup, navicomputer, sensor_range, ship_complement, encumbrance_capacity, passenger_capacity, consumables, price_credits, rarity, customization_hard_points, weapons, source, description';
+      const normalizeShipRecord = (row) => ({
+        ...row,
+        id: row.id ?? row.ID ?? row.Id,
+        name: row.name ?? row.Name ?? '',
+        class: row.class ?? row.Class ?? '',
+        silhouette: row.silhouette ?? row.Silhouette ?? null,
+        speed: row.speed ?? row.Speed ?? null,
+        handling: row.handling ?? row.Handling ?? null,
+        armor: row.armor ?? row.Armor ?? null,
+        defence_fore: row.defence_fore ?? row.Defence_Fore ?? row.defense_fore ?? row.Defense_Fore ?? null,
+        defence_port: row.defence_port ?? row.Defence_Port ?? row.defense_port ?? row.Defense_Port ?? null,
+        defence_starboard: row.defence_starboard ?? row.Defence_Starboard ?? row.defense_starboard ?? row.Defense_Starboard ?? null,
+        defence_aft: row.defence_aft ?? row.Defence_Aft ?? row.defense_aft ?? row.Defense_Aft ?? null,
+        hull_trauma_threshold: row.hull_trauma_threshold ?? row.Hull_Trauma_Threshold ?? null,
+        system_strain_threshold: row.system_strain_threshold ?? row.System_Strain_Threshold ?? null,
+        manufacturer: row.manufacturer ?? row.Manufacturer ?? '',
+        hyperdrive_primary: row.hyperdrive_primary ?? row.Hyperdrive_Primary ?? '',
+        hyperdrive_backup: row.hyperdrive_backup ?? row.Hyperdrive_Backup ?? '',
+        navicomputer: row.navicomputer ?? row.Navicomputer ?? '',
+        sensor_range: row.sensor_range ?? row.Sensor_Range ?? '',
+        ship_complement: row.ship_complement ?? row.Ship_Complement ?? '',
+        encumbrance_capacity: row.encumbrance_capacity ?? row.Encumbrance_Capacity ?? '',
+        passenger_capacity: row.passenger_capacity ?? row.Passenger_Capacity ?? '',
+        consumables: row.consumables ?? row.Consumables ?? '',
+        price_credits: row.price_credits ?? row.Price_Credits ?? null,
+        rarity: row.rarity ?? row.Rarity ?? null,
+        customization_hard_points: row.customization_hard_points ?? row.Customization_Hard_Points ?? null,
+        weapons: row.weapons ?? row.Weapons ?? '',
+        source: row.source ?? row.Source ?? '',
+        description: row.description ?? row.Description ?? '',
+      });
+      let shipData = [];
+
+      const { data: primaryShipData, error: primaryShipError } = await supabase
         .from('SW_ships')
-        .select('id, name, class, silhouette, speed, handling, armor, defence_fore, defence_port, defence_starboard, defence_aft, hull_trauma_threshold, system_strain_threshold, manufacturer, hyperdrive_primary, hyperdrive_backup, navicomputer, sensor_range, ship_complement, encumbrance_capacity, passenger_capacity, consumables, price_credits, rarity, customization_hard_points, weapons, source, description')
-        .order('name', { ascending: true });
-      if (shipError) {
-        console.error('Error fetching ship catalog:', shipError);
-        setShipCatalog([]);
+        .select(shipSelectColumns);
+
+      if (primaryShipError) {
+        console.warn('Primary ship catalog query failed; falling back to select(*).', primaryShipError);
+        const { data: fallbackShipData, error: fallbackShipError } = await supabase
+          .from('SW_ships')
+          .select('*');
+
+        if (fallbackShipError) {
+          console.error('Error fetching ship catalog (fallback failed):', fallbackShipError);
+          shipData = [];
+        } else {
+          shipData = fallbackShipData || [];
+        }
       } else {
-        setShipCatalog(shipData || []);
+        shipData = primaryShipData || [];
       }
+
+      const normalizedShipData = (shipData || [])
+        .map(normalizeShipRecord)
+        .filter((ship) => ship.id != null && ship.name)
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+      setShipCatalog(normalizedShipData);
 
       if (activeCharacterId) {
         const { data: inventoryData, error: invError } = await supabase
@@ -941,11 +999,11 @@ export default function SWCharacterOverview() {
         if (characterShipError) {
           console.error('Error fetching character ships:', characterShipError);
           setCharacterShips([]);
-        } else if (characterShipData && shipData) {
-          const shipMap = new Map(shipData.map((ship) => [ship.id, ship]));
+        } else if (characterShipData && normalizedShipData) {
+          const shipMap = new Map(normalizedShipData.map((ship) => [Number(ship.id), ship]));
           const enrichedShips = characterShipData
             .map((row) => {
-              const ship = shipMap.get(Number.parseInt(row.shipID, 10));
+              const ship = shipMap.get(Number(row.shipID));
               if (!ship) return null;
               return {
                 id: row.id,
@@ -1018,11 +1076,11 @@ export default function SWCharacterOverview() {
             .select('*')
             .in('id', characterShipIds);
 
-          if (crewShipData && shipData) {
-            const shipMap = new Map(shipData.map((ship) => [ship.id, ship]));
+          if (crewShipData && normalizedShipData) {
+            const shipMap = new Map(normalizedShipData.map((ship) => [Number(ship.id), ship]));
             const enrichedCrewShips = crewShipData
               .map((row) => {
-                const ship = shipMap.get(Number.parseInt(row.shipID, 10));
+                const ship = shipMap.get(Number(row.shipID));
                 if (!ship) return null;
                 const assignment = crewAssignmentRows.find((a) => a.character_ship_id === row.id);
                 return {
@@ -1639,7 +1697,7 @@ export default function SWCharacterOverview() {
 
     if (error) {
       console.error('Error adding ship to character:', error);
-      alert('Failed to add ship.');
+      alert(`Failed to add ship: ${error.message || 'Unknown error'}`);
       return;
     }
 
@@ -2543,7 +2601,7 @@ export default function SWCharacterOverview() {
                 >
                   <option value="">Select a ship...</option>
                   {shipCatalog
-                    .filter((ship) => !characterShips.some((owned) => Number.parseInt(owned.shipID, 10) === ship.id))
+                    .filter((ship) => !characterShips.some((owned) => Number(owned.shipID) === Number(ship.id)))
                     .map((ship) => (
                       <option key={ship.id} value={ship.id}>
                         {ship.name} {ship.class ? `(${ship.class})` : ''}

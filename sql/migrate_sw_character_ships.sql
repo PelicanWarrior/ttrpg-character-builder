@@ -68,4 +68,51 @@ CREATE INDEX IF NOT EXISTS idx_sw_character_ships_character
 CREATE INDEX IF NOT EXISTS idx_sw_character_ships_ship
   ON "SW_character_ships" ("shipID");
 
+-- Ensure ship catalog is readable by frontend clients.
+ALTER TABLE "SW_ships" ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT ON TABLE "SW_ships" TO anon;
+GRANT SELECT ON TABLE "SW_ships" TO authenticated;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'SW_ships'
+      AND policyname = 'sw_ships_select_public'
+  ) THEN
+    CREATE POLICY sw_ships_select_public
+      ON "SW_ships"
+      FOR SELECT
+      TO anon, authenticated
+      USING (true);
+  END IF;
+END $$;
+
+-- Allow frontend clients to read/write character-owned ship rows.
+ALTER TABLE "SW_character_ships" ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "SW_character_ships" TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "SW_character_ships" TO authenticated;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'SW_character_ships'
+      AND policyname = 'sw_character_ships_rw_public'
+  ) THEN
+    CREATE POLICY sw_character_ships_rw_public
+      ON "SW_character_ships"
+      FOR ALL
+      TO anon, authenticated
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
+
 COMMIT;
