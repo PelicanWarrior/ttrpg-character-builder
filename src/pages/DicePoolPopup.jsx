@@ -9,6 +9,7 @@ const FALLBACK_DICE_NAMES = {
   R: 'Difficulty',
   K: 'Setback',
   W: 'Force',
+  WHITE: 'Force',
 };
 
 // Parse roll results to compute net successes, failures, advantages, threats, triumphs, despairs
@@ -54,6 +55,7 @@ const getDiceColorStyle = (letter) => {
     case 'R': return { backgroundColor: '#ff6b6b' }; // Difficulty
     case 'P': return { backgroundColor: '#b36bff' }; // Challenge
     case 'K': return { backgroundColor: '#333333' }; // Setback
+    case 'WHITE': return { backgroundColor: '#ffffff' }; // Force
     default: return { backgroundColor: '#e5e7eb' };
   }
 };
@@ -216,14 +218,15 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
     if (!dicePopup) return;
     const poolDetails = dicePopup.details || [];
     const boostsArr = dicePopup.boosts || [];
-    const setbacksArr = dicePopup.setbacks || [];
+    const setbacksArr = isForceRoll ? [] : (dicePopup.setbacks || []);
+    const effectiveDifficulty = isForceRoll ? 0 : selectedDifficulty;
 
     const poolResults = await Promise.all(
       [...poolDetails, ...boostsArr].map(die => rollSingleDieAsync(die.color))
     );
     const diffResults = await Promise.all(
       [
-        ...Array(selectedDifficulty).fill({ color: 'P' }),
+        ...Array(effectiveDifficulty).fill({ color: 'P' }),
         ...setbacksArr
       ].map(die => rollSingleDieAsync(die.color))
     );
@@ -237,6 +240,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
   const poolDetails = dicePopup.details || [];
   const boostsArr = dicePopup.boosts || [];
   const setbacksArr = dicePopup.setbacks || [];
+  const isForceRoll = Boolean(dicePopup.isForceRoll);
   const difficultyLocked = Boolean(dicePopup.difficultyLocked);
 
   return (
@@ -263,53 +267,57 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
         <div className="flex items-end mb-1" style={{ gap: 8, alignItems: 'flex-end' }}>
                   {poolDetails.map((d, i) => (
                     <div key={i} className="flex flex-col items-center" style={{ minWidth: 56 }}>
-                      <button
-                        onClick={() => {
-                          setDicePopup(prev => {
-                            const updated = { ...(prev || {}) };
-                            updated.details = [...(prev?.details || [])];
-                            updated.details.splice(i, 1);
-                            return updated;
-                          });
-                          setRollResults(null);
-                        }}
-                        disabled={fromSkillCheck}
-                        className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-gray-400 text-gray-600 cursor-not-allowed' : 'bg-gray-600 text-white hover:bg-gray-700'}`}
-                      >
-                        Remove
-                      </button>
-                      {d.color === 'Y' ? (
-                        <button
-                          onClick={() => {
-                            setDicePopup(prev => {
-                              const updated = { ...(prev || {}) };
-                              updated.details = [...(prev?.details || [])];
-                              updated.details[i] = { ...updated.details[i], color: 'G', name: diceMap['G'] || 'Ability' };
-                              return updated;
-                            });
-                            setRollResults(null);
-                          }}
-                          disabled={fromSkillCheck}
-                          className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-red-400 text-red-600 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
-                        >
-                          Downgrade
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setDicePopup(prev => {
-                              const updated = { ...(prev || {}) };
-                              updated.details = [...(prev?.details || [])];
-                              updated.details[i] = { ...updated.details[i], color: 'Y', name: diceMap['Y'] || 'Proficiency' };
-                              return updated;
-                            });
-                            setRollResults(null);
-                          }}
-                          disabled={fromSkillCheck}
-                          className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-purple-400 text-purple-600 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
-                        >
-                          Upgrade
-                        </button>
+                      {!isForceRoll && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setDicePopup(prev => {
+                                const updated = { ...(prev || {}) };
+                                updated.details = [...(prev?.details || [])];
+                                updated.details.splice(i, 1);
+                                return updated;
+                              });
+                              setRollResults(null);
+                            }}
+                            disabled={fromSkillCheck}
+                            className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-gray-400 text-gray-600 cursor-not-allowed' : 'bg-gray-600 text-white hover:bg-gray-700'}`}
+                          >
+                            Remove
+                          </button>
+                          {d.color === 'Y' ? (
+                            <button
+                              onClick={() => {
+                                setDicePopup(prev => {
+                                  const updated = { ...(prev || {}) };
+                                  updated.details = [...(prev?.details || [])];
+                                  updated.details[i] = { ...updated.details[i], color: 'G', name: diceMap['G'] || 'Ability' };
+                                  return updated;
+                                });
+                                setRollResults(null);
+                              }}
+                              disabled={fromSkillCheck}
+                              className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-red-400 text-red-600 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                            >
+                              Downgrade
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setDicePopup(prev => {
+                                  const updated = { ...(prev || {}) };
+                                  updated.details = [...(prev?.details || [])];
+                                  updated.details[i] = { ...updated.details[i], color: 'Y', name: diceMap['Y'] || 'Proficiency' };
+                                  return updated;
+                                });
+                                setRollResults(null);
+                              }}
+                              disabled={fromSkillCheck}
+                              className={`px-2 py-1 rounded text-xs font-bold mb-1 ${fromSkillCheck ? 'bg-purple-400 text-purple-600 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
+                            >
+                              Upgrade
+                            </button>
+                          )}
+                        </>
                       )}
                       <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{d.name || diceMap[d.color] || FALLBACK_DICE_NAMES[d.color] || 'Unknown'}</div>
                       <div
@@ -338,7 +346,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
                   ))}
 
                   {/* Boost and Threat (setback) controls to the right of top dice */}
-                  <div style={{ display: 'flex', gap: 8, marginLeft: 6 }}>
+                  {!isForceRoll && <div style={{ display: 'flex', gap: 8, marginLeft: 6 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                       <button
                         onClick={() => {
@@ -383,11 +391,11 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
                         + Setback
                       </button>
                     </div>
-                  </div>
+                  </div>}
                 </div>
 
                 {/* Render any boost dice underneath */}
-                {boostsArr.length > 0 && (
+                {!isForceRoll && boostsArr.length > 0 && (
                   <div className="flex items-end gap-2 mt-2">
                     {boostsArr.map((b, bi) => {
                       const idx = poolDetails.length + bi;
@@ -421,7 +429,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
                   </div>
                 )}
 
-                <div className="mt-6 pt-4 border-t border-gray-300">
+                {!isForceRoll && <div className="mt-6 pt-4 border-t border-gray-300">
                   <label className="text-xs font-medium mb-2 block" style={{ color: '#000' }}>
                     Difficulty (1-5){difficultyLocked ? ' - locked by skill check' : ''}
                   </label>
@@ -517,7 +525,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
                       })}
                     </div>
                   )}
-                </div>
+                </div>}
 
                 {/* Roll button or Use Result button */}
                 <div className="mt-6">
@@ -561,39 +569,42 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
                     <div className="text-sm" style={{ color: '#000' }}>
                       {(() => {
                         const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
+                        const rows = [
+                          { label: 'Success', value: parsed.counts.success },
+                          { label: 'Failure', value: parsed.counts.failure },
+                          { label: 'Advantage', value: parsed.counts.advantage },
+                          { label: 'Threat', value: parsed.counts.threat },
+                          { label: 'Triumph', value: parsed.counts.triumph },
+                          { label: 'Despair', value: parsed.counts.despair },
+                        ].filter((r) => r.value > 0);
+
                         return (
                           <>
-                            {parsed.netSuccess > 0 && (
-                              <div className="mb-2">
-                                {parsed.netSuccess} Success
-                                {parsed.counts.triumph > 0 && (
-                                  <span className="text-xs text-gray-600"> (includes {parsed.counts.triumph} Triumph)</span>
+                            {isForceRoll ? (
+                              rows.map((row) => (
+                                <div key={row.label} className="mb-2">
+                                  {row.value} {row.label}
+                                </div>
+                              ))
+                            ) : (
+                              <>
+                                <div className="mb-2 font-semibold">
+                                  {parsed.netSuccess > 0
+                                    ? parsed.counts.triumph > 0
+                                      ? 'TRIUMPH SUCCESS!!'
+                                      : `${parsed.netSuccess} Net Success - Action succeeds`
+                                    : parsed.netFailure > 0
+                                      ? `${parsed.netFailure} Net Failure - Action fails`
+                                      : '0 Net Success - Action fails'}
+                                </div>
+                                {(parsed.netAdvantage > 0 || parsed.netThreat > 0) && (
+                                  <div className="mb-2">
+                                    {parsed.netAdvantage > 0
+                                      ? `${parsed.netAdvantage} Net Advantage - Positive side effects`
+                                      : `${parsed.netThreat} Net Threat - Negative side effects`}
+                                  </div>
                                 )}
-                              </div>
-                            )}
-                            {parsed.netFailure > 0 && (
-                              <div className="mb-2">
-                                {parsed.netFailure} Failure
-                                {parsed.counts.despair > 0 && (
-                                  <span className="text-xs text-gray-600"> (includes {parsed.counts.despair} Despair)</span>
-                                )}
-                              </div>
-                            )}
-                            {parsed.netSuccess === 0 && parsed.netFailure === 0 && (
-                              <div className="mb-2 text-gray-500">No net success/failure</div>
-                            )}
-                            {parsed.netAdvantage > 0 && (
-                              <div className="mb-2">
-                                {parsed.netAdvantage} Advantage
-                              </div>
-                            )}
-                            {parsed.netThreat > 0 && (
-                              <div className="mb-2">
-                                {parsed.netThreat} Threat
-                              </div>
-                            )}
-                            {parsed.netAdvantage === 0 && parsed.netThreat === 0 && (
-                              <div className="mb-2 text-gray-500">No net advantage/threat</div>
+                              </>
                             )}
                           </>
                         );

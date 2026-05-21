@@ -11,14 +11,17 @@ export default function AddNPCModal({ isOpen, onClose, onSave, campaignId }) {
   const [npcAgility, setNpcAgility] = useState('');
   const [npcIntellect, setNpcIntellect] = useState('');
   const [npcWillpower, setNpcWillpower] = useState('');
+  const [npcForceRating, setNpcForceRating] = useState('0');
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [selectedAbilities, setSelectedAbilities] = useState([]);
+  const [selectedForceAbilities, setSelectedForceAbilities] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState([]);
   const [npcPlaceId, setNpcPlaceId] = useState('');
   const [saving, setSaving] = useState(false);
   const [raceList, setRaceList] = useState([]);
   const [skillsList, setSkillsList] = useState([]);
   const [abilitiesList, setAbilitiesList] = useState([]);
+  const [forceTalentsList, setForceTalentsList] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]);
   const [existingPlaces, setExistingPlaces] = useState([]);
 
@@ -30,16 +33,18 @@ export default function AddNPCModal({ isOpen, onClose, onSave, campaignId }) {
 
   const loadLists = async () => {
     try {
-      const [racesRes, skillsRes, abilitiesRes, equipmentRes] = await Promise.all([
+      const [racesRes, skillsRes, abilitiesRes, forceTalentsRes, equipmentRes] = await Promise.all([
         supabase.from('races').select('id, name').order('name', { ascending: true }),
         supabase.from('skills').select('id, skill').order('skill'),
         supabase.from('SW_abilities').select('id, ability').order('ability'),
+        supabase.from('SW_force_talents').select('id, talent_name').order('talent_name'),
         supabase.from('SW_equipment').select('id, name').order('name'),
       ]);
 
       if (racesRes.data) setRaceList(racesRes.data);
       if (skillsRes.data) setSkillsList(skillsRes.data);
       if (abilitiesRes.data) setAbilitiesList(abilitiesRes.data);
+      if (forceTalentsRes.data) setForceTalentsList(forceTalentsRes.data);
       if (equipmentRes.data) setEquipmentList(equipmentRes.data);
 
       // Load places
@@ -76,8 +81,10 @@ export default function AddNPCModal({ isOpen, onClose, onSave, campaignId }) {
     setNpcAgility('');
     setNpcIntellect('');
     setNpcWillpower('');
+    setNpcForceRating('0');
     setSelectedSkills([]);
     setSelectedAbilities([]);
+    setSelectedForceAbilities([]);
     setSelectedEquipment([]);
     setNpcPlaceId('');
   };
@@ -99,8 +106,10 @@ export default function AddNPCModal({ isOpen, onClose, onSave, campaignId }) {
         Agility: npcAgility ? parseInt(npcAgility, 10) : null,
         Intellect: npcIntellect ? parseInt(npcIntellect, 10) : null,
         Willpower: npcWillpower ? parseInt(npcWillpower, 10) : null,
+        Force_Rating: npcForceRating ? parseInt(npcForceRating, 10) : 0,
         Skills: selectedSkills.join(','),
         Abilities: selectedAbilities.join(','),
+        Force_Abilities: selectedForceAbilities.join(','),
         Equipment: selectedEquipment.join(','),
         Part_of_Place: npcPlaceId ? parseInt(npcPlaceId, 10) : null,
         CampaignID: campaignId ? parseInt(campaignId, 10) : null,
@@ -267,6 +276,17 @@ export default function AddNPCModal({ isOpen, onClose, onSave, campaignId }) {
         </div>
 
         <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Force Rating</label>
+          <input
+            type="number"
+            min="0"
+            value={npcForceRating}
+            onChange={(e) => setNpcForceRating(e.target.value)}
+            style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+          />
+        </div>
+
+        <div>
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Race</label>
           <select
             value={npcRaceId}
@@ -369,6 +389,36 @@ export default function AddNPCModal({ isOpen, onClose, onSave, campaignId }) {
                 <span key={`ability-${idx}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '12px', backgroundColor: '#dcfce7', color: '#15803d', border: '1px solid #86efac', borderRadius: '4px' }}>
                   {a}
                   <button onClick={() => removeFromList(a, selectedAbilities, setSelectedAbilities)} style={{ color: '#15803d', cursor: 'pointer', border: 'none', background: 'none', fontSize: '16px' }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Equipment multi-select */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Force Abilities</label>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <select id="npc-force-ability-select" style={{ flex: 1, padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}>
+              <option value="">-- Select Force Ability --</option>
+              {forceTalentsList.map((a) => (
+                <option key={a.id} value={a.talent_name}>{a.talent_name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                const el = document.getElementById('npc-force-ability-select');
+                addToList(el.value, selectedForceAbilities, setSelectedForceAbilities);
+              }}
+              style={{ padding: '8px 12px', backgroundColor: '#4f46e5', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+            >Add</button>
+          </div>
+          {selectedForceAbilities.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {selectedForceAbilities.map((a, idx) => (
+                <span key={`force-ability-${idx}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '12px', backgroundColor: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe', borderRadius: '4px' }}>
+                  {a}
+                  <button onClick={() => removeFromList(a, selectedForceAbilities, setSelectedForceAbilities)} style={{ color: '#3730a3', cursor: 'pointer', border: 'none', background: 'none', fontSize: '16px' }}>×</button>
                 </span>
               ))}
             </div>

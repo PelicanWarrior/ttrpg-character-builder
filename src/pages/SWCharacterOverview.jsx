@@ -68,6 +68,7 @@ export default function SWCharacterOverview() {
   const [itemQualityPopup, setItemQualityPopup] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [rollResults, setRollResults] = useState(null); // { poolResults: [], diffResults: [] }
+  const diceDragHandlersRef = useRef({ move: null, up: null });
 
   const [diceMap, setDiceMap] = useState({});
   const [racePictures, setRacePictures] = useState([]);
@@ -223,8 +224,34 @@ export default function SWCharacterOverview() {
       name: diceMap[color] || 'Unknown'
     }));
 
-    setDicePopup({ pool, details, x, y, label: label || pool, boosts: [], setbacks: [] });
+    setDicePopup({ pool, details, x, y, label: label || pool, boosts: [], setbacks: [], isForceRoll: false });
     setRollResults(null); // clear previous roll results when opening a new popup
+  };
+
+  const handleForceAbilityRollClick = (e) => {
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = 0;
+    const y = rect.bottom + window.scrollY + 8;
+    const fr = Math.max(0, Number(forceRating) || 0);
+    const details = Array.from({ length: fr }, () => ({
+      color: 'White',
+      name: diceMap['White'] || 'Force',
+    }));
+
+    setSelectedDifficulty(0);
+    setRollResults(null);
+    setDicePopup({
+      pool: 'White'.repeat(fr),
+      details,
+      x,
+      y,
+      label: 'Force Roll',
+      boosts: [],
+      setbacks: [],
+      isForceRoll: true,
+    });
   };
 
   const handleItemQualityClick = (e, details) => {
@@ -240,6 +267,52 @@ export default function SWCharacterOverview() {
     setItemQualityPopup({ ...details, left, top });
   };
 
+  const handleDicePopupDragStart = (e) => {
+    if (e.button !== 0 || !dicePopup) return;
+
+    const target = e.target;
+    if (target && target.closest && target.closest('button, input, select, textarea, a, [role="button"]')) {
+      return;
+    }
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startPopupX = Number(dicePopup.x) || 0;
+    const startPopupY = Number(dicePopup.y) || 0;
+
+    const onMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      setDicePopup((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          x: Math.max(8, startPopupX + deltaX),
+          y: Math.max(8, startPopupY + deltaY),
+        };
+      });
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      diceDragHandlersRef.current = { move: null, up: null };
+    };
+
+    diceDragHandlersRef.current = { move: onMouseMove, up: onMouseUp };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    return () => {
+      const handlers = diceDragHandlersRef.current;
+      if (handlers.move) window.removeEventListener('mousemove', handlers.move);
+      if (handlers.up) window.removeEventListener('mouseup', handlers.up);
+    };
+  }, []);
+
   const getDiceColorStyle = (letter) => {
     // Map common dice letters to colours used by the UI. Adjust as needed.
     switch ((letter || '').toUpperCase()) {
@@ -249,6 +322,7 @@ export default function SWCharacterOverview() {
       case 'R': return { backgroundColor: '#ff6b6b' }; // red / Difficulty
       case 'P': return { backgroundColor: '#b36bff' }; // purple / Challenge
       case 'K': return { backgroundColor: '#333333' }; // black / Setback
+      case 'WHITE': return { backgroundColor: '#ffffff' }; // white / Force
       default: return { backgroundColor: '#e5e7eb' }; // neutral grey
     }
   };
@@ -3042,7 +3116,15 @@ export default function SWCharacterOverview() {
 
             {forceAbilities.length > 0 && (
               <div className="mt-6">
-                <h3 className="font-bold text-lg mb-3">Force Abilities</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-lg">Force Abilities</h3>
+                  <button
+                    onClick={handleForceAbilityRollClick}
+                    className="px-3 py-1 bg-white border border-black rounded text-sm font-semibold hover:bg-gray-100"
+                  >
+                    Roll
+                  </button>
+                </div>
                 <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed' }}>
                   <thead>
                     <tr className="bg-gray-100">
@@ -3174,7 +3256,9 @@ export default function SWCharacterOverview() {
                 display: 'flex',
                 flexDirection: 'column',
                 pointerEvents: 'auto',
+                cursor: 'move',
               }}
+              onMouseDown={handleDicePopupDragStart}
               onClick={(e) => e.stopPropagation()}
             >
             <button
@@ -3196,50 +3280,54 @@ export default function SWCharacterOverview() {
             <div className="flex items-end mb-1" style={{ gap: 8, alignItems: 'flex-end' }}>
               {dicePopup.details.map((d, i) => (
                 <div key={i} className="flex flex-col items-center" style={{ minWidth: 56 }}>
-                  <button
-                    onClick={() => {
-                      setDicePopup(prev => {
-                        const updated = { ...prev };
-                        updated.details = [...(prev?.details || [])];
-                        updated.details.splice(i, 1);
-                        return updated;
-                      });
-                      setRollResults(null);
-                    }}
-                    className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs font-bold mb-1"
-                  >
-                    Remove
-                  </button>
-                  {d.color === 'Y' ? (
-                    <button
-                      onClick={() => {
-                        setDicePopup(prev => {
-                          const updated = { ...prev };
-                          updated.details = [...(prev?.details || [])];
-                          updated.details[i] = { ...updated.details[i], color: 'G', name: diceMap['G'] || 'Ability' };
-                          return updated;
-                        });
-                        setRollResults(null);
-                      }}
-                      className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-bold mb-1"
-                    >
-                      Downgrade
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setDicePopup(prev => {
-                          const updated = { ...prev };
-                          updated.details = [...(prev?.details || [])];
-                          updated.details[i] = { ...updated.details[i], color: 'Y', name: diceMap['Y'] || 'Proficiency' };
-                          return updated;
-                        });
-                        setRollResults(null);
-                      }}
-                      className="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs font-bold mb-1"
-                    >
-                      Upgrade
-                    </button>
+                  {!dicePopup?.isForceRoll && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setDicePopup(prev => {
+                            const updated = { ...prev };
+                            updated.details = [...(prev?.details || [])];
+                            updated.details.splice(i, 1);
+                            return updated;
+                          });
+                          setRollResults(null);
+                        }}
+                        className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-xs font-bold mb-1"
+                      >
+                        Remove
+                      </button>
+                      {d.color === 'Y' ? (
+                        <button
+                          onClick={() => {
+                            setDicePopup(prev => {
+                              const updated = { ...prev };
+                              updated.details = [...(prev?.details || [])];
+                              updated.details[i] = { ...updated.details[i], color: 'G', name: diceMap['G'] || 'Ability' };
+                              return updated;
+                            });
+                            setRollResults(null);
+                          }}
+                          className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-bold mb-1"
+                        >
+                          Downgrade
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setDicePopup(prev => {
+                              const updated = { ...prev };
+                              updated.details = [...(prev?.details || [])];
+                              updated.details[i] = { ...updated.details[i], color: 'Y', name: diceMap['Y'] || 'Proficiency' };
+                              return updated;
+                            });
+                            setRollResults(null);
+                          }}
+                          className="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs font-bold mb-1"
+                        >
+                          Upgrade
+                        </button>
+                      )}
+                    </>
                   )}
                   <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>{d.name}</div>
                   <div
@@ -3268,7 +3356,7 @@ export default function SWCharacterOverview() {
               ))}
 
               {/* Boost and Threat (setback) controls to the right of top dice */}
-              <div style={{ display: 'flex', gap: 8, marginLeft: 6 }}>
+              {!dicePopup?.isForceRoll && <div style={{ display: 'flex', gap: 8, marginLeft: 6 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   <button
                     onClick={() => {
@@ -3311,7 +3399,7 @@ export default function SWCharacterOverview() {
                     + Boost
                   </button>
                 </div>
-              </div>
+              </div>}
             </div>
 
             {/* Render any boost dice underneath the top row */}
@@ -3352,7 +3440,7 @@ export default function SWCharacterOverview() {
 
             
 
-            <div className="mt-6 pt-4 border-t border-gray-300">
+            {!dicePopup?.isForceRoll && <div className="mt-6 pt-4 border-t border-gray-300">
               <label className="text-xs font-medium mb-2 block" style={{ color: '#000' }}>Difficulty (1-5)</label>
               <div className="flex gap-2 mb-3 items-center">
                 {[1, 2, 3, 4, 5].map(num => (
@@ -3465,7 +3553,7 @@ export default function SWCharacterOverview() {
                   })}
                 </div>
               )}
-
+            
               <div className="mt-3">
                 <button
                   onClick={handleRoll}
@@ -3476,7 +3564,18 @@ export default function SWCharacterOverview() {
               </div>
 
               {/* rollResults displayed inside the dice boxes; no separate results area */}
-            </div>
+            </div>}
+
+            {dicePopup?.isForceRoll && (
+              <div className="mt-3">
+                <button
+                  onClick={handleRoll}
+                  className="w-full px-3 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700"
+                >
+                  Roll
+                </button>
+              </div>
+            )}
             </div>
 
             {/* Outcome panel to the right */}
@@ -3490,40 +3589,42 @@ export default function SWCharacterOverview() {
                 <div className="text-sm" style={{ color: '#000' }}>
                   {(() => {
                     const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
+                    const rows = [
+                      { label: 'Success', value: parsed.counts.success },
+                      { label: 'Failure', value: parsed.counts.failure },
+                      { label: 'Advantage', value: parsed.counts.advantage },
+                      { label: 'Threat', value: parsed.counts.threat },
+                      { label: 'Triumph', value: parsed.counts.triumph },
+                      { label: 'Despair', value: parsed.counts.despair },
+                    ].filter((r) => r.value > 0);
+
                     return (
                       <>
-                        {parsed.netSuccess > 0 && (
-                          <div className="mb-2">
-                            {parsed.netSuccess} Success
-                            {parsed.counts.triumph > 0 && (
-                              <span className="text-xs text-gray-600"> (includes {parsed.counts.triumph} Triumph)</span>
+                        {dicePopup?.isForceRoll ? (
+                          rows.map((row) => (
+                            <div key={row.label} className="mb-2">
+                              {row.value} {row.label}
+                            </div>
+                          ))
+                        ) : (
+                          <>
+                            <div className="mb-2 font-semibold">
+                              {parsed.netSuccess > 0
+                                ? parsed.counts.triumph > 0
+                                  ? 'TRIUMPH SUCCESS!!'
+                                  : `${parsed.netSuccess} Net Success - Action succeeds`
+                                : parsed.netFailure > 0
+                                  ? `${parsed.netFailure} Net Failure - Action fails`
+                                  : '0 Net Success - Action fails'}
+                            </div>
+                            {(parsed.netAdvantage > 0 || parsed.netThreat > 0) && (
+                              <div className="mb-2">
+                                {parsed.netAdvantage > 0
+                                  ? `${parsed.netAdvantage} Net Advantage - Positive side effects`
+                                  : `${parsed.netThreat} Net Threat - Negative side effects`}
+                              </div>
                             )}
-                          </div>
-                        )}
-                        {parsed.netFailure > 0 && (
-                          <div className="mb-2">
-                            {parsed.netFailure} Failure
-                            {parsed.counts.despair > 0 && (
-                              <span className="text-xs text-gray-600"> (includes {parsed.counts.despair} Despair)</span>
-                            )}
-                          </div>
-                        )}
-                        {parsed.netSuccess === 0 && parsed.netFailure === 0 && (
-                          <div className="mb-2 text-gray-500">No net success/failure</div>
-                        )}
-
-                        {parsed.netAdvantage > 0 && (
-                          <div className="mb-2">
-                            {parsed.netAdvantage} Advantage (Positive Side Effect)
-                          </div>
-                        )}
-                        {parsed.netThreat > 0 && (
-                          <div className="mb-2">
-                            {parsed.netThreat} Threat (Negative Side Effect)
-                          </div>
-                        )}
-                        {parsed.netAdvantage === 0 && parsed.netThreat === 0 && (
-                          <div className="mb-2 text-gray-500">No net advantage/threat</div>
+                          </>
                         )}
                       </>
                     );

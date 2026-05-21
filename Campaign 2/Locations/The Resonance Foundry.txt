@@ -1,0 +1,26 @@
+The Resonance Foundry
+
+Type:
+Buried Sith kyber research and testing complex on Mustafar
+
+Access:
+Reached from a hidden landing platform with a broken gangway route over lava flow.
+
+Core concept:
+The Foundry used normal, intact kyber crystals and pushed them into fracture states through deliberate stress-testing to unlock new weapon behaviors.
+
+Known structure:
+- Factory Entrance (lava crossing and breach hazards)
+- Level 1: The Stripped Upper Works
+- Level 2: The Sealed Harmonic Vault
+
+Level 1 summary:
+Mostly ruined industrial shell with no meaningful loot. Atmosphere and traversal pressure.
+
+Level 2 summary:
+Main testing zone, living quarters, and research office with salvageable reports and prototype records.
+
+Key narrative value:
+- Introduces cracked-kyber prototype weapons and their risks.
+- Confirms the flaw may be reduced through enough time, resources, and disciplined research.
+- Provides a long-form upgrade path instead of a dead-end curse mechanic.

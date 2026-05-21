@@ -61,6 +61,7 @@ export default function SWNotes() {
   const [npcAgility, setNpcAgility] = useState('');
   const [npcIntellect, setNpcIntellect] = useState('');
   const [npcWillpower, setNpcWillpower] = useState('');
+  const [npcForceRating, setNpcForceRating] = useState('0');
   const [npcSoak, setNpcSoak] = useState('');
   const [npcWound, setNpcWound] = useState('');
   const [npcStrain, setNpcStrain] = useState('');
@@ -70,12 +71,15 @@ export default function SWNotes() {
   const [raceList, setRaceList] = useState([]);
   const [skillsList, setSkillsList] = useState([]);
   const [abilitiesList, setAbilitiesList] = useState([]);
+  const [forceTalentsList, setForceTalentsList] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]);
   const [abilityDescriptions, setAbilityDescriptions] = useState({}); // Map of ability name to description
+  const [forceAbilityDescriptions, setForceAbilityDescriptions] = useState({}); // Map of force ability name to description
 
   // Selected multi-selects
   const [selectedSkills, setSelectedSkills] = useState([]); // names
   const [selectedAbilities, setSelectedAbilities] = useState([]); // abilities strings
+  const [selectedForceAbilities, setSelectedForceAbilities] = useState([]); // force abilities strings
   const [selectedEquipment, setSelectedEquipment] = useState([]); // names
   const [selectedNPCEquipment, setSelectedNPCEquipment] = useState([]); // Equipment details for selected NPC
 
@@ -319,21 +323,24 @@ export default function SWNotes() {
   useEffect(() => {
     const loadLookups = async () => {
       try {
-        const [racesRes, skillsRes, abilitiesRes, equipmentRes] = await Promise.all([
+        const [racesRes, skillsRes, abilitiesRes, forceTalentsRes, equipmentRes] = await Promise.all([
           supabase.from('races').select('id, name').order('name', { ascending: true }),
           supabase.from('skills').select('id, skill').order('skill'),
           supabase.from('SW_abilities').select('id, ability').order('ability'),
+          supabase.from('SW_force_talents').select('id, talent_name').order('talent_name'),
           supabase.from('SW_equipment').select('id, name').order('name'),
         ]);
 
         if (racesRes.error) throw racesRes.error;
         if (skillsRes.error) throw skillsRes.error;
         if (abilitiesRes.error) throw abilitiesRes.error;
+        if (forceTalentsRes.error) throw forceTalentsRes.error;
         if (equipmentRes.error) throw equipmentRes.error;
 
         setRaceList(racesRes.data || []);
         setSkillsList(skillsRes.data || []);
         setAbilitiesList(abilitiesRes.data || []);
+        setForceTalentsList(forceTalentsRes.data || []);
         setEquipmentList(equipmentRes.data || []);
       } catch (err) {
         console.error('Failed to load NPC lookups:', err);
@@ -368,7 +375,7 @@ export default function SWNotes() {
     try {
       const { data, error } = await supabase
         .from('SW_campaign_NPC')
-        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment, races(name)')
+        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Force_Rating, Soak, Wound, Strain, Skills, Abilities, Force_Abilities, Equipment, races(name)')
         .eq('CampaignID', campaignId);
       if (error) throw error;
 
@@ -442,7 +449,7 @@ export default function SWNotes() {
       // Step 3: Get all NPCs from SW_campaign_NPC where CampaignID matches any of the campaign IDs
       const { data: playerNPCs, error: npcError } = await supabase
         .from('SW_campaign_NPC')
-        .select('id, Name, Race, Description, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment, Part_of_Place, races(name)')
+        .select('id, Name, Race, Description, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Force_Rating, Soak, Wound, Strain, Skills, Abilities, Force_Abilities, Equipment, Part_of_Place, races(name)')
         .in('CampaignID', campaignIds);
 
       if (npcError) throw npcError;
@@ -489,6 +496,26 @@ export default function SWNotes() {
       setAbilityDescriptions(descMap);
     } catch (err) {
       console.error('Failed to load ability descriptions:', err);
+    }
+  };
+
+  const loadForceAbilityDescriptions = async (forceAbilities) => {
+    if (!forceAbilities || !forceAbilities.trim()) return;
+    try {
+      const forceAbilityNames = forceAbilities.split(',').map((a) => a.trim()).filter(Boolean);
+      const { data, error } = await supabase
+        .from('SW_force_talents')
+        .select('talent_name, description')
+        .in('talent_name', forceAbilityNames);
+      if (error) throw error;
+
+      const descMap = {};
+      (data || []).forEach((row) => {
+        descMap[row.talent_name] = row.description || '';
+      });
+      setForceAbilityDescriptions(descMap);
+    } catch (err) {
+      console.error('Failed to load force ability descriptions:', err);
     }
   };
 
@@ -1313,7 +1340,7 @@ export default function SWNotes() {
         .from('SW_campaign_NPC')
         .update({ Part_of_Place: newPartOfPlace })
         .eq('id', npc.id)
-        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment, races(name)')
+        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Force_Rating, Soak, Wound, Strain, Skills, Abilities, Force_Abilities, Equipment, races(name)')
         .single();
 
       if (updateError) throw updateError;
@@ -1414,12 +1441,14 @@ export default function SWNotes() {
     setNpcAgility('');
     setNpcIntellect('');
     setNpcWillpower('');
+    setNpcForceRating('0');
     setNpcSoak('');
     setNpcWound('');
     setNpcStrain('');
     setNpcPlaceId('');
     setSelectedSkills([]);
     setSelectedAbilities([]);
+    setSelectedForceAbilities([]);
     setSelectedEquipment([]);
   };
 
@@ -1433,12 +1462,14 @@ export default function SWNotes() {
     setNpcAgility(npc.Agility ? String(npc.Agility) : '');
     setNpcIntellect(npc.Intellect ? String(npc.Intellect) : '');
     setNpcWillpower(npc.Willpower ? String(npc.Willpower) : '');
+    setNpcForceRating(npc.Force_Rating != null ? String(npc.Force_Rating) : '0');
     setNpcSoak(npc.Soak ? String(npc.Soak) : '');
     setNpcWound(npc.Wound ? String(npc.Wound) : '');
     setNpcStrain(npc.Strain ? String(npc.Strain) : '');
     setNpcPlaceId(npc.Part_of_Place ? String(npc.Part_of_Place) : '');
     setSelectedSkills(npc.Skills ? npc.Skills.split(',').map(s => s.trim()) : []);
     setSelectedAbilities(npc.Abilities ? npc.Abilities.split(',').map(a => a.trim()) : []);
+    setSelectedForceAbilities(npc.Force_Abilities ? npc.Force_Abilities.split(',').map((a) => a.trim()) : []);
     setSelectedEquipment(npc.Equipment ? npc.Equipment.split(',').map(e => e.trim()) : []);
   };
 
@@ -1473,8 +1504,10 @@ export default function SWNotes() {
         Agility: npcAgility ? parseInt(npcAgility, 10) : null,
         Intellect: npcIntellect ? parseInt(npcIntellect, 10) : null,
         Willpower: npcWillpower ? parseInt(npcWillpower, 10) : null,
+        Force_Rating: npcForceRating ? parseInt(npcForceRating, 10) : 0,
         Skills: selectedSkills.join(','),
         Abilities: selectedAbilities.join(','),
+        Force_Abilities: selectedForceAbilities.join(','),
         Equipment: selectedEquipment.join(','),
         Part_of_Place: npcPlaceId ? parseInt(npcPlaceId, 10) : null,
         CampaignID: campaignId ? parseInt(campaignId, 10) : null,
@@ -1483,7 +1516,7 @@ export default function SWNotes() {
       const { data: npcData, error } = await supabase
         .from('SW_campaign_NPC')
         .insert([payload])
-        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment, races(name)');
+        .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Force_Rating, Soak, Wound, Strain, Skills, Abilities, Force_Abilities, Equipment, races(name)');
 
       if (error) {
         console.error('Error saving NPC:', error);
@@ -1551,21 +1584,24 @@ export default function SWNotes() {
     // Load lookups for edit form
     const loadLookups = async () => {
       try {
-        const [racesRes, skillsRes, abilitiesRes, equipmentRes] = await Promise.all([
+        const [racesRes, skillsRes, abilitiesRes, forceTalentsRes, equipmentRes] = await Promise.all([
           supabase.from('races').select('id, name').order('name', { ascending: true }),
           supabase.from('skills').select('id, skill').order('skill'),
           supabase.from('SW_abilities').select('id, ability').order('ability'),
+          supabase.from('SW_force_talents').select('id, talent_name').order('talent_name'),
           supabase.from('SW_equipment').select('id, name').order('name'),
         ]);
 
         if (racesRes.error) throw racesRes.error;
         if (skillsRes.error) throw skillsRes.error;
         if (abilitiesRes.error) throw abilitiesRes.error;
+        if (forceTalentsRes.error) throw forceTalentsRes.error;
         if (equipmentRes.error) throw equipmentRes.error;
 
         setRaceList(racesRes.data || []);
         setSkillsList(skillsRes.data || []);
         setAbilitiesList(abilitiesRes.data || []);
+        setForceTalentsList(forceTalentsRes.data || []);
         setEquipmentList(equipmentRes.data || []);
       } catch (err) {
         console.error('Failed to load NPC lookups:', err);
@@ -1592,11 +1628,13 @@ export default function SWNotes() {
         Agility: npcAgility ? parseInt(npcAgility, 10) : null,
         Intellect: npcIntellect ? parseInt(npcIntellect, 10) : null,
         Willpower: npcWillpower ? parseInt(npcWillpower, 10) : null,
+        Force_Rating: npcForceRating ? parseInt(npcForceRating, 10) : 0,
         Soak: npcSoak ? parseInt(npcSoak, 10) : null,
         Wound: npcWound ? parseInt(npcWound, 10) : null,
         Strain: npcStrain ? parseInt(npcStrain, 10) : null,
         Skills: selectedSkills.join(','),
         Abilities: selectedAbilities.join(','),
+        Force_Abilities: selectedForceAbilities.join(','),
         Equipment: selectedEquipment.join(','),
       };
 
@@ -1781,6 +1819,7 @@ export default function SWNotes() {
   const [dicePopup, setDicePopup] = useState(null);
   const [itemQualityPopup, setItemQualityPopup] = useState(null);
   const [diceMap, setDiceMap] = useState({});
+  const diceDragHandlersRef = useRef({ move: null, up: null });
 
   // Handler for dice pool click
   const handleDicePoolClick = (e, pool, label) => {
@@ -1795,7 +1834,33 @@ export default function SWNotes() {
       name: diceMap[color] || 'Unknown'
     }));
     
-    setDicePopup({ pool, details, x, y, label, boosts: [], setbacks: [] });
+    setDicePopup({ pool, details, x, y, label, boosts: [], setbacks: [], isForceRoll: false });
+  };
+
+  const handleNpcForceRollClick = (e) => {
+    if (!selectedNPC) return;
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = rect.left + window.scrollX;
+    const y = rect.bottom + window.scrollY + 8;
+    const rating = Math.max(0, Number(selectedNPC.Force_Rating) || 0);
+
+    const details = Array.from({ length: rating }, () => ({
+      color: 'White',
+      name: diceMap.White || diceMap.WHITE || 'Force',
+    }));
+
+    setDicePopup({
+      pool: 'White'.repeat(rating),
+      details,
+      x,
+      y,
+      label: `Force Roll (${selectedNPC.Name})`,
+      boosts: [],
+      setbacks: [],
+      isForceRoll: true,
+    });
   };
 
   const handleItemQualityClick = (e, details) => {
@@ -1810,6 +1875,52 @@ export default function SWNotes() {
 
     setItemQualityPopup({ ...details, left, top });
   };
+
+  const handleDicePopupDragStart = (e) => {
+    if (e.button !== 0 || !dicePopup) return;
+
+    const target = e.target;
+    if (target && target.closest && target.closest('button, input, select, textarea, a, [role="button"]')) {
+      return;
+    }
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startPopupX = Number(dicePopup.x) || 0;
+    const startPopupY = Number(dicePopup.y) || 0;
+
+    const onMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      setDicePopup((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          x: Math.max(8, startPopupX + deltaX),
+          y: Math.max(8, startPopupY + deltaY),
+        };
+      });
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      diceDragHandlersRef.current = { move: null, up: null };
+    };
+
+    diceDragHandlersRef.current = { move: onMouseMove, up: onMouseUp };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    return () => {
+      const handlers = diceDragHandlersRef.current;
+      if (handlers.move) window.removeEventListener('mousemove', handlers.move);
+      if (handlers.up) window.removeEventListener('mouseup', handlers.up);
+    };
+  }, []);
 
   useEffect(() => {
     if (!itemQualityPopup) return;
@@ -2333,6 +2444,7 @@ export default function SWNotes() {
                         onClick={() => {
                           setSelectedNPC(npc);
                           loadAbilityDescriptions(npc.Abilities);
+                          loadForceAbilityDescriptions(npc.Force_Abilities);
                           setTimeout(() => {
                             if (npcRefs.current[npc.id]) {
                               npcRefs.current[npc.id].scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2363,7 +2475,12 @@ export default function SWNotes() {
             <div className="w-[28rem] bg-white border-r border-gray-300 p-4 overflow-y-auto flex flex-col">
               {/* Header with Dropdown and Close Button */}
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg text-gray-800">{selectedNPC.Name}</h3>
+                <div>
+                  <h3 className="font-bold text-lg text-gray-800">{selectedNPC.Name}</h3>
+                  {Number(selectedNPC.Force_Rating || 0) > 0 && (
+                    <div className="text-xs text-indigo-700 font-semibold">Force Rating: {selectedNPC.Force_Rating}</div>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={(e) => {
@@ -2507,6 +2624,16 @@ export default function SWNotes() {
                       />
                     </div>
                     <div>
+                      <label className="block font-medium text-gray-700 mb-1">Force Rating</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={npcForceRating}
+                        onChange={(e) => setNpcForceRating(e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
                       <label className="block font-medium text-gray-700 mb-1">Race</label>
                       <select
                         value={npcRaceId}
@@ -2629,6 +2756,36 @@ export default function SWNotes() {
                       )}
                     </div>
 
+                    <div>
+                      <label className="block font-medium text-gray-700 mb-1">Force Abilities</label>
+                      <div className="flex gap-2">
+                        <select id="edit-npc-force-ability-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
+                          <option value="">-- Select Force Ability --</option>
+                          {forceTalentsList.map((a) => (
+                            <option key={a.id} value={a.talent_name}>{a.talent_name}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById('edit-npc-force-ability-select');
+                            addToList(el.value, selectedForceAbilities, setSelectedForceAbilities);
+                          }}
+                          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                        >Add</button>
+                      </div>
+                      {selectedForceAbilities.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2 overflow-hidden">
+                          {selectedForceAbilities.map((a, idx) => (
+                            <span key={`edit-force-ability-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded flex-shrink-0">
+                              {a}
+                              <button onClick={() => removeFromList(a, selectedForceAbilities, setSelectedForceAbilities)} className="text-indigo-700 hover:text-indigo-900">×</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Equipment in Edit Mode */}
                     <div>
                       <label className="block font-medium text-gray-700 mb-1">Equipment</label>
@@ -2743,6 +2900,35 @@ export default function SWNotes() {
                           .sort((a, b) => a.localeCompare(b))
                           .map((abilityName, idx) => {
                             const description = abilityDescriptions[abilityName];
+                            return (
+                              <div key={idx} className="text-xs">
+                                <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName}</div>
+                                {description && <div className="text-gray-600 text-xs mt-1">{description}</div>}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedNPC.Force_Abilities && selectedNPC.Force_Abilities.trim() && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2 border-b border-gray-800 pb-1">
+                        <h4 className="text-xs font-bold text-gray-800">Force Abilities (Force Rating: {selectedNPC.Force_Rating ?? 0})</h4>
+                        <button
+                          type="button"
+                          onClick={handleNpcForceRollClick}
+                          className="px-2 py-0.5 text-xs font-semibold bg-white border border-gray-500 rounded hover:bg-gray-100"
+                        >
+                          Roll
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {selectedNPC.Force_Abilities.split(',')
+                          .map((a) => a.trim())
+                          .sort((a, b) => a.localeCompare(b))
+                          .map((abilityName, idx) => {
+                            const description = forceAbilityDescriptions[abilityName];
                             return (
                               <div key={idx} className="text-xs">
                                 <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName}</div>
@@ -2979,6 +3165,8 @@ export default function SWNotes() {
                       Strain: npcStrain ? parseInt(npcStrain, 10) : null,
                       Skills: selectedSkills.join(','),
                       Abilities: selectedAbilities.join(','),
+                      Force_Abilities: selectedForceAbilities.join(','),
+                      Force_Rating: npcForceRating ? parseInt(npcForceRating, 10) : 0,
                       Equipment: selectedEquipment.join(','),
                       Part_of_Place: showInlineAddNPC,
                       CampaignID: parseInt(campaignId, 10),
@@ -2987,7 +3175,7 @@ export default function SWNotes() {
                     const { data: npcData, error } = await supabase
                       .from('SW_campaign_NPC')
                       .insert([payload])
-                      .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment, races(name)');
+                      .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Force_Rating, Soak, Wound, Strain, Skills, Abilities, Force_Abilities, Equipment, races(name)');
 
                     if (error) throw error;
 
@@ -3061,6 +3249,18 @@ export default function SWNotes() {
                   onChange={(e) => setNpcName(e.target.value)}
                   className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
                   placeholder="Enter NPC name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Force Rating</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={npcForceRating}
+                  onChange={(e) => setNpcForceRating(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                  placeholder="0"
                 />
               </div>
 
@@ -3243,6 +3443,36 @@ export default function SWNotes() {
                       <span key={`ability-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded flex-shrink-0">
                         {a}
                         <button onClick={() => removeFromList(a, selectedAbilities, setSelectedAbilities)} className="text-green-700 hover:text-green-900">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Force Abilities</label>
+                <div className="flex gap-2">
+                  <select id="inline-npc-force-ability-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500">
+                    <option value="">-- Select Force Ability --</option>
+                    {forceTalentsList.map((a) => (
+                      <option key={a.id} value={a.talent_name}>{a.talent_name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('inline-npc-force-ability-select');
+                      addToList(el.value, selectedForceAbilities, setSelectedForceAbilities);
+                    }}
+                    className="px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
+                  >Add</button>
+                </div>
+                {selectedForceAbilities.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1 overflow-hidden">
+                    {selectedForceAbilities.map((a, idx) => (
+                      <span key={`force-ability-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded flex-shrink-0">
+                        {a}
+                        <button onClick={() => removeFromList(a, selectedForceAbilities, setSelectedForceAbilities)} className="text-indigo-700 hover:text-indigo-900">×</button>
                       </span>
                     ))}
                   </div>
@@ -3432,7 +3662,7 @@ export default function SWNotes() {
                       .from('SW_campaign_NPC')
                       .update({ Part_of_Place: newPartOfPlace })
                       .eq('id', selectedExistingNPC.id)
-                      .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Soak, Wound, Strain, Skills, Abilities, Equipment, races(name)')
+                      .select('id, Name, Race, Part_of_Place, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Force_Rating, Soak, Wound, Strain, Skills, Abilities, Force_Abilities, Equipment, races(name)')
                       .single();
 
                     if (updateError) throw updateError;
@@ -3537,6 +3767,18 @@ export default function SWNotes() {
                 {selectedExistingNPC.Abilities && selectedExistingNPC.Abilities.trim() && (
                   <div>
                     <span className="font-semibold">Abilities:</span> {selectedExistingNPC.Abilities}
+                  </div>
+                )}
+
+                {Number(selectedExistingNPC.Force_Rating || 0) > 0 && (
+                  <div>
+                    <span className="font-semibold">Force Rating:</span> {selectedExistingNPC.Force_Rating}
+                  </div>
+                )}
+
+                {selectedExistingNPC.Force_Abilities && selectedExistingNPC.Force_Abilities.trim() && (
+                  <div>
+                    <span className="font-semibold">Force Abilities:</span> {selectedExistingNPC.Force_Abilities}
                   </div>
                 )}
               </div>
@@ -3826,7 +4068,9 @@ export default function SWNotes() {
             display: 'flex',
             flexDirection: 'column',
             pointerEvents: 'auto',
+            cursor: 'move',
           }}
+          onMouseDown={handleDicePopupDragStart}
           onClick={(e) => e.stopPropagation()}
         >
           <button

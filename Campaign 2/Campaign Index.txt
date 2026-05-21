@@ -26,6 +26,17 @@ Tol-specific files added for this campaign:
 - GM Notes\Secrets and Reveals.txt
 - Session Summaries\Session 00 - Campaign Setup.txt
 
+Recently added campaign files:
+- Session Summaries\Session 01 - 8th May 2026.txt
+- GM Notes\Rapa Flashback - 3 Years Ago.txt
+- Locations\Mustafar.txt
+- Locations\The Resonance Foundry.txt
+- Locations\Jedha.txt
+- Locations\Vael Tarris, The Pale City of Jedha.txt
+- Locations\The Luminous Hollows.txt
+- Factions\The Black Sun.txt
+- Factions\The Hutt Cartel.txt
+
 Recommended use:
 - Keep anything Tol's player can safely know in the player-safe files.
 - Put survivor truths, betrayal reveals, hidden patrons, and future twists in GM Notes.

@@ -32,3 +32,13 @@ Update rhythm:
 - After each session, update Session Summaries first
 - Then update NPC Tracker, Plot Threads, and Secrets and Reveals
 - Move any resolved threads into a Completed section instead of deleting them
+
+Recent developments (post Session 01):
+- Ashen Talon systems restored; party has a working ship and can depart Malachor.
+- Scrapper's Mercy on Quelith confirmed as practical resupply point for Malachor operations.
+- Mustafar arc prepared around The Resonance Foundry (Entrance, Level 1, Level 2).
+- Level 2 records confirm intact kyber crystals were deliberately stress-fractured during weapon research.
+- Cracked-kyber prototype weapon set established, with known instability and possible mitigation pathways.
+- Research archive contains salvageable blueprints, including single-blade and double-bladed saber frameworks.
+- Jedha arc established with Vael Tarris and The Luminous Hollows as major Force-tied destinations.
+- New GM opener prepared: Rapa Flashback - 3 Years Ago.
