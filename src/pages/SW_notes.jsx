@@ -36,9 +36,11 @@ export default function SWNotes() {
   const [previewImage, setPreviewImage] = useState(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [showInlineAddNote, setShowInlineAddNote] = useState(null); // ID of place to add note to
+  const [inlineAddNotePos, setInlineAddNotePos] = useState({ top: 0, left: 0 });
   const [inlinePlaceName, setInlinePlaceName] = useState('');
   const [inlineDescription, setInlineDescription] = useState('');
   const [showInlineAddNPC, setShowInlineAddNPC] = useState(null); // ID of place to add NPC to
+  const [inlineAddNPCPos, setInlineAddNPCPos] = useState({ top: 0, left: 0 });
   const [showInlineAddSkillCheck, setShowInlineAddSkillCheck] = useState(null); // ID of note to add skill check to
   const [deleteConfirmation, setDeleteConfirmation] = useState(null); // ID of place to delete
   const [deleting, setDeleting] = useState(false);
@@ -1820,6 +1822,7 @@ export default function SWNotes() {
   const [itemQualityPopup, setItemQualityPopup] = useState(null);
   const [diceMap, setDiceMap] = useState({});
   const diceDragHandlersRef = useRef({ move: null, up: null });
+  const panelDragHandlersRef = useRef({ move: null, up: null });
 
   // Handler for dice pool click
   const handleDicePoolClick = (e, pool, label) => {
@@ -1919,8 +1922,76 @@ export default function SWNotes() {
       const handlers = diceDragHandlersRef.current;
       if (handlers.move) window.removeEventListener('mousemove', handlers.move);
       if (handlers.up) window.removeEventListener('mouseup', handlers.up);
+
+      const panelHandlers = panelDragHandlersRef.current;
+      if (panelHandlers.move) window.removeEventListener('mousemove', panelHandlers.move);
+      if (panelHandlers.up) window.removeEventListener('mouseup', panelHandlers.up);
     };
   }, []);
+
+  const getPanelPosition = (panelKey) => {
+    switch (panelKey) {
+      case 'inline-note':
+        return inlineAddNotePos;
+      case 'inline-npc':
+        return inlineAddNPCPos;
+      case 'existing-npc':
+        return addExistingNPCPos;
+      case 'existing-note':
+        return addExistingNotePos;
+      default:
+        return { top: 0, left: 0 };
+    }
+  };
+
+  const setPanelPosition = (panelKey, nextPos) => {
+    switch (panelKey) {
+      case 'inline-note':
+        setInlineAddNotePos(nextPos);
+        break;
+      case 'inline-npc':
+        setInlineAddNPCPos(nextPos);
+        break;
+      case 'existing-npc':
+        setAddExistingNPCPos(nextPos);
+        break;
+      case 'existing-note':
+        setAddExistingNotePos(nextPos);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handlePanelDragStart = (e, panelKey) => {
+    if (e.button !== 0) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const currentPos = getPanelPosition(panelKey);
+    const startLeft = Number(currentPos.left) || 0;
+    const startTop = Number(currentPos.top) || 0;
+
+    const onMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      setPanelPosition(panelKey, {
+        left: Math.max(8, startLeft + deltaX),
+        top: Math.max(8, startTop + deltaY),
+      });
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      panelDragHandlersRef.current = { move: null, up: null };
+    };
+
+    panelDragHandlersRef.current = { move: onMouseMove, up: onMouseUp };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    e.preventDefault();
+  };
 
   useEffect(() => {
     if (!itemQualityPopup) return;
@@ -2156,8 +2227,8 @@ export default function SWNotes() {
                 <div
                   style={{
                     position: 'fixed',
-                    top: `${dropdownPos.top}px`,
-                    left: `${dropdownPos.left + 160}px`,
+                    top: `${inlineAddNotePos.top}px`,
+                    left: `${inlineAddNotePos.left}px`,
                     backgroundColor: '#d1d5db',
                     padding: '12px',
                     borderRadius: '6px',
@@ -2166,6 +2237,12 @@ export default function SWNotes() {
                     minWidth: '300px',
                   }}
                 >
+                  <div
+                    onMouseDown={(e) => handlePanelDragStart(e, 'inline-note')}
+                    className="mb-2 px-2 py-1 bg-gray-300 rounded text-xs font-semibold text-gray-700 cursor-move select-none"
+                  >
+                    Move
+                  </div>
                   <div className="bg-white rounded-lg p-4">
                     <h4 className="font-bold text-gray-800 mb-3 text-sm">Add Note to {place.Place_Name}</h4>
                     <div className="space-y-3">
@@ -3125,8 +3202,8 @@ export default function SWNotes() {
         <div
           style={{
             position: 'fixed',
-            top: `${dropdownPos.top}px`,
-            left: `${dropdownPos.left + 160}px`,
+            top: `${inlineAddNPCPos.top}px`,
+            left: `${inlineAddNPCPos.left}px`,
             backgroundColor: '#d1d5db',
             padding: '12px',
             borderRadius: '6px',
@@ -3139,6 +3216,12 @@ export default function SWNotes() {
             overflowX: 'hidden',
           }}
         >
+          <div
+            onMouseDown={(e) => handlePanelDragStart(e, 'inline-npc')}
+            className="mb-2 px-2 py-1 bg-gray-300 rounded text-xs font-semibold text-gray-700 cursor-move select-none"
+          >
+            Move
+          </div>
           <div className="bg-white rounded-lg p-4">
             <h4 className="font-bold text-gray-800 mb-3 text-sm">Add NPC to {selectedHierarchy.find(p => p.id === showInlineAddNPC)?.Place_Name || 'Place'}</h4>
             <div className="flex gap-2 mb-3">
@@ -3623,7 +3706,7 @@ export default function SWNotes() {
           style={{
             position: 'fixed',
             top: `${addExistingNPCPos.top}px`,
-            left: `${addExistingNPCPos.left + 160}px`,
+            left: `${addExistingNPCPos.left}px`,
             backgroundColor: '#d1d5db',
             padding: '12px',
             borderRadius: '6px',
@@ -3636,6 +3719,12 @@ export default function SWNotes() {
             overflowX: 'hidden',
           }}
         >
+          <div
+            onMouseDown={(e) => handlePanelDragStart(e, 'existing-npc')}
+            className="mb-2 px-2 py-1 bg-gray-300 rounded text-xs font-semibold text-gray-700 cursor-move select-none"
+          >
+            Move
+          </div>
           <div className="bg-white rounded-lg p-4 flex flex-col" style={{ maxHeight: 'none' }}>
             <h4 className="font-bold text-gray-800 mb-3 text-sm">Add Existing NPC</h4>
 
@@ -3794,7 +3883,7 @@ export default function SWNotes() {
           style={{
             position: 'fixed',
             top: `${addExistingNotePos.top}px`,
-            left: `${addExistingNotePos.left + 160}px`,
+            left: `${addExistingNotePos.left}px`,
             backgroundColor: '#d1d5db',
             padding: '12px',
             borderRadius: '6px',
@@ -3807,6 +3896,12 @@ export default function SWNotes() {
             overflowX: 'hidden',
           }}
         >
+          <div
+            onMouseDown={(e) => handlePanelDragStart(e, 'existing-note')}
+            className="mb-2 px-2 py-1 bg-gray-300 rounded text-xs font-semibold text-gray-700 cursor-move select-none"
+          >
+            Move
+          </div>
           <div className="bg-white rounded-lg p-4">
             <h4 className="font-bold text-gray-800 mb-3 text-sm">Add Existing Note</h4>
 
@@ -3953,6 +4048,10 @@ export default function SWNotes() {
                 )}
                 <button
                   onClick={() => {
+                    setInlineAddNotePos({
+                      top: dropdownPos.top,
+                      left: dropdownPos.left + 160,
+                    });
                     setShowInlineAddNote(place.id);
                     setInlinePlaceName('');
                     setInlineDescription('');
@@ -3964,6 +4063,10 @@ export default function SWNotes() {
                 </button>
                 <button
                   onClick={() => {
+                    setInlineAddNPCPos({
+                      top: dropdownPos.top,
+                      left: dropdownPos.left + 160,
+                    });
                     setShowInlineAddNPC(place.id);
                     setShowDropdown(null);
                   }}
@@ -3985,7 +4088,7 @@ export default function SWNotes() {
                     const rect = e.currentTarget.getBoundingClientRect();
                     setAddExistingNPCPos({
                       top: rect.bottom + window.scrollY,
-                      left: rect.left + window.scrollX,
+                      left: rect.left + window.scrollX + 160,
                     });
                     setShowAddExistingNPC(place.id);
                     setSelectedExistingNPC(null);
@@ -4001,7 +4104,7 @@ export default function SWNotes() {
                     const rect = e.currentTarget.getBoundingClientRect();
                     setAddExistingNotePos({
                       top: rect.bottom + window.scrollY,
-                      left: rect.left + window.scrollX,
+                      left: rect.left + window.scrollX + 160,
                     });
                     setShowAddExistingNote(place.id);
                     setSelectedExistingNote(null);
