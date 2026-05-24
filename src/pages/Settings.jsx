@@ -292,6 +292,7 @@ export default function Settings() {
   const [existingSpecs, setExistingSpecs] = useState([]); // full rows for editing
   const [editingSpecId, setEditingSpecId] = useState(null);
   const [abilityMapById, setAbilityMapById] = useState({}); // { id: { name, description, activation } }
+  const [abilityMapByName, setAbilityMapByName] = useState({}); // { normalizedName: { id, name, description, activation } }
   const [savingSpec, setSavingSpec] = useState(false);
   const [specConflict, setSpecConflict] = useState(null); // { id, name }
   const [abilityConflicts, setAbilityConflicts] = useState([]); // [{ name, id }]
@@ -662,14 +663,26 @@ export default function Settings() {
         setExistingSpecs(specsRes.data || []);
 
         const abilityMap = {};
+        const abilityNameMap = {};
         (abilitiesRes.data || []).forEach(a => {
           abilityMap[a.id] = {
             name: a.ability,
             description: a.description || '',
             activation: a.activation || ''
           };
+
+          const normalizedAbilityName = (a.ability || '').trim().toLowerCase();
+          if (normalizedAbilityName) {
+            abilityNameMap[normalizedAbilityName] = {
+              id: a.id,
+              name: a.ability,
+              description: a.description || '',
+              activation: a.activation || ''
+            };
+          }
         });
         setAbilityMapById(abilityMap);
+        setAbilityMapByName(abilityNameMap);
       } catch (err) {
         console.error('Failed to fetch specs/abilities:', err);
       }
@@ -3873,12 +3886,25 @@ export default function Settings() {
     if (value === '__ADD_NEW__') {
       setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: true }));
       setSpecTalentTree(prev => ({ ...prev, [boxIndex]: '' }));
+      setSpecTalentDescriptions(prev => ({ ...prev, [boxIndex]: '' }));
+      setSpecTalentActivations(prev => ({ ...prev, [boxIndex]: 'Passive' }));
+      setIsCustomTalent(prev => ({ ...prev, [boxIndex]: true }));
     } else {
       setSpecTalentTree(prev => ({
         ...prev,
         [boxIndex]: value
       }));
+      const abilityInfo = abilityMapByName[(value || '').trim().toLowerCase()];
+      setSpecTalentDescriptions(prev => ({
+        ...prev,
+        [boxIndex]: abilityInfo?.description || ''
+      }));
+      setSpecTalentActivations(prev => ({
+        ...prev,
+        [boxIndex]: abilityInfo?.activation || 'Passive'
+      }));
       setIsCustomTalent(prev => ({ ...prev, [boxIndex]: false }));
+      setCustomTalentInputMode(prev => ({ ...prev, [boxIndex]: false }));
     }
   };
 
@@ -4833,7 +4859,45 @@ export default function Settings() {
         return;
       }
 
+      let abilityLookupById = { ...abilityMapById };
       const rows = [5, 10, 15, 20, 25];
+      const missingAbilityIds = [];
+
+      for (let r = 0; r < 5; r++) {
+        for (let c = 1; c <= 4; c++) {
+          const fieldBase = `ability_${rows[r]}_${c}`;
+          const abilityId = treeRow[fieldBase];
+          if (abilityId && !abilityLookupById[abilityId]) {
+            missingAbilityIds.push(abilityId);
+          }
+        }
+      }
+
+      if (missingAbilityIds.length > 0) {
+        const uniqueMissingIds = [...new Set(missingAbilityIds)];
+        const { data: missingAbilities, error: missingAbilitiesErr } = await supabase
+          .from('SW_abilities')
+          .select('id, ability, description, activation')
+          .in('id', uniqueMissingIds);
+
+        if (missingAbilitiesErr) {
+          console.error('Failed to load ability details for specialization tree:', missingAbilitiesErr);
+        } else {
+          (missingAbilities || []).forEach((ability) => {
+            abilityLookupById[ability.id] = {
+              name: ability.ability,
+              description: ability.description || '',
+              activation: ability.activation || ''
+            };
+          });
+
+          setAbilityMapById((prev) => ({
+            ...prev,
+            ...abilityLookupById
+          }));
+        }
+      }
+
       const newTree = {};
       const newDescriptions = {};
       const newActivations = {};
@@ -4847,7 +4911,7 @@ export default function Settings() {
           const fieldBase = `ability_${rows[r]}_${c}`;
           const abilityId = treeRow[fieldBase];
           if (abilityId) {
-            const abilityInfo = abilityMapById[abilityId];
+            const abilityInfo = abilityLookupById[abilityId];
             const abilityName = abilityInfo?.name || '';
             newTree[boxIndex] = abilityName;
             newDescriptions[boxIndex] = abilityInfo?.description || '';
@@ -5143,6 +5207,21 @@ export default function Settings() {
     }
   };
 
+  const getNextSwPictureId = async () => {
+    const { data: maxIdData, error: maxIdError } = await supabase
+      .from('SW_pictures')
+      .select('id')
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (maxIdError) {
+      throw maxIdError;
+    }
+
+    return (maxIdData?.id || 0) + 1;
+  };
+
   const handleAddToDatabaseForRace = async (raceId, raceName, specId) => {
     try {
       // Fetch careers, specs, and pictures
@@ -5184,11 +5263,14 @@ export default function Settings() {
         return;
       }
 
+      const nextId = await getNextSwPictureId();
+
       // Insert into SW_pictures
       const { error } = await supabase
         .from('SW_pictures')
         .insert([
           {
+            id: nextId,
             race_ID: raceId,
             career_ID: selectedCareer.id,
             spec_ID: specId
@@ -5259,11 +5341,14 @@ export default function Settings() {
         .eq('id', raceId)
         .single();
       if (raceError) throw raceError;
+      const nextId = await getNextSwPictureId();
+
       // Insert into SW_pictures
       const { error } = await supabase
         .from('SW_pictures')
         .insert([
           {
+            id: nextId,
             race_ID: raceId,
             career_ID: item.careerId,
             spec_ID: item.specId
