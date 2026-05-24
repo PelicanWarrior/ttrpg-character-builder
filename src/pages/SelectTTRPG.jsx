@@ -903,10 +903,12 @@ export default function SelectTTRPG() {
                       Campaign
                     </button>
                   )}
-                  {isSW && (
-                    <button onClick={openDiceRoll} className="px-10 py-4 bg-blue-500 text-white font-bold text-lg rounded-xl hover:bg-blue-600 shadow-lg transition">Dice Roll</button>
-                  )}
                 </div>
+                {isSW && (
+                  <div className="mb-6 flex justify-center">
+                    <button onClick={openDiceRoll} className="px-10 py-4 bg-blue-500 text-white font-bold text-lg rounded-xl hover:bg-blue-600 shadow-lg transition">Dice Roll</button>
+                  </div>
+                )}
 
                 {/* Fallout Character List (inline) */}
                 {isFa && showFaCharacterList && (
@@ -942,14 +944,14 @@ export default function SelectTTRPG() {
                             <p style={{ fontSize: '0.875rem', color: '#999999' }}>{character.race || '—'}</p>
                             <p style={{ fontSize: '0.875rem', color: '#dddddd' }}>Level {character.level ?? 1}</p>
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'nowrap', width: '100%', marginTop: '0.5rem' }}>
                             <button
                               onClick={() => { localStorage.setItem('loadedCharacterId', character.id); navigate('/Fa_character_creator'); }}
-                              className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
                             >Edit</button>
                             <button
                               onClick={() => { localStorage.setItem('loadedCharacterId', character.id); navigate('/Fa_character_overview'); }}
-                              className="px-6 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
                             >Overview</button>
                             <button
                               onClick={async () => {
@@ -960,7 +962,7 @@ export default function SelectTTRPG() {
                                 const loaded = localStorage.getItem('loadedCharacterId');
                                 if (loaded && String(loaded) === String(character.id)) localStorage.removeItem('loadedCharacterId');
                               }}
-                              className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
                             >Delete</button>
                           </div>
                         </div>
@@ -1012,13 +1014,13 @@ export default function SelectTTRPG() {
                             <p style={{ fontSize: '0.875rem', color: '#999999' }}>{character.hero_name ? character.name : (character.origin || 'Marvel Hero')}</p>
                             <p style={{ fontSize: '0.875rem', color: '#dddddd' }}>Rank {character.rank ?? 1}{character.origin ? ` - ${character.origin}` : ''}</p>
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'nowrap', width: '100%', marginTop: '0.5rem' }}>
                             <button
                               onClick={() => {
                                 localStorage.setItem('loadedCharacterId', character.id);
                                 navigate('/MM_character_creator');
                               }}
-                              className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
                             >
                               Edit
                             </button>
@@ -1027,7 +1029,7 @@ export default function SelectTTRPG() {
                                 localStorage.setItem('loadedCharacterId', character.id);
                                 navigate('/MM_character_overview');
                               }}
-                              className="px-6 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
                             >
                               Overview
                             </button>
@@ -1044,7 +1046,7 @@ export default function SelectTTRPG() {
                                 const loaded = localStorage.getItem('loadedCharacterId');
                                 if (loaded && String(loaded) === String(character.id)) localStorage.removeItem('loadedCharacterId');
                               }}
-                              className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
                             >
                               Delete
                             </button>
@@ -1097,13 +1099,13 @@ export default function SelectTTRPG() {
                             <p style={{ fontSize: '0.875rem', color: '#dddddd' }}>{character.career} - {character.spec}</p>
                           </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'nowrap', width: '100%', marginTop: '0.5rem' }}>
                             <button 
                               onClick={() => {
                                 localStorage.setItem('loadedCharacterId', character.id);
                                 navigate('/sweote-character-creator', { state: { create_character: false } });
                               }}
-                              className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
                             >
                               Edit
                             </button>
@@ -1112,7 +1114,7 @@ export default function SelectTTRPG() {
                                 localStorage.setItem('loadedCharacterId', character.id);
                                 navigate('/SW_character_overview');
                               }}
-                              className="px-6 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
                             >
                               Overview
                             </button>
@@ -1143,7 +1145,7 @@ export default function SelectTTRPG() {
                                   }
                                 }
                               }}
-                              className="px-6 py-2 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-sm"
+                              className="flex-1 min-w-0 px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
                             >
                               Delete
                             </button>
@@ -1303,18 +1305,18 @@ export default function SelectTTRPG() {
                                       </p>
                                     </div>
                                   </div>
-                                  <div className="flex flex-col gap-2" style={{ flexShrink: 0 }}>
+                                  <div className="flex gap-1.5 w-full" style={{ marginTop: '0.5rem' }}>
                                     <button
                                       onClick={() => {
                                         localStorage.setItem('loadedCharacterId', character.id);
                                         navigate(`/dndmod_character_creator?mod=${encodeURIComponent(row.name)}`);
                                       }}
-                                      className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-sm"
+                                      className="flex-1 min-w-0 px-2 py-1 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-xs"
                                     >
                                       Edit
                                     </button>
                                     <button
-                                      className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-sm"
+                                      className="flex-1 min-w-0 px-2 py-1 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-xs"
                                     >
                                       Overview
                                     </button>
@@ -1335,7 +1337,7 @@ export default function SelectTTRPG() {
                                           [resolvedId]: (prev[resolvedId] || []).filter((c) => c.id !== character.id),
                                         }));
                                       }}
-                                        className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-sm"
+                                        className="flex-1 min-w-0 px-2 py-1 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-xs"
                                     >
                                       Delete
                                     </button>
