@@ -19,6 +19,7 @@ import UnifiedTTRPGAdmin from './pages/UnifiedTTRPGAdmin';
 import WWWCharacterCreator from './pages/WWW_character_creator';
 import SoloAdventures from './pages/SoloAdventures';
 import SoloAdventuresCreate from './pages/SoloAdventuresCreate';
+import SoloAdventuresEdit from './pages/SoloAdventuresEdit';
 import FCharacterCreator from './pages/F_character_creator';
 import FCharacterOverview from './pages/F_character_overview';
 import FaCampaign from './pages/Fa_campaign';
@@ -53,6 +54,7 @@ export default function App() {
       <Route path="/MM_character_overview" element={<MMCharacterOverview />} />
       <Route path="/solo-adventures" element={<SoloAdventures />} />
       <Route path="/solo-adventures/create" element={<SoloAdventuresCreate />} />
+      <Route path="/solo-adventures/edit/:adventureId" element={<SoloAdventuresEdit />} />
       <Route path="/ttrpg/:initials/:page" element={<TTRPGGenericPage />} />
     </Routes>
   );

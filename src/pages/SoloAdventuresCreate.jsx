@@ -16,10 +16,6 @@ export default function SoloAdventuresCreate() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [creatingAdventure, setCreatingAdventure] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editingAdventure, setEditingAdventure] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -144,54 +140,6 @@ export default function SoloAdventuresCreate() {
     }
   };
 
-  const handleStartEdit = (adventure) => {
-    setEditingId(adventure.id);
-    setEditTitle(adventure.title);
-    setEditDescription(adventure.description || '');
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editTitle.trim()) {
-      setAdventureError('Title is required.');
-      return;
-    }
-
-    setEditingAdventure(true);
-    setAdventureError('');
-
-    const { error: updateErr } = await supabase
-      .from('Solo_Adventures')
-      .update({
-        title: editTitle.trim(),
-        description: editDescription.trim() || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', editingId);
-
-    setEditingAdventure(false);
-
-    if (updateErr) {
-      setAdventureError(updateErr.message || 'Failed to update adventure.');
-    } else {
-      setAdventures(
-        adventures.map((adv) =>
-          adv.id === editingId
-            ? { ...adv, title: editTitle, description: editDescription }
-            : adv
-        )
-      );
-      setEditingId(null);
-      setEditTitle('');
-      setEditDescription('');
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditTitle('');
-    setEditDescription('');
-  };
-
   const handleDeleteAdventure = async (adventureId) => {
     if (!window.confirm('Are you sure you want to delete this adventure?')) {
       return;
@@ -246,7 +194,6 @@ export default function SoloAdventuresCreate() {
                     setSelectedTtrpgId(event.target.value);
                     setTitle('');
                     setDescription('');
-                    setEditingId(null);
                   }}
                   className="w-full rounded-2xl border-2 border-sky-800 bg-sky-50 px-5 py-4 text-lg font-semibold text-sky-950 shadow-sm outline-none transition focus:border-sky-500"
                 >
@@ -305,57 +252,25 @@ export default function SoloAdventuresCreate() {
                       <div className="space-y-4">
                         {adventures.map((adventure) => (
                           <div key={adventure.id} className="rounded-2xl border-2 border-violet-400 bg-violet-50 p-4 shadow-sm">
-                            {editingId === adventure.id ? (
-                              <div className="space-y-3">
-                                <input
-                                  type="text"
-                                  value={editTitle}
-                                  onChange={(e) => setEditTitle(e.target.value)}
-                                  className="w-full rounded-lg border-2 border-amber-700 bg-amber-50 px-3 py-2 text-base text-gray-900"
-                                />
-                                <textarea
-                                  value={editDescription}
-                                  onChange={(e) => setEditDescription(e.target.value)}
-                                  rows="3"
-                                  className="w-full rounded-lg border-2 border-emerald-700 bg-emerald-50 px-3 py-2 text-base text-gray-900"
-                                />
+                            <div>
+                              <div className="mb-3 flex items-center justify-between gap-3">
+                                <div className="text-lg font-bold text-gray-900">{adventure.title}</div>
                                 <div className="flex gap-3">
                                   <button
-                                    onClick={handleSaveEdit}
-                                    disabled={editingAdventure}
-                                    className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-bold uppercase text-black transition hover:bg-green-700 disabled:opacity-70"
+                                    onClick={() => navigate(`/solo-adventures/edit/${adventure.id}`)}
+                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-blue-700"
                                   >
-                                    {editingAdventure ? 'Saving...' : 'Save'}
+                                    Edit
                                   </button>
                                   <button
-                                    onClick={handleCancelEdit}
-                                    className="flex-1 rounded-lg bg-gray-600 px-3 py-2 text-sm font-bold uppercase text-black transition hover:bg-gray-700"
+                                    onClick={() => handleDeleteAdventure(adventure.id)}
+                                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-red-700"
                                   >
-                                    Cancel
+                                    Delete
                                   </button>
                                 </div>
                               </div>
-                            ) : (
-                              <div>
-                                <div className="mb-3 flex items-center justify-between gap-3">
-                                  <div className="text-lg font-bold text-gray-900">{adventure.title}</div>
-                                  <div className="flex gap-3">
-                                    <button
-                                      onClick={() => handleStartEdit(adventure)}
-                                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-blue-700"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteAdventure(adventure.id)}
-                                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-red-700"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                            </div>
                           </div>
                         ))}
                       </div>

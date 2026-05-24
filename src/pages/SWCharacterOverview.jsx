@@ -1689,6 +1689,26 @@ export default function SWCharacterOverview() {
     if (error) console.error('Error updating strain_current:', error);
   };
 
+  const handleHealWound = async () => {
+    const healedWoundCurrent = woundThreshold;
+    setWoundCurrent(healedWoundCurrent);
+    const { error } = await supabase
+      .from('SW_player_characters')
+      .update({ wound_current: healedWoundCurrent })
+      .eq('id', characterId);
+    if (error) console.error('Error healing wound_current:', error);
+  };
+
+  const handleHealStrain = async () => {
+    const healedStrainCurrent = strainThreshold;
+    setStrainCurrent(healedStrainCurrent);
+    const { error } = await supabase
+      .from('SW_player_characters')
+      .update({ strain_current: healedStrainCurrent })
+      .eq('id', characterId);
+    if (error) console.error('Error healing strain_current:', error);
+  };
+
   const handleCreditsChange = async (e) => {
     const newCredits = parseInt(e.target.value) || 0;
     setCredits(newCredits);
@@ -2142,7 +2162,7 @@ export default function SWCharacterOverview() {
     );
   };
 
-  const WoundStrainSingleBox = ({ type, threshold, current, onChange, canEdit = true }) => {
+  const WoundStrainSingleBox = ({ type, threshold, current, onChange, onHeal, canEdit = true }) => {
     const canvasRef = useRef(null);
 
     useEffect(() => {
@@ -2200,29 +2220,39 @@ export default function SWCharacterOverview() {
     }, [threshold, current, type]);
 
     return (
-      <div className="flex items-center">
-        <canvas
-          ref={canvasRef}
-          width={112}
-          height={112}
-          className="w-28 h-28 inline-block align-top"
-          style={{ imageRendering: 'pixelated' }}
-        />
-        {canEdit && (
-          <div className="flex flex-col">
-            <button 
-              onClick={() => onChange(1)}
-              className="w-8 h-8 bg-green-600 text-white text-lg font-bold rounded-full hover:bg-green-700 shadow-md flex items-center justify-center -ml-2"
-            >
-              +
-            </button>
-            <button 
-              onClick={() => onChange(-1)}
-              className="w-8 h-8 bg-red-600 text-white text-lg font-bold rounded-full hover:bg-red-700 shadow-md flex items-center justify-center -ml-2 mt-1"
-            >
-              −
-            </button>
-          </div>
+      <div className="flex flex-col items-center">
+        <div className="flex items-center">
+          <canvas
+            ref={canvasRef}
+            width={112}
+            height={112}
+            className="w-28 h-28 inline-block align-top"
+            style={{ imageRendering: 'pixelated' }}
+          />
+          {canEdit && (
+            <div className="flex flex-col">
+              <button 
+                onClick={() => onChange(1)}
+                className="w-8 h-8 bg-green-600 text-white text-lg font-bold rounded-full hover:bg-green-700 shadow-md flex items-center justify-center -ml-2"
+              >
+                +
+              </button>
+              <button 
+                onClick={() => onChange(-1)}
+                className="w-8 h-8 bg-red-600 text-white text-lg font-bold rounded-full hover:bg-red-700 shadow-md flex items-center justify-center -ml-2 mt-1"
+              >
+                −
+              </button>
+            </div>
+          )}
+        </div>
+        {canEdit && onHeal && (
+          <button
+            onClick={onHeal}
+            className="mt-2 px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 shadow-sm"
+          >
+            Heal
+          </button>
         )}
       </div>
     );
@@ -2304,6 +2334,7 @@ export default function SWCharacterOverview() {
               threshold={woundThreshold}
               current={woundCurrent}
               onChange={handleWoundChange}
+              onHeal={handleHealWound}
               canEdit={canEdit}
             />
             <WoundStrainSingleBox 
@@ -2311,6 +2342,7 @@ export default function SWCharacterOverview() {
               threshold={strainThreshold}
               current={strainCurrent}
               onChange={handleStrainChange}
+              onHeal={handleHealStrain}
               canEdit={canEdit}
             />
           </div>

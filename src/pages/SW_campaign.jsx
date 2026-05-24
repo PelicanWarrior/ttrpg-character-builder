@@ -312,25 +312,25 @@ export default function SWCampaign() {
                 )}
                 
                 <div className="bg-gray-700 rounded-lg p-4 mb-4">
-                  <div className="flex gap-2 items-center mb-2">
-                    <p className="text-sm text-gray-400 whitespace-nowrap">Share Link:</p>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <p className="text-sm text-gray-400">Share Link:</p>
                     <input
                       type="text"
                       value={shareLink}
                       readOnly
-                      className="flex-1 px-3 py-2 bg-gray-600 text-white text-sm rounded border border-gray-500 truncate"
+                      className="min-w-[160px] flex-1 truncate rounded border border-gray-500 bg-gray-600 px-3 py-2 text-sm text-white"
                     />
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(shareLink);
                         alert('Link copied to clipboard!');
                       }}
-                      className="px-3 py-2 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700 transition whitespace-nowrap"
+                      className="whitespace-nowrap rounded bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
                     >
                       Copy
                     </button>
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       onClick={() => {
                         setOpenCharacters((prev) => ({

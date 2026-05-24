@@ -154,7 +154,7 @@ export default function SoloAdventures() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-100 via-slate-100 to-stone-200 px-6 py-10">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-8 flex items-center justify-between gap-4">
+        <div className="mb-8 flex flex-col items-start gap-4">
           <h1 className="text-4xl font-black tracking-wide text-gray-900">SOLO ADVENTURES</h1>
           <div className="flex gap-3">
             <button

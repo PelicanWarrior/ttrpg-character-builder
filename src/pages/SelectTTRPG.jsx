@@ -928,7 +928,7 @@ export default function SelectTTRPG() {
                       .map(character => (
                         <div
                           key={character.id}
-                          style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', backgroundColor: '#000000', border: '2px solid #dc2626', borderRadius: '0.5rem', flexWrap: 'wrap' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', backgroundColor: '#000000', border: '2px solid #dc2626', borderRadius: '0.5rem', flexWrap: 'wrap', width: '100%', boxSizing: 'border-box' }}
                         >
                           <div style={{ flexShrink: 0 }}>
                             <img
@@ -947,12 +947,24 @@ export default function SelectTTRPG() {
                           <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'nowrap', width: '100%', marginTop: '0.5rem' }}>
                             <button
                               onClick={() => { localStorage.setItem('loadedCharacterId', character.id); navigate('/Fa_character_creator'); }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
-                            >Edit</button>
+                              aria-label="Edit character"
+                              title="Edit"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.52 8.52a2 2 0 01-.878.513l-2.414.804a.5.5 0 01-.632-.632l.804-2.414a2 2 0 01.513-.878l8.52-8.52z" />
+                              </svg>
+                            </button>
                             <button
                               onClick={() => { localStorage.setItem('loadedCharacterId', character.id); navigate('/Fa_character_overview'); }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
-                            >Overview</button>
+                              aria-label="View character overview"
+                              title="Overview"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path d="M10 4c-4.5 0-7.5 4.5-8.3 5.8a.5.5 0 000 .4C2.5 11.5 5.5 16 10 16s7.5-4.5 8.3-5.8a.5.5 0 000-.4C17.5 8.5 14.5 4 10 4zm0 9a3 3 0 110-6 3 3 0 010 6z" />
+                              </svg>
+                            </button>
                             <button
                               onClick={async () => {
                                 if (!confirm(`Delete ${character.name || 'this character'}?`)) return;
@@ -962,8 +974,14 @@ export default function SelectTTRPG() {
                                 const loaded = localStorage.getItem('loadedCharacterId');
                                 if (loaded && String(loaded) === String(character.id)) localStorage.removeItem('loadedCharacterId');
                               }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
-                            >Delete</button>
+                              aria-label="Delete character"
+                              title="Delete"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path fillRule="evenodd" d="M6 2.75A1.75 1.75 0 017.75 1h4.5A1.75 1.75 0 0114 2.75V3h2.25a.75.75 0 010 1.5h-.53l-.72 10.08A2 2 0 0113 16.5H7a2 2 0 01-1.99-1.92L4.28 4.5h-.53a.75.75 0 010-1.5H6v-.25zM7.5 3h5v-.25a.25.25 0 00-.25-.25h-4.5a.25.25 0 00-.25.25V3z" clipRule="evenodd" />
+                              </svg>
+                            </button>
                           </div>
                         </div>
                       ))
@@ -988,7 +1006,7 @@ export default function SelectTTRPG() {
                       .map(character => (
                         <div
                           key={character.id}
-                          style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', backgroundColor: '#000000', border: '2px solid #dc2626', borderRadius: '0.5rem', flexWrap: 'wrap' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', backgroundColor: '#000000', border: '2px solid #dc2626', borderRadius: '0.5rem', flexWrap: 'wrap', width: '100%', boxSizing: 'border-box' }}
                         >
                           <div
                             style={{
@@ -1020,18 +1038,26 @@ export default function SelectTTRPG() {
                                 localStorage.setItem('loadedCharacterId', character.id);
                                 navigate('/MM_character_creator');
                               }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
+                              aria-label="Edit character"
+                              title="Edit"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
                             >
-                              Edit
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.52 8.52a2 2 0 01-.878.513l-2.414.804a.5.5 0 01-.632-.632l.804-2.414a2 2 0 01.513-.878l8.52-8.52z" />
+                              </svg>
                             </button>
                             <button
                               onClick={() => {
                                 localStorage.setItem('loadedCharacterId', character.id);
                                 navigate('/MM_character_overview');
                               }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
+                              aria-label="View character overview"
+                              title="Overview"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
                             >
-                              Overview
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path d="M10 4c-4.5 0-7.5 4.5-8.3 5.8a.5.5 0 000 .4C2.5 11.5 5.5 16 10 16s7.5-4.5 8.3-5.8a.5.5 0 000-.4C17.5 8.5 14.5 4 10 4zm0 9a3 3 0 110-6 3 3 0 010 6z" />
+                              </svg>
                             </button>
                             <button
                               onClick={async () => {
@@ -1046,9 +1072,13 @@ export default function SelectTTRPG() {
                                 const loaded = localStorage.getItem('loadedCharacterId');
                                 if (loaded && String(loaded) === String(character.id)) localStorage.removeItem('loadedCharacterId');
                               }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
+                              aria-label="Delete character"
+                              title="Delete"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
                             >
-                              Delete
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path fillRule="evenodd" d="M6 2.75A1.75 1.75 0 017.75 1h4.5A1.75 1.75 0 0114 2.75V3h2.25a.75.75 0 010 1.5h-.53l-.72 10.08A2 2 0 0113 16.5H7a2 2 0 01-1.99-1.92L4.28 4.5h-.53a.75.75 0 010-1.5H6v-.25zM7.5 3h5v-.25a.25.25 0 00-.25-.25h-4.5a.25.25 0 00-.25.25V3z" clipRule="evenodd" />
+                              </svg>
                             </button>
                           </div>
                         </div>
@@ -1073,12 +1103,14 @@ export default function SelectTTRPG() {
                             style={{ 
                               display: 'flex', 
                               alignItems: 'center', 
-                              gap: '1rem', 
-                              padding: '1rem', 
+                              gap: '1.25rem', 
+                              padding: '1.25rem', 
                               backgroundColor: '#000000', 
                               border: '2px solid #dc2626', 
                               borderRadius: '0.5rem',
-                              flexWrap: 'wrap'
+                              flexWrap: 'wrap',
+                              width: '100%',
+                              boxSizing: 'border-box'
                             }}
                           >
                           <div style={{ flexShrink: 0 }}>
@@ -1086,7 +1118,7 @@ export default function SelectTTRPG() {
                               src={`/SW_Pictures/Picture ${typeof character.picture === 'number' ? character.picture : 0} Face.png`}
                               alt={character.name}
                               className="rounded object-contain"
-                              style={{ width: '80px', height: '100px' }}
+                              style={{ width: '92px', height: '116px' }}
                               onError={(e) => {
                                 e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="100"%3E%3Crect fill="%23333" width="80" height="100"/%3E%3C/svg%3E';
                               }}
@@ -1099,24 +1131,32 @@ export default function SelectTTRPG() {
                             <p style={{ fontSize: '0.875rem', color: '#dddddd' }}>{character.career} - {character.spec}</p>
                           </div>
 
-                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'nowrap', width: '100%', marginTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'nowrap', width: '100%', marginTop: '0.75rem' }}>
                             <button 
                               onClick={() => {
                                 localStorage.setItem('loadedCharacterId', character.id);
                                 navigate('/sweote-character-creator', { state: { create_character: false } });
                               }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
+                              aria-label="Edit character"
+                              title="Edit"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 transition text-xs"
                             >
-                              Edit
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.52 8.52a2 2 0 01-.878.513l-2.414.804a.5.5 0 01-.632-.632l.804-2.414a2 2 0 01.513-.878l8.52-8.52z" />
+                              </svg>
                             </button>
                             <button 
                               onClick={() => {
                                 localStorage.setItem('loadedCharacterId', character.id);
                                 navigate('/SW_character_overview');
                               }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
+                              aria-label="View character overview"
+                              title="Overview"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-xs"
                             >
-                              Overview
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path d="M10 4c-4.5 0-7.5 4.5-8.3 5.8a.5.5 0 000 .4C2.5 11.5 5.5 16 10 16s7.5-4.5 8.3-5.8a.5.5 0 000-.4C17.5 8.5 14.5 4 10 4zm0 9a3 3 0 110-6 3 3 0 010 6z" />
+                              </svg>
                             </button>
                             <button 
                               onClick={async () => {
@@ -1145,9 +1185,13 @@ export default function SelectTTRPG() {
                                   }
                                 }
                               }}
-                              className="flex-1 min-w-0 px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
+                              aria-label="Delete character"
+                              title="Delete"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-red-700 text-white font-bold rounded hover:bg-red-800 transition text-xs"
                             >
-                              Delete
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                <path fillRule="evenodd" d="M6 2.75A1.75 1.75 0 017.75 1h4.5A1.75 1.75 0 0114 2.75V3h2.25a.75.75 0 010 1.5h-.53l-.72 10.08A2 2 0 0113 16.5H7a2 2 0 01-1.99-1.92L4.28 4.5h-.53a.75.75 0 010-1.5H6v-.25zM7.5 3h5v-.25a.25.25 0 00-.25-.25h-4.5a.25.25 0 00-.25.25V3z" clipRule="evenodd" />
+                              </svg>
                             </button>
                           </div>
 
