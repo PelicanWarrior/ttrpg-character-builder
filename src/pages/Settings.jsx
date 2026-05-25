@@ -3844,6 +3844,16 @@ export default function Settings() {
     );
   };
 
+  const handleAddTalent = (talent) => {
+    if (talent && !speciesTalents.includes(talent)) {
+      setSpeciesTalents([...speciesTalents, talent]);
+    }
+  };
+
+  const handleRemoveTalent = (talentToRemove) => {
+    setSpeciesTalents(speciesTalents.filter(t => t !== talentToRemove));
+  };
+
   const handleAddSkill = (skill) => {
     if (skill && !speciesSkills.includes(skill)) {
       setSpeciesSkills([...speciesSkills, skill]);
