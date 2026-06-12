@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import SelectTTRPG from './pages/SelectTTRPG';
 import SWEotECharacterCreator from './pages/SWEotECharacterCreator';
 import DNDModCharacterCreator from './pages/DNDMod_Character_Creator';
+import DNDModCharacterOverview from './pages/DNDmod_character_overview';
 import SWCharacterOverview from './pages/SWCharacterOverview';
 import SWCampaign from './pages/SW_campaign';
 import SWCampaignEdit from './pages/SW_campaign_edit';
@@ -20,6 +21,7 @@ import WWWCharacterCreator from './pages/WWW_character_creator';
 import SoloAdventures from './pages/SoloAdventures';
 import SoloAdventuresCreate from './pages/SoloAdventuresCreate';
 import SoloAdventuresEdit from './pages/SoloAdventuresEdit';
+import SoloAdventurePlay from './pages/SoloAdventurePlay';
 import FCharacterCreator from './pages/F_character_creator';
 import FCharacterOverview from './pages/F_character_overview';
 import FaCampaign from './pages/Fa_campaign';
@@ -34,6 +36,7 @@ export default function App() {
       <Route path="/select-ttrpg" element={<SelectTTRPG />} />
       <Route path="/sweote-character-creator" element={<SWEotECharacterCreator />} />
       <Route path="/dndmod_character_creator" element={<DNDModCharacterCreator />} />
+      <Route path="/DNDmod_character_overview" element={<DNDModCharacterOverview />} />
       <Route path="/SW_character_overview" element={<SWCharacterOverview />} />
       <Route path="/SW_campaign" element={<SWCampaign />} />
       <Route path="/SW_campaign_edit" element={<SWCampaignEdit />} />
@@ -55,6 +58,7 @@ export default function App() {
       <Route path="/solo-adventures" element={<SoloAdventures />} />
       <Route path="/solo-adventures/create" element={<SoloAdventuresCreate />} />
       <Route path="/solo-adventures/edit/:adventureId" element={<SoloAdventuresEdit />} />
+      <Route path="/solo-adventures/play/:adventureId" element={<SoloAdventurePlay />} />
       <Route path="/ttrpg/:initials/:page" element={<TTRPGGenericPage />} />
     </Routes>
   );

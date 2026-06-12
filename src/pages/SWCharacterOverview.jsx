@@ -31,6 +31,7 @@ export default function SWCharacterOverview() {
   const [inventory, setInventory] = useState([]);
   const [armour, setArmour] = useState([]);
   const [otherItems, setOtherItems] = useState([]);
+  const [openOtherItemDescriptionKey, setOpenOtherItemDescriptionKey] = useState(null);
   const [shipCatalog, setShipCatalog] = useState([]);
   const [characterShips, setCharacterShips] = useState([]);
   const [selectedShipId, setSelectedShipId] = useState('');
@@ -1025,6 +1026,7 @@ export default function SWCharacterOverview() {
 
             return {
               id: item.id || 0,
+              equipment_id: equipId,
               equipment_name: equipData?.name || '',
               description: equipData?.description || '',
               skill: skillData?.skill || '',
@@ -1484,6 +1486,7 @@ export default function SWCharacterOverview() {
         } else if (data && data[0]) {
           const newItem = {
             id: data[0].id,
+            equipment_id: equipmentToAdd.id,
             equipment_name: equipmentToAdd.name,
             description: equipmentToAdd.description || '',
             skill: skillData?.skill || '',
@@ -1590,23 +1593,99 @@ export default function SWCharacterOverview() {
     }
   };
 
-  const handleOtherItemDelete = async (index) => {
-    const itemToDelete = otherItems[index];
-    if (itemToDelete.id && characterId) {
-      const confirmDelete = confirm(`Do you really want to delete ${itemToDelete.equipment_name}?`);
-      if (confirmDelete) {
-        const targetTable = itemToDelete.custom ? 'SW_custom_inventory' : 'SW_character_equipment';
-        const { error } = await supabase
-          .from(targetTable)
-          .delete()
-          .eq('id', itemToDelete.id);
+  const handleOtherItemQuantityChange = async (groupedItem, change) => {
+    if (!characterId || !groupedItem) return;
+
+    if (change > 0) {
+      const sampleItem = groupedItem.items?.[0];
+      if (!sampleItem) return;
+
+      if (sampleItem.custom) {
+        const { data, error } = await supabase
+          .from('SW_custom_inventory')
+          .insert({
+            Name: sampleItem.equipment_name,
+            Description: sampleItem.description || '',
+            characterID: characterId,
+          })
+          .select();
+
         if (error) {
-          console.error('Error deleting other item:', error);
-        } else {
-          const updatedOtherItems = [...otherItems];
-          updatedOtherItems.splice(index, 1);
-          setOtherItems(updatedOtherItems);
+          console.error('Error adding another custom item:', error);
+          return;
         }
+
+        if (data && data[0]) {
+          setOtherItems((prev) => ([
+            ...prev,
+            {
+              id: data[0].id,
+              equipment_name: data[0].Name || sampleItem.equipment_name,
+              description: data[0].Description || sampleItem.description || '',
+              special: '',
+              consumable: false,
+              custom: true,
+            },
+          ]));
+        }
+        return;
+      }
+
+      const equipmentId = sampleItem.equipment_id
+        || equipment.find((e) => e.name === sampleItem.equipment_name)?.id;
+
+      if (!equipmentId) return;
+
+      const { data, error } = await supabase
+        .from('SW_character_equipment')
+        .insert({
+          characterID: characterId,
+          equipmentID: equipmentId,
+          equipped: false,
+        })
+        .select();
+
+      if (error) {
+        console.error('Error adding another item:', error);
+        return;
+      }
+
+      const equipmentData = equipment.find((e) => e.id === equipmentId);
+      if (data && data[0]) {
+        setOtherItems((prev) => ([
+          ...prev,
+          {
+            id: data[0].id,
+            equipment_id: equipmentId,
+            equipment_name: equipmentData?.name || sampleItem.equipment_name,
+            description: equipmentData?.description || sampleItem.description || '',
+            special: equipmentData?.special || sampleItem.special || '',
+            consumable: equipmentData?.consumable ?? sampleItem.consumable,
+            custom: false,
+          },
+        ]));
+      }
+      return;
+    }
+
+    if (change < 0) {
+      const itemToRemove = groupedItem.items?.[0];
+      if (!itemToRemove?.id) return;
+
+      const targetTable = itemToRemove.custom ? 'SW_custom_inventory' : 'SW_character_equipment';
+      const { error } = await supabase
+        .from(targetTable)
+        .delete()
+        .eq('id', itemToRemove.id);
+
+      if (error) {
+        console.error('Error removing one item:', error);
+        return;
+      }
+
+      setOtherItems((prev) => prev.filter((item) => item.id !== itemToRemove.id));
+      if (groupedItem.count <= 1) {
+        setOpenOtherItemDescriptionKey((current) => (current === groupedItem.key ? null : current));
       }
     }
   };
@@ -1949,6 +2028,29 @@ export default function SWCharacterOverview() {
     }, {});
 
   const consumableList = Object.values(consolidatedConsumables);
+
+  const groupedOtherItems = Object.values(
+    otherItems.reduce((acc, item) => {
+      const rawName = item.equipment_name || 'Unnamed Item';
+      const key = rawName.trim().toLowerCase();
+      if (!acc[key]) {
+        acc[key] = {
+          key,
+          name: rawName,
+          description: item.description || '',
+          special: item.special || '',
+          count: 0,
+          items: [],
+        };
+      }
+
+      acc[key].count += 1;
+      acc[key].items.push(item);
+      if (!acc[key].description && item.description) acc[key].description = item.description;
+      if (!acc[key].special && item.special) acc[key].special = item.special;
+      return acc;
+    }, {})
+  ).sort((a, b) => a.name.localeCompare(b.name));
 
   const StatBox = ({ statName, value, size = 'md' }) => {
     const canvasRef = useRef(null);
@@ -2657,34 +2759,70 @@ export default function SWCharacterOverview() {
               <h3 className="font-bold text-lg mt-4">Other Items</h3>
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <colgroup>
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '58%' }} />
-                  <col style={{ width: '25%' }} />
-                  <col style={{ width: '5%' }} />
+                  <col style={{ width: '45%' }} />
+                  <col style={{ width: '45%' }} />
+                  {canEdit && <col style={{ width: '10%' }} />}
                 </colgroup>
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-black py-1">Name</th>
-                    <th className="border border-black py-1">Description</th>
                     <th className="border border-black py-1">Special</th>
-                    <th className="border border-black py-1">Delete</th>
+                    {canEdit && <th className="border border-black py-1">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {otherItems.map((item, index) => (
-                    <tr key={index} className="bg-gray-100">
-                      <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                        {item.equipment_name}
-                      </td>
-                      <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
-                        {item.description || ''}
+                  {groupedOtherItems.map((item) => (
+                    <tr key={item.key} className="bg-gray-100">
+                      <td className="border border-black py-1 px-2 relative" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                        {openOtherItemDescriptionKey === item.key && item.description && (
+                          <div className="absolute left-2 right-2 bottom-full mb-2 bg-white border border-black rounded shadow-lg p-2 z-20">
+                            <button
+                              onClick={() => setOpenOtherItemDescriptionKey(null)}
+                              className="absolute top-1 right-1 w-6 h-6 leading-none text-black hover:text-red-700"
+                              aria-label="Close description"
+                            >
+                              X
+                            </button>
+                            <div className="pr-7" style={{ whiteSpace: 'pre-wrap' }}>
+                              {item.description}
+                            </div>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => setOpenOtherItemDescriptionKey((current) => (current === item.key ? null : item.key))}
+                          className="text-blue-700 underline hover:text-blue-900"
+                          style={{ textUnderlineOffset: '2px' }}
+                        >
+                          {item.name} x{item.count}
+                        </button>
+                        {!item.description && (
+                          <div className="text-xs text-gray-600 mt-1">No description</div>
+                        )}
                       </td>
                       <td className="border border-black py-1" style={{ wordWrap: 'break-word' }}>
                         <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
                       </td>
-                      <td className="border border-black py-1 text-center">
-                        <button onClick={() => handleOtherItemDelete(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-                      </td>
+                      {canEdit && (
+                        <td className="border border-black py-1 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleOtherItemQuantityChange(item, -1)}
+                              disabled={item.count <= 0}
+                              className="w-8 h-8 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"
+                              aria-label={`Remove one ${item.name}`}
+                            >
+                              -
+                            </button>
+                            <button
+                              onClick={() => handleOtherItemQuantityChange(item, 1)}
+                              className="w-8 h-8 bg-green-600 text-white rounded hover:bg-green-700"
+                              aria-label={`Add one ${item.name}`}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -42,6 +42,8 @@ export default function SWBattles() {
   const [selectedCombatantRowOffset, setSelectedCombatantRowOffset] = useState(0);
   const [initiativeScrollTop, setInitiativeScrollTop] = useState(0);
   const [sidePanelHeight, setSidePanelHeight] = useState(220);
+  const [abilityDetailsByName, setAbilityDetailsByName] = useState({});
+  const [expandedAbilities, setExpandedAbilities] = useState({});
 
   useEffect(() => {
     if (campaignId) {
@@ -49,8 +51,13 @@ export default function SWBattles() {
       fetchCampaignNpcs();
       fetchCampaignCharacters();
       fetchSkills();
+      fetchAbilityDetails();
     }
   }, [campaignId]);
+
+  useEffect(() => {
+    setExpandedAbilities({});
+  }, [selectedCombatantDetails?.type, selectedCombatantDetails?.id]);
 
   // Load equipment when selectedCombatantDetails changes
   useEffect(() => {
@@ -133,6 +140,27 @@ export default function SWBattles() {
     } else {
       setSkillsList(data || []);
     }
+  };
+
+  const normalizeAbilityName = (name = '') => name.trim().toLowerCase();
+
+  const fetchAbilityDetails = async () => {
+    const { data, error } = await supabase
+      .from('SW_abilities')
+      .select('ability, description, activation');
+
+    if (error) {
+      console.error('Error fetching ability details:', error);
+      return;
+    }
+
+    const mappedAbilities = {};
+    (data || []).forEach((row) => {
+      const normalizedKey = normalizeAbilityName(row?.ability || '');
+      if (!normalizedKey || mappedAbilities[normalizedKey]) return;
+      mappedAbilities[normalizedKey] = row;
+    });
+    setAbilityDetailsByName(mappedAbilities);
   };
 
   const calculateDicePopupPosition = (buttonRect, popupWidth = 760) => {
@@ -711,6 +739,7 @@ export default function SWBattles() {
     Math.max(12, selectedCombatantRowOffset - initiativeScrollTop),
     maxSidePanelTop
   );
+  const sidePanelMaxHeight = Math.max(180, initiativeViewportHeight - selectedSidePanelTop - 12);
 
   const handleSelectCombatant = (type, id, event) => {
     setSelectedCombatantDetails({ type, id });
@@ -958,16 +987,18 @@ export default function SWBattles() {
                             ref={sidePanelRef}
                             style={{
                               position: 'absolute',
-                              right: 0,
+                              right: '0.25rem',
                               top: `${selectedSidePanelTop}px`,
-                              width: '21.5rem',
+                              width: '21.25rem',
                               backgroundColor: '#111827',
                               border: '2px solid #374151',
                               borderRadius: '0.75rem',
-                              padding: '0.75rem',
+                              padding: '0.75rem 0.85rem 1rem 0.75rem',
                               boxShadow: '0 20px 35px rgba(0,0,0,0.45)',
-                              maxHeight: 'calc(92vh - 300px)',
+                              maxHeight: `${sidePanelMaxHeight}px`,
                               overflowY: 'auto',
+                              scrollbarGutter: 'stable',
+                              overscrollBehavior: 'contain',
                               zIndex: 20
                             }}
                           >
@@ -1051,11 +1082,47 @@ export default function SWBattles() {
                                   <p className="font-bold mb-1">Abilities</p>
                                   {selectedNpcDetails.Abilities ? (
                                     <div className="space-y-1">
-                                      {selectedNpcDetails.Abilities.split(',').map(a => a.trim()).filter(Boolean).map((ability, idx) => (
-                                        <div key={`ability-${idx}`} className="text-xs bg-gray-700 rounded px-2 py-1">
-                                          {ability}
-                                        </div>
-                                      ))}
+                                      {selectedNpcDetails.Abilities
+                                        .split(',')
+                                        .map(a => a.trim())
+                                        .filter(Boolean)
+                                        .map((ability, idx) => {
+                                          const normalizedAbilityName = normalizeAbilityName(ability);
+                                          const abilityMeta = abilityDetailsByName[normalizedAbilityName];
+                                          const abilityKey = `${selectedCombatantDetails.id}-${normalizedAbilityName}-${idx}`;
+                                          const isExpanded = !!expandedAbilities[abilityKey];
+
+                                          return (
+                                            <div key={`ability-${idx}`} className="text-xs bg-gray-700 rounded border border-gray-600">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setExpandedAbilities((prev) => ({
+                                                    ...prev,
+                                                    [abilityKey]: !prev[abilityKey]
+                                                  }));
+                                                }}
+                                                className="w-full px-2 py-1 text-left flex items-center justify-between gap-2"
+                                              >
+                                                <span className="font-semibold">{ability}</span>
+                                                <span className="text-gray-300" aria-hidden="true">{isExpanded ? '▲' : '▼'}</span>
+                                              </button>
+                                              {isExpanded && (
+                                                <div className="px-2 pb-2 text-gray-200 space-y-1 border-t border-gray-600">
+                                                  {abilityMeta?.activation && (
+                                                    <div>
+                                                      <span className="font-semibold">Activation:</span> {abilityMeta.activation}
+                                                    </div>
+                                                  )}
+                                                  <div>
+                                                    <span className="font-semibold">Description:</span>{' '}
+                                                    {abilityMeta?.description || 'No ability description found.'}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
                                     </div>
                                   ) : (
                                     <p className="text-xs text-gray-300">No abilities listed.</p>

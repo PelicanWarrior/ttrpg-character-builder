@@ -6,6 +6,109 @@ import DicePoolPopup from './DicePoolPopup';
 import AddNPCModal from './AddNPCModal';
 import ItemQualityText from '../components/ItemQualityText';
 
+const SKILL_STAT_MAP = {
+  Astrogation: 'Intellect', Athletics: 'Brawn', Brawl: 'Brawn', Charm: 'Presence', Coercion: 'Willpower', Computers: 'Intellect', Cool: 'Presence', Coordination: 'Agility', 'Core Worlds': 'Intellect', Deception: 'Cunning', Discipline: 'Willpower', Education: 'Intellect', Gunnery: 'Agility', Leadership: 'Presence', Lightsaber: 'Brawn', Lore: 'Intellect', Mechanics: 'Intellect', Medicine: 'Intellect', Melee: 'Brawn', Negotiation: 'Presence', 'Outer Rim': 'Intellect', Perception: 'Cunning', 'Piloting-Planetary': 'Agility', 'Piloting-Space': 'Agility', 'Ranged-Heavy': 'Agility', 'Ranged-Light': 'Agility', Resilience: 'Brawn', Skulduggery: 'Cunning', Stealth: 'Agility', Streetwise: 'Cunning', Survival: 'Cunning', Underworld: 'Intellect', Vigilance: 'Willpower', Warfare: 'Intellect', Xenology: 'Intellect',
+};
+
+const LIGHTSABER_ABILITY_OVERRIDES = {
+  'ataru technique': 'Agility',
+  'makashi technique': 'Presence',
+  'niman technique': 'Willpower',
+  'shien technique': 'Cunning',
+  'soresu technique': 'Intellect',
+};
+
+const CHARACTERISTIC_MAP = {
+  agility: 'Agility',
+  brawn: 'Brawn',
+  cunning: 'Cunning',
+  intellect: 'Intellect',
+  presence: 'Presence',
+  willpower: 'Willpower',
+};
+
+const normalizeCharacteristic = (value) => {
+  if (!value) return '';
+  return CHARACTERISTIC_MAP[String(value).trim().toLowerCase()] || '';
+};
+
+const getNpcAbilityNames = (npc) => {
+  if (!npc) return [];
+
+  const all = [npc.Abilities, npc.Force_Abilities]
+    .filter(Boolean)
+    .flatMap((raw) => String(raw).split(','))
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  return [...new Set(all)];
+};
+
+const extractDescriptionOverride = (description, skillName, baseCharacteristic) => {
+  if (!description || !skillName || !baseCharacteristic) return '';
+  const lowerDescription = description.toLowerCase();
+  const lowerSkillName = skillName.toLowerCase();
+
+  if (!lowerDescription.includes(lowerSkillName)) return '';
+
+  const useInsteadMatch = description.match(/use\s+([a-zA-Z]+)\s+instead of\s+([a-zA-Z]+)/i);
+  if (useInsteadMatch) {
+    const overrideCharacteristic = normalizeCharacteristic(useInsteadMatch[1]);
+    const replacedCharacteristic = normalizeCharacteristic(useInsteadMatch[2]);
+    if (overrideCharacteristic && replacedCharacteristic === baseCharacteristic) {
+      return overrideCharacteristic;
+    }
+  }
+
+  const useForMatch = description.match(/use\s+([a-zA-Z]+)\s+for\s+[^.]*?(?:check|checks)/i);
+  if (useForMatch) {
+    return normalizeCharacteristic(useForMatch[1]);
+  }
+
+  return '';
+};
+
+const getNpcSkillCharacteristic = (npc, skillName, abilityDescriptions, forceAbilityDescriptions) => {
+  const baseCharacteristic = SKILL_STAT_MAP[skillName] || '';
+  if (!npc || !baseCharacteristic) return baseCharacteristic;
+
+  const abilityNames = getNpcAbilityNames(npc);
+
+  if (skillName === 'Lightsaber') {
+    for (const abilityName of abilityNames) {
+      const directOverride = LIGHTSABER_ABILITY_OVERRIDES[abilityName.toLowerCase()];
+      if (directOverride) return directOverride;
+    }
+  }
+
+  for (const abilityName of abilityNames) {
+    const description = abilityDescriptions?.[abilityName] || forceAbilityDescriptions?.[abilityName] || '';
+    const descriptionOverride = extractDescriptionOverride(description, skillName, baseCharacteristic);
+    if (descriptionOverride) return descriptionOverride;
+  }
+
+  return baseCharacteristic;
+};
+
+const getNpcSkillRank = (npc, skillName) => {
+  if (!npc?.Skills || !skillName) return 0;
+  const skillsArr = String(npc.Skills).split(',').map((s) => s.trim());
+  return skillsArr.filter((s) => s === skillName).length;
+};
+
+const getDicePoolFromCharacteristicAndRank = (characteristicValue, rank) => {
+  let dicePool = 'G'.repeat(Math.max(0, Number(characteristicValue) || 0));
+  if (rank > 0 && dicePool.length > 0) {
+    const yCount = Math.min(rank, dicePool.length);
+    const chars = dicePool.split('');
+    for (let i = 0; i < yCount; i++) {
+      chars[i] = 'Y';
+    }
+    dicePool = chars.join('');
+  }
+  return dicePool;
+};
+
 export default function SWNotes() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1879,6 +1982,13 @@ export default function SWNotes() {
     setItemQualityPopup({ ...details, left, top });
   };
 
+  const getNpcDicePoolForSkill = (npcData, skillName) => {
+    const statName = getNpcSkillCharacteristic(npcData, skillName, abilityDescriptions, forceAbilityDescriptions);
+    const characteristicValue = parseInt(npcData?.[statName], 10) || 0;
+    const rank = getNpcSkillRank(npcData, skillName);
+    return getDicePoolFromCharacteristicAndRank(characteristicValue, rank);
+  };
+
   const handleDicePopupDragStart = (e) => {
     if (e.button !== 0 || !dicePopup) return;
 
@@ -3025,31 +3135,7 @@ export default function SWNotes() {
                         {selectedNPCEquipment.map((eq, idx) => {
                           // Get skill name from skills relationship
                           const skillName = eq.skills?.skill || '';
-                          
-                          // Calculate dice pool for this skill
-                          const skillStatMap = {
-                            Astrogation: 'Intellect', Athletics: 'Brawn', Brawl: 'Brawn', Charm: 'Presence', Coercion: 'Willpower', Computers: 'Intellect', Cool: 'Presence', Coordination: 'Agility', 'Core Worlds': 'Intellect', Deception: 'Cunning', Discipline: 'Willpower', Education: 'Intellect', Gunnery: 'Agility', Leadership: 'Presence', Lightsaber: 'Brawn', Lore: 'Intellect', Mechanics: 'Intellect', Medicine: 'Intellect', Melee: 'Brawn', Negotiation: 'Presence', 'Outer Rim': 'Intellect', Perception: 'Cunning', 'Piloting-Planetary': 'Agility', 'Piloting-Space': 'Agility', 'Ranged-Heavy': 'Agility', 'Ranged-Light': 'Agility', Resilience: 'Brawn', Skulduggery: 'Cunning', Stealth: 'Agility', Streetwise: 'Cunning', Survival: 'Cunning', Underworld: 'Intellect', Vigilance: 'Willpower', Warfare: 'Intellect', Xenology: 'Intellect',
-                          };
-                          const statName = skillStatMap[skillName] || '';
-                          const statValue = parseInt(selectedNPC[statName], 10) || 0;
-                          
-                          // Count skill rank from NPC's Skills string
-                          let rank = 0;
-                          if (selectedNPC.Skills) {
-                            const skillsArr = selectedNPC.Skills.split(',').map(s => s.trim());
-                            rank = skillsArr.filter(s => s === skillName).length;
-                          }
-                          
-                          // Calculate dice pool
-                          let dicePool = 'G'.repeat(statValue);
-                          if (rank > 0) {
-                            const yCount = Math.min(rank, dicePool.length);
-                            dicePool = dicePool.split('');
-                            for (let i = 0; i < yCount; i++) {
-                              dicePool[i] = 'Y';
-                            }
-                            dicePool = dicePool.join('');
-                          }
+                          const dicePool = getNpcDicePoolForSkill(selectedNPC, skillName);
                           
                           return (
                             <div key={idx} className="text-xs border border-gray-300 rounded p-2 bg-gray-50">
@@ -3109,28 +3195,8 @@ export default function SWNotes() {
                 </thead>
                 <tbody>
                   {skillsList.map(skillObj => {
-                    const skillStatMap = {
-                      Astrogation: 'Intellect', Athletics: 'Brawn', Brawl: 'Brawn', Charm: 'Presence', Coercion: 'Willpower', Computers: 'Intellect', Cool: 'Presence', Coordination: 'Agility', 'Core Worlds': 'Intellect', Deception: 'Cunning', Discipline: 'Willpower', Education: 'Intellect', Gunnery: 'Agility', Leadership: 'Presence', Lightsaber: 'Brawn', Lore: 'Intellect', Mechanics: 'Intellect', Medicine: 'Intellect', Melee: 'Brawn', Negotiation: 'Presence', 'Outer Rim': 'Intellect', Perception: 'Cunning', 'Piloting-Planetary': 'Agility', 'Piloting-Space': 'Agility', 'Ranged-Heavy': 'Agility', 'Ranged-Light': 'Agility', Resilience: 'Brawn', Skulduggery: 'Cunning', Stealth: 'Agility', Streetwise: 'Cunning', Survival: 'Cunning', Underworld: 'Intellect', Vigilance: 'Willpower', Warfare: 'Intellect', Xenology: 'Intellect',
-                    };
                     const skillName = skillObj.skill;
-                    const statName = skillStatMap[skillName] || '';
-                    const statValue = parseInt(selectedNPC[statName], 10) || 0;
-                    // Count skill rank from NPC's Skills string
-                    let rank = 0;
-                    if (selectedNPC.Skills) {
-                      const skillsArr = selectedNPC.Skills.split(',').map(s => s.trim());
-                      rank = skillsArr.filter(s => s === skillName).length;
-                    }
-                    // Dice pool: upgrade greens to yellows for each rank
-                    let dicePool = 'G'.repeat(statValue);
-                    if (rank > 0) {
-                      const yCount = Math.min(rank, dicePool.length);
-                      dicePool = dicePool.split('');
-                      for (let i = 0; i < yCount; i++) {
-                        dicePool[i] = 'Y';
-                      }
-                      dicePool = dicePool.join('');
-                    }
+                    const dicePool = getNpcDicePoolForSkill(selectedNPC, skillName);
                     return (
                       <tr key={skillName}>
                         <td className="px-2 py-1 border">{skillName}</td>

@@ -71,7 +71,7 @@ const splitResultLines = (text) => {
   return [first, rest];
 };
 
-export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fromSkillCheck = false }) {
+export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fromSkillCheck = false, actionLabel = 'Use Result' }) {
   const [rollResults, setRollResults] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [diceTable, setDiceTable] = useState({});
@@ -546,7 +546,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
                         setDicePopup(null);
                       }}
                     >
-                      Use Result
+                      {actionLabel}
                     </button>
                   ) : (
                     <button

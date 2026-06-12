@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { DND_DEFAULT_SKILLS } from '../constants/dndSkills';
 
 const normalizeList = (value) => String(value || '')
   .split(',')
@@ -60,6 +61,62 @@ const parseIntegerOrNull = (value) => {
 const parseIntegerOrFallback = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isNaN(parsed) ? fallback : parsed;
+};
+
+const parseHitDice = (value) => {
+  const match = /^\s*(\d+)\s*d\s*(\d+)\s*$/i.exec(String(value || ''));
+  if (!match) return null;
+
+  const diceCount = Number.parseInt(match[1], 10);
+  const diceSides = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(diceCount) || !Number.isFinite(diceSides) || diceCount <= 0 || diceSides <= 0) {
+    return null;
+  }
+
+  return { diceCount, diceSides };
+};
+
+const buildScaledHitDice = (hitDiceText, level) => {
+  const parsed = parseHitDice(hitDiceText);
+  if (!parsed) return null;
+
+  const normalizedLevel = Math.max(1, parseIntegerOrFallback(level, 1));
+  return {
+    diceCount: parsed.diceCount * normalizedLevel,
+    diceSides: parsed.diceSides,
+  };
+};
+
+const formatLevelOrdinal = (value) => {
+  const level = Math.max(0, parseIntegerOrFallback(value, 0));
+  if (!level) return 'Unknown level';
+  const mod100 = level % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${level}th level`;
+
+  const mod10 = level % 10;
+  if (mod10 === 1) return `${level}st level`;
+  if (mod10 === 2) return `${level}nd level`;
+  if (mod10 === 3) return `${level}rd level`;
+  return `${level}th level`;
+};
+
+const isSubclassSelectionFeature = (feature) => {
+  const name = String(feature?.name || '').toLowerCase();
+  const text = String(feature?.text || '').toLowerCase();
+  if (!name && !text) return false;
+
+  return name.includes('subclass')
+    || /choose\s+.*subclass/.test(text)
+    || /gain\s+.*subclass/.test(text)
+    || /subclass\s+of\s+your\s+choice/.test(text);
+};
+
+const grantsBonusSkillChoiceFromClassList = (feature) => {
+  const text = String(feature?.text || '').toLowerCase();
+  if (!text) return false;
+
+  return /gain\s+proficiency\s+in\s+another\s+skill\s+of\s+your\s+choice\s+from\s+the\s+skill\s+list/.test(text)
+    || /another\s+skill\s+of\s+your\s+choice\s+from\s+the\s+skill\s+list/.test(text);
 };
 
 const DND_ABILITY_STATS = ['STRENGTH', 'DEXTERITY', 'CONSTITUTION', 'INTELLIGENCE', 'WISDOM', 'CHARISMA'];
@@ -266,6 +323,9 @@ export default function DNDModCharacterCreator() {
   const [spellOptions, setSpellOptions] = useState([]);
   const [classLevels, setClassLevels] = useState([]);
   const [classFeaturesById, setClassFeaturesById] = useState({});
+  const [classSubclasses, setClassSubclasses] = useState([]);
+  const [selectedSubclassId, setSelectedSubclassId] = useState('');
+  const [selectedSubclassLevels, setSelectedSubclassLevels] = useState([]);
 
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [loadingReferenceData, setLoadingReferenceData] = useState(false);
@@ -275,6 +335,7 @@ export default function DNDModCharacterCreator() {
   const [expandedClassId, setExpandedClassId] = useState(null);
   const [expandedRaceId, setExpandedRaceId] = useState(null);
   const [expandedBackgroundId, setExpandedBackgroundId] = useState(null);
+  const [expandedClassFeatureId, setExpandedClassFeatureId] = useState(null);
   const [selectedClass, setSelectedClass] = useState(null);
   const [selectedRace, setSelectedRace] = useState(null);
   const [raceChoiceSelections, setRaceChoiceSelections] = useState({});
@@ -282,6 +343,7 @@ export default function DNDModCharacterCreator() {
   const [selectedBackground, setSelectedBackground] = useState(null);
 
   const [skillChoices, setSkillChoices] = useState([]);
+  const [dndSkillNameMap, setDndSkillNameMap] = useState({});
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState([]);
   const [selectedSpellIds, setSelectedSpellIds] = useState([]);
 
@@ -325,7 +387,8 @@ export default function DNDModCharacterCreator() {
   const [editingClassId, setEditingClassId] = useState(null);
   const [editingRaceId, setEditingRaceId] = useState(null);
   const [editingBackgroundId, setEditingBackgroundId] = useState(null);
-  const [isInitializingFromEdit, setIsInitializingFromEdit] = useState(false);
+  const isInitializingFromEditRef = useRef(false);
+  const pendingLoadedSubclassIdRef = useRef(null);
 
   const matchesMod = useCallback((rowModValue) => {
     if (!dndMod) return true;
@@ -340,6 +403,25 @@ export default function DNDModCharacterCreator() {
     return values.includes(target);
   }, [dndMod]);
 
+  const mapSkillName = useCallback((skillName) => {
+    const normalized = String(skillName || '').trim();
+    if (!normalized) return '';
+    return dndSkillNameMap[normalized] || normalized;
+  }, [dndSkillNameMap]);
+
+  const mapSkillText = useCallback((text) => {
+    const source = String(text || '');
+    if (!source) return source;
+
+    const sortedSkills = [...DND_DEFAULT_SKILLS].sort((a, b) => b.length - a.length);
+    return sortedSkills.reduce((acc, skill) => {
+      const mapped = mapSkillName(skill);
+      if (!mapped || mapped === skill) return acc;
+      const escapedSkill = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return acc.replace(new RegExp(`\\b${escapedSkill}\\b`, 'g'), mapped);
+    }, source);
+  }, [mapSkillName]);
+
   const parseSkillChoices = (skillsText) => {
     if (!skillsText) return { isChoice: false, count: 0, options: [], raw: '' };
 
@@ -352,7 +434,10 @@ export default function DNDModCharacterCreator() {
       'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
       'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
     };
-    const count = numberMap[numberWord] || 2;
+    const parsedNumericCount = Number.parseInt(numberWord, 10);
+    const count = Number.isFinite(parsedNumericCount)
+      ? parsedNumericCount
+      : (numberMap[numberWord] || 2);
 
     const optionsText = chooseMatch[2];
     const options = optionsText
@@ -589,6 +674,53 @@ export default function DNDModCharacterCreator() {
   }, [dndMod, loadClasses, loadReferenceData]);
 
   useEffect(() => {
+    if (!dndMod) {
+      setDndSkillNameMap({});
+      return;
+    }
+
+    const loadSkillMappings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('dnd_mod_skill_mappings')
+          .select('base_skill, mapped_skill')
+          .eq('dndmod', dndMod);
+
+        if (error) {
+          const message = String(error?.message || '').toLowerCase();
+          if (!message.includes('does not exist') && !message.includes('could not find')) {
+            console.error('Failed to fetch DnD skill mappings:', error);
+          }
+          setDndSkillNameMap({});
+          return;
+        }
+
+        const mapping = {};
+        (data || []).forEach((row) => {
+          const baseSkill = String(row?.base_skill || '').trim();
+          const mappedSkill = String(row?.mapped_skill || '').trim();
+          if (!baseSkill || !mappedSkill) return;
+          mapping[baseSkill] = mappedSkill;
+        });
+
+        setDndSkillNameMap(mapping);
+      } catch (err) {
+        console.error('Unexpected error fetching DnD skill mappings:', err);
+        setDndSkillNameMap({});
+      }
+    };
+
+    loadSkillMappings();
+  }, [dndMod]);
+
+  useEffect(() => {
+    setSkillChoices((prev) => {
+      if (prev.length === 0) return prev;
+      return prev.map((skill) => mapSkillName(skill));
+    });
+  }, [dndSkillNameMap, mapSkillName]);
+
+  useEffect(() => {
     if (editingClassId && classes.length === 0) {
       loadClasses();
     }
@@ -603,12 +735,96 @@ export default function DNDModCharacterCreator() {
   }, [selectedClass?.id, loadClassProgression]);
 
   useEffect(() => {
-    if (isInitializingFromEdit) {
-      setIsInitializingFromEdit(false);
+    if (!selectedClass?.id) {
+      setClassSubclasses([]);
+      setSelectedSubclassId('');
+      setSelectedSubclassLevels([]);
+      pendingLoadedSubclassIdRef.current = null;
+      return;
+    }
+
+    const loadSubclasses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('DND_Subclasses')
+          .select('id, SubclassName, Description, Class, DNDMod')
+          .eq('Class', selectedClass.id)
+          .order('SubclassName', { ascending: true });
+
+        if (error) {
+          const message = String(error?.message || '').toLowerCase();
+          if (!message.includes('does not exist') && !message.includes('could not find')) {
+            console.error('Failed to load subclasses:', error);
+          }
+          setClassSubclasses([]);
+          return;
+        }
+
+        const filteredSubclasses = (data || [])
+          .filter((row) => matchesMod(row?.DNDMod))
+          .map((row) => ({
+            id: row.id,
+            name: row.SubclassName || 'Unnamed Subclass',
+            description: row.Description || '',
+          }));
+
+        setClassSubclasses(filteredSubclasses);
+      } catch (err) {
+        console.error('Unexpected error loading subclasses:', err);
+        setClassSubclasses([]);
+      }
+    };
+
+    const initialSubclassId = pendingLoadedSubclassIdRef.current;
+    setSelectedSubclassId(initialSubclassId != null ? String(initialSubclassId) : '');
+    pendingLoadedSubclassIdRef.current = null;
+    loadSubclasses();
+  }, [selectedClass?.id, matchesMod]);
+
+  useEffect(() => {
+    if (!selectedSubclassId) {
+      setSelectedSubclassLevels([]);
+      return;
+    }
+
+    const loadSelectedSubclassLevels = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('DND_Subclass_Levels')
+          .select('Level, Features')
+          .eq('Subclass', Number(selectedSubclassId))
+          .order('Level', { ascending: true });
+
+        if (error) {
+          const message = String(error?.message || '').toLowerCase();
+          if (!message.includes('does not exist') && !message.includes('could not find')) {
+            console.error('Failed to load subclass levels:', error);
+          }
+          setSelectedSubclassLevels([]);
+          return;
+        }
+
+        setSelectedSubclassLevels(data || []);
+      } catch (err) {
+        console.error('Unexpected error loading subclass levels:', err);
+        setSelectedSubclassLevels([]);
+      }
+    };
+
+    loadSelectedSubclassLevels();
+  }, [selectedSubclassId]);
+
+  useEffect(() => {
+    setExpandedClassFeatureId(null);
+  }, [selectedClass?.id, classLevel]);
+
+  useEffect(() => {
+    if (isInitializingFromEditRef.current) {
+      isInitializingFromEditRef.current = false;
       return;
     }
     setSkillChoices([]);
-  }, [selectedClass?.id, isInitializingFromEdit]);
+  }, [selectedClass?.id]);
 
   useEffect(() => {
     const fetchInitials = async () => {
@@ -681,7 +897,17 @@ export default function DNDModCharacterCreator() {
         setSelectedSpellIds(normalizeIdList(data?.Known_Spells));
         setSavedRaceChoiceSelections(normalizeRaceAbilityChoiceSelections(data?.RaceAbilityChoices));
 
-        setIsInitializingFromEdit(true);
+        const savedSubclassId = [
+          data?.Subclass,
+          data?.subclass,
+          data?.SubClass,
+          data?.sub_class,
+          data?.CharacterSubclass,
+          data?.character_subclass,
+        ].find((value) => value != null && String(value).trim() !== '');
+        pendingLoadedSubclassIdRef.current = savedSubclassId != null ? String(savedSubclassId) : null;
+
+        isInitializingFromEditRef.current = true;
         setStatValues({
           STRENGTH: String(data?.Str ?? 8),
           DEXTERITY: String(data?.Dex ?? 8),
@@ -691,11 +917,20 @@ export default function DNDModCharacterCreator() {
           CHARISMA: String(data?.Cha ?? 8),
         });
 
-        const profSkills = String(data?.Class_ProfSkills || '')
+        const savedClassProfSkills = [
+          data?.Class_ProfSkills,
+          data?.class_profskills,
+          data?.Class_Prof_Skills,
+          data?.class_prof_skills,
+          data?.ProfSkills,
+          data?.profskills,
+        ].find((value) => String(value || '').trim() !== '');
+
+        const profSkills = String(savedClassProfSkills || '')
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean);
-        setSkillChoices(profSkills);
+        setSkillChoices(profSkills.map((skill) => mapSkillName(skill)));
 
         setActiveSection('class');
       } catch (err) {
@@ -704,7 +939,7 @@ export default function DNDModCharacterCreator() {
     };
 
     fetchCharacter();
-  }, [dndMod]);
+  }, [dndMod, mapSkillName]);
 
   useEffect(() => {
     if (!editingClassId || classes.length === 0) return;
@@ -802,13 +1037,45 @@ export default function DNDModCharacterCreator() {
 
   const selectedClassLevelData = classLevels.find((row) => String(row.Level) === String(classLevel)) || null;
   const selectedClassLevelNumber = Math.max(1, parseIntegerOrFallback(classLevel, 1));
-  const selectedClassFeatureIds = classLevels
+  const scaledHitDice = buildScaledHitDice(selectedClass?.hitDice, classLevel);
+  const scaledHitDiceLabel = scaledHitDice ? `${scaledHitDice.diceCount}d${scaledHitDice.diceSides}` : (selectedClass?.hitDice || '');
+  const selectedClassFeatureEntries = classLevels
     .filter((row) => parseIntegerOrFallback(row.Level, 0) <= selectedClassLevelNumber)
-    .flatMap((row) => normalizeIdList(row?.Features));
-  const uniqueSelectedClassFeatureIds = [...new Set(selectedClassFeatureIds)];
-  const selectedClassFeatures = uniqueSelectedClassFeatureIds
-    .map((featureId) => ({ id: featureId, ...classFeaturesById[featureId] }))
+    .flatMap((row) => normalizeIdList(row?.Features).map((featureId) => ({
+      id: featureId,
+      level: parseIntegerOrFallback(row.Level, 0),
+    })));
+  const selectedSubclassFeatureEntries = selectedSubclassLevels
+    .filter((row) => parseIntegerOrFallback(row.Level, 0) <= selectedClassLevelNumber)
+    .flatMap((row) => normalizeIdList(row?.Features).map((featureId) => ({
+      id: featureId,
+      level: parseIntegerOrFallback(row.Level, 0),
+    })));
+  const uniqueSelectedClassFeatureEntries = [...new Map(
+    [...selectedClassFeatureEntries, ...selectedSubclassFeatureEntries]
+      .sort((a, b) => a.level - b.level)
+      .map((entry) => [entry.id, entry])
+  ).values()];
+  const selectedClassFeatures = uniqueSelectedClassFeatureEntries
+    .map((entry) => ({ id: entry.id, level: entry.level, ...classFeaturesById[entry.id] }))
     .filter((feature) => Boolean(feature.name));
+
+  const classSkillChoiceConfig = useMemo(
+    () => parseSkillChoices(selectedClass?.profSkills || ''),
+    [selectedClass?.profSkills]
+  );
+  const classSkillChoiceOptions = useMemo(() => (
+    classSkillChoiceConfig.isChoice
+      ? [...new Set(classSkillChoiceConfig.options.map((option) => mapSkillName(option)).filter(Boolean))]
+      : []
+  ), [classSkillChoiceConfig.isChoice, classSkillChoiceConfig.options, mapSkillName]);
+  const bonusSkillChoiceFeatures = selectedClassFeatures
+    .filter((feature) => grantsBonusSkillChoiceFromClassList(feature));
+  const totalClassSkillChoiceSlots = classSkillChoiceConfig.isChoice
+    ? Math.max(0, classSkillChoiceConfig.count) + bonusSkillChoiceFeatures.length
+    : 0;
+
+  const selectedSubclass = classSubclasses.find((subclass) => String(subclass.id) === String(selectedSubclassId)) || null;
   const selectedClassExtraFieldNames = selectedClass?.extraLevelFields || [];
   const selectedClassExtraValues = normalizeDndExtraLevelValues(selectedClassLevelData?.ExtraValues);
   const selectedClassExtraEntries = selectedClassExtraFieldNames.map((fieldName) => ({
@@ -863,6 +1130,14 @@ export default function DNDModCharacterCreator() {
   };
 
   const abilityModifier = (score) => Math.floor((score - 10) / 2);
+  const dexterityScore = totalStatValue('DEXTERITY');
+  const dexterityModifier = abilityModifier(dexterityScore);
+  const suggestedArmorClass = 10 + dexterityModifier;
+  const constitutionScore = totalStatValue('CONSTITUTION');
+  const constitutionModifier = abilityModifier(constitutionScore);
+  const suggestedMaxHp = scaledHitDice
+    ? Math.max(1, Math.floor((scaledHitDice.diceCount * scaledHitDice.diceSides) / 2) + (constitutionModifier * selectedClassLevelNumber))
+    : null;
 
   const spellById = spellOptions.reduce((acc, spell) => {
     acc[spell.id] = spell;
@@ -889,6 +1164,37 @@ export default function DNDModCharacterCreator() {
         : [...prev, equipmentId]
     ));
   };
+
+  useEffect(() => {
+    if (suggestedMaxHp == null) return;
+    setMaxHp(String(suggestedMaxHp));
+  }, [suggestedMaxHp]);
+
+  useEffect(() => {
+    if (totalClassSkillChoiceSlots <= 0) {
+      setSkillChoices((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+
+    setSkillChoices((prev) => {
+      const trimmed = prev.slice(0, totalClassSkillChoiceSlots);
+      const normalized = Array.from({ length: totalClassSkillChoiceSlots }, (_, index) => trimmed[index] || '');
+      const deduped = normalized.map((value, index) => {
+        if (!value) return '';
+        if (!classSkillChoiceOptions.includes(value)) return '';
+        const existsEarlier = normalized.slice(0, index).includes(value);
+        return existsEarlier ? '' : value;
+      });
+
+      const unchanged = deduped.length === prev.length
+        && deduped.every((value, index) => value === prev[index]);
+      return unchanged ? prev : deduped;
+    });
+  }, [totalClassSkillChoiceSlots, classSkillChoiceOptions]);
+
+  useEffect(() => {
+    setArmorClass(String(suggestedArmorClass));
+  }, [suggestedArmorClass]);
 
   const toggleRaceChoiceOption = (choice, stat) => {
     const normalizedStat = normalizeDndAbilityStat(stat);
@@ -949,6 +1255,237 @@ export default function DNDModCharacterCreator() {
     return message.includes('column') && message.includes('raceabilitychoices');
   };
 
+  const isMissingClassProfSkillsColumnError = (error) => {
+    const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+    if (!message.includes('column') || !message.includes('dnd_player_character')) return false;
+    return message.includes('class_profskills')
+      || message.includes('class_prof_skills')
+      || message.includes('profskills');
+  };
+
+  const isMissingSubclassColumnError = (error) => {
+    const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+    if (!message.includes('column') || !message.includes('dnd_player_character')) return false;
+    return message.includes('subclass') || message.includes('character_subclass');
+  };
+
+  const resolveExistingCharacterColumn = async (candidateColumns) => {
+    for (const columnName of candidateColumns) {
+      try {
+        const { error } = await supabase
+          .from('DND_player_character')
+          .select(columnName)
+          .limit(1);
+
+        if (!error) return columnName;
+      } catch {
+        // Try the next candidate.
+      }
+    }
+
+    return null;
+  };
+
+  const buildBaseCharacterData = ({ userId, profSkills, skillColumnName }) => ({
+    Name: characterName,
+    Class: selectedClass.id,
+    ClassLevel: parseInt(classLevel, 10),
+    [skillColumnName]: profSkills,
+    TTRPG: ttrpgId,
+    User_ID: userId ? parseInt(userId, 10) : null,
+    Str: parseIntegerOrFallback(statValues.STRENGTH, 8),
+    Dex: parseIntegerOrFallback(statValues.DEXTERITY, 8),
+    Con: parseIntegerOrFallback(statValues.CONSTITUTION, 8),
+    Int: parseIntegerOrFallback(statValues.INTELLIGENCE, 8),
+    Wis: parseIntegerOrFallback(statValues.WISDOM, 8),
+    Cha: parseIntegerOrFallback(statValues.CHARISMA, 8),
+  });
+
+  const persistCharacterData = async ({
+    loadedCharacterId,
+    baseCharacterData,
+    fullCharacterData,
+    fullCharacterDataWithoutRaceAbilityChoices,
+    fullCharacterDataWithoutSubclass,
+    fullCharacterDataWithoutRaceAbilityChoicesAndSubclass,
+  }) => {
+    let error;
+    let usedFallbackSchema = false;
+    let usedRaceChoiceColumnFallback = false;
+    let usedSubclassColumnFallback = false;
+
+    if (loadedCharacterId) {
+      const { error: updateError } = await supabase
+        .from('DND_player_character')
+        .update(fullCharacterData)
+        .eq('id', parseInt(loadedCharacterId, 10));
+
+      if (updateError && isMissingSubclassColumnError(updateError)) {
+        usedSubclassColumnFallback = true;
+        const { error: retryUpdateError } = await supabase
+          .from('DND_player_character')
+          .update(fullCharacterDataWithoutSubclass)
+          .eq('id', parseInt(loadedCharacterId, 10));
+
+        if (retryUpdateError && isMissingRaceAbilityChoicesColumnError(retryUpdateError)) {
+          usedRaceChoiceColumnFallback = true;
+          const { error: retryWithoutRaceChoicesError } = await supabase
+            .from('DND_player_character')
+            .update(fullCharacterDataWithoutRaceAbilityChoicesAndSubclass)
+            .eq('id', parseInt(loadedCharacterId, 10));
+
+          if (retryWithoutRaceChoicesError && isMissingCharacterColumnError(retryWithoutRaceChoicesError)) {
+            usedFallbackSchema = true;
+            const { error: fallbackError } = await supabase
+              .from('DND_player_character')
+              .update(baseCharacterData)
+              .eq('id', parseInt(loadedCharacterId, 10));
+            error = fallbackError;
+          } else {
+            error = retryWithoutRaceChoicesError;
+          }
+        } else if (retryUpdateError && isMissingCharacterColumnError(retryUpdateError)) {
+          usedFallbackSchema = true;
+          const { error: fallbackError } = await supabase
+            .from('DND_player_character')
+            .update(baseCharacterData)
+            .eq('id', parseInt(loadedCharacterId, 10));
+          error = fallbackError;
+        } else {
+          error = retryUpdateError;
+        }
+      } else if (updateError && isMissingRaceAbilityChoicesColumnError(updateError)) {
+        usedRaceChoiceColumnFallback = true;
+        const { error: retryUpdateError } = await supabase
+          .from('DND_player_character')
+          .update(fullCharacterDataWithoutRaceAbilityChoices)
+          .eq('id', parseInt(loadedCharacterId, 10));
+
+        if (retryUpdateError && isMissingCharacterColumnError(retryUpdateError)) {
+          usedFallbackSchema = true;
+          const { error: fallbackError } = await supabase
+            .from('DND_player_character')
+            .update(baseCharacterData)
+            .eq('id', parseInt(loadedCharacterId, 10));
+          error = fallbackError;
+        } else {
+          error = retryUpdateError;
+        }
+      } else if (updateError && isMissingCharacterColumnError(updateError)) {
+        usedFallbackSchema = true;
+        const { error: fallbackError } = await supabase
+          .from('DND_player_character')
+          .update(baseCharacterData)
+          .eq('id', parseInt(loadedCharacterId, 10));
+        error = fallbackError;
+      } else {
+        error = updateError;
+      }
+    } else {
+      const { data: insertData, error: insertError } = await supabase
+        .from('DND_player_character')
+        .insert([fullCharacterData])
+        .select('id')
+        .single();
+
+      if (insertError && isMissingSubclassColumnError(insertError)) {
+        usedSubclassColumnFallback = true;
+        const { data: retryInsertData, error: retryInsertError } = await supabase
+          .from('DND_player_character')
+          .insert([fullCharacterDataWithoutSubclass])
+          .select('id')
+          .single();
+
+        if (retryInsertError && isMissingRaceAbilityChoicesColumnError(retryInsertError)) {
+          usedRaceChoiceColumnFallback = true;
+          const { data: retryWithoutRaceChoicesData, error: retryWithoutRaceChoicesError } = await supabase
+            .from('DND_player_character')
+            .insert([fullCharacterDataWithoutRaceAbilityChoicesAndSubclass])
+            .select('id')
+            .single();
+
+          if (retryWithoutRaceChoicesError && isMissingCharacterColumnError(retryWithoutRaceChoicesError)) {
+            usedFallbackSchema = true;
+            const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
+              .from('DND_player_character')
+              .insert([baseCharacterData])
+              .select('id')
+              .single();
+            error = fallbackInsertError;
+            if (!fallbackInsertError && fallbackInsertData?.id != null) {
+              localStorage.setItem('loadedCharacterId', String(fallbackInsertData.id));
+            }
+          } else {
+            error = retryWithoutRaceChoicesError;
+            if (!retryWithoutRaceChoicesError && retryWithoutRaceChoicesData?.id != null) {
+              localStorage.setItem('loadedCharacterId', String(retryWithoutRaceChoicesData.id));
+            }
+          }
+        } else if (retryInsertError && isMissingCharacterColumnError(retryInsertError)) {
+          usedFallbackSchema = true;
+          const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
+            .from('DND_player_character')
+            .insert([baseCharacterData])
+            .select('id')
+            .single();
+          error = fallbackInsertError;
+          if (!fallbackInsertError && fallbackInsertData?.id != null) {
+            localStorage.setItem('loadedCharacterId', String(fallbackInsertData.id));
+          }
+        } else {
+          error = retryInsertError;
+          if (!retryInsertError && retryInsertData?.id != null) {
+            localStorage.setItem('loadedCharacterId', String(retryInsertData.id));
+          }
+        }
+      } else if (insertError && isMissingRaceAbilityChoicesColumnError(insertError)) {
+        usedRaceChoiceColumnFallback = true;
+        const { data: retryInsertData, error: retryInsertError } = await supabase
+          .from('DND_player_character')
+          .insert([fullCharacterDataWithoutRaceAbilityChoices])
+          .select('id')
+          .single();
+
+        if (retryInsertError && isMissingCharacterColumnError(retryInsertError)) {
+          usedFallbackSchema = true;
+          const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
+            .from('DND_player_character')
+            .insert([baseCharacterData])
+            .select('id')
+            .single();
+          error = fallbackInsertError;
+          if (!fallbackInsertError && fallbackInsertData?.id != null) {
+            localStorage.setItem('loadedCharacterId', String(fallbackInsertData.id));
+          }
+        } else {
+          error = retryInsertError;
+          if (!retryInsertError && retryInsertData?.id != null) {
+            localStorage.setItem('loadedCharacterId', String(retryInsertData.id));
+          }
+        }
+      } else if (insertError && isMissingCharacterColumnError(insertError)) {
+        usedFallbackSchema = true;
+        const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
+          .from('DND_player_character')
+          .insert([baseCharacterData])
+          .select('id')
+          .single();
+        error = fallbackInsertError;
+        if (!fallbackInsertError && fallbackInsertData?.id != null) {
+          localStorage.setItem('loadedCharacterId', String(fallbackInsertData.id));
+        }
+      } else {
+        error = insertError;
+        if (!insertError && insertData?.id != null) {
+          localStorage.setItem('loadedCharacterId', String(insertData.id));
+        }
+      }
+    }
+
+    if (error) throw error;
+    return { usedFallbackSchema, usedRaceChoiceColumnFallback, usedSubclassColumnFallback };
+  };
+
   const saveCharacter = async () => {
     if (!characterName.trim()) {
       alert('Please enter a character name.');
@@ -973,23 +1510,9 @@ export default function DNDModCharacterCreator() {
     const raceAbilityChoicesForSave = selectedRace
       ? buildRaceAbilityChoiceSelectionsForRules(selectedRaceAbilityRules, raceChoiceSelections)
       : null;
+    const selectedSubclassIdForSave = selectedSubclassId ? parseIntegerOrNull(selectedSubclassId) : null;
 
-    const baseCharacterData = {
-      Name: characterName,
-      Class: selectedClass.id,
-      ClassLevel: parseInt(classLevel, 10),
-      Class_ProfSkills: profSkills,
-      TTRPG: ttrpgId,
-      User_ID: userId ? parseInt(userId, 10) : null,
-      Str: parseIntegerOrFallback(statValues.STRENGTH, 8),
-      Dex: parseIntegerOrFallback(statValues.DEXTERITY, 8),
-      Con: parseIntegerOrFallback(statValues.CONSTITUTION, 8),
-      Int: parseIntegerOrFallback(statValues.INTELLIGENCE, 8),
-      Wis: parseIntegerOrFallback(statValues.WISDOM, 8),
-      Cha: parseIntegerOrFallback(statValues.CHARISMA, 8),
-    };
-
-    const extendedCharacterData = {
+    const extendedCharacterDataBase = {
       Race: selectedRace?.id || null,
       Background: selectedBackground?.id || null,
       Alignment: alignment || null,
@@ -1019,108 +1542,92 @@ export default function DNDModCharacterCreator() {
       Money_PP: parseIntegerOrNull(pp),
     };
 
-    const fullCharacterData = { ...baseCharacterData, ...extendedCharacterData };
-    const { RaceAbilityChoices: _RaceAbilityChoices, ...extendedCharacterDataWithoutRaceAbilityChoices } = extendedCharacterData;
-    const fullCharacterDataWithoutRaceAbilityChoices = {
-      ...baseCharacterData,
-      ...extendedCharacterDataWithoutRaceAbilityChoices,
-    };
-
     try {
-      let error;
-      let usedFallbackSchema = false;
-      let usedRaceChoiceColumnFallback = false;
+      const classProfSkillsColumns = [
+        'Class_ProfSkills',
+        'class_profskills',
+        'Class_Prof_Skills',
+        'class_prof_skills',
+        'ProfSkills',
+        'profskills',
+      ];
 
-      if (loadedCharacterId) {
-        const { error: updateError } = await supabase
-          .from('DND_player_character')
-          .update(fullCharacterData)
-          .eq('id', parseInt(loadedCharacterId, 10));
+      const subclassColumns = [
+        'Subclass',
+        'subclass',
+        'SubClass',
+        'sub_class',
+        'CharacterSubclass',
+        'character_subclass',
+      ];
+      const resolvedSubclassColumn = await resolveExistingCharacterColumn(subclassColumns);
+      const extendedCharacterData = {
+        ...extendedCharacterDataBase,
+        ...(resolvedSubclassColumn ? { [resolvedSubclassColumn]: selectedSubclassIdForSave } : {}),
+      };
 
-        if (updateError && isMissingRaceAbilityChoicesColumnError(updateError)) {
-          usedRaceChoiceColumnFallback = true;
-          const { error: retryUpdateError } = await supabase
-            .from('DND_player_character')
-            .update(fullCharacterDataWithoutRaceAbilityChoices)
-            .eq('id', parseInt(loadedCharacterId, 10));
+      const { RaceAbilityChoices: _RaceAbilityChoices, ...extendedCharacterDataWithoutRaceAbilityChoices } = extendedCharacterData;
+      const extendedCharacterDataWithoutSubclass = { ...extendedCharacterData };
+      if (resolvedSubclassColumn) {
+        delete extendedCharacterDataWithoutSubclass[resolvedSubclassColumn];
+      }
+      const extendedCharacterDataWithoutRaceAbilityChoicesAndSubclass = {
+        ...extendedCharacterDataWithoutRaceAbilityChoices,
+      };
+      if (resolvedSubclassColumn) {
+        delete extendedCharacterDataWithoutRaceAbilityChoicesAndSubclass[resolvedSubclassColumn];
+      }
 
-          if (retryUpdateError && isMissingCharacterColumnError(retryUpdateError)) {
-            usedFallbackSchema = true;
-            const { error: fallbackError } = await supabase
-              .from('DND_player_character')
-              .update(baseCharacterData)
-              .eq('id', parseInt(loadedCharacterId, 10));
-            error = fallbackError;
-          } else {
-            error = retryUpdateError;
+      let saveResult = null;
+      let lastSkillColumnError = null;
+
+      for (const skillColumnName of classProfSkillsColumns) {
+        const baseCharacterData = buildBaseCharacterData({ userId, profSkills, skillColumnName });
+        const fullCharacterData = { ...baseCharacterData, ...extendedCharacterData };
+        const fullCharacterDataWithoutRaceAbilityChoices = {
+          ...baseCharacterData,
+          ...extendedCharacterDataWithoutRaceAbilityChoices,
+        };
+        const fullCharacterDataWithoutSubclass = {
+          ...baseCharacterData,
+          ...extendedCharacterDataWithoutSubclass,
+        };
+        const fullCharacterDataWithoutRaceAbilityChoicesAndSubclass = {
+          ...baseCharacterData,
+          ...extendedCharacterDataWithoutRaceAbilityChoicesAndSubclass,
+        };
+
+        try {
+          saveResult = await persistCharacterData({
+            loadedCharacterId,
+            baseCharacterData,
+            fullCharacterData,
+            fullCharacterDataWithoutRaceAbilityChoices,
+            fullCharacterDataWithoutSubclass,
+            fullCharacterDataWithoutRaceAbilityChoicesAndSubclass,
+          });
+          lastSkillColumnError = null;
+          break;
+        } catch (err) {
+          if (isMissingClassProfSkillsColumnError(err)) {
+            lastSkillColumnError = err;
+            continue;
           }
-        } else if (updateError && isMissingCharacterColumnError(updateError)) {
-          usedFallbackSchema = true;
-          const { error: fallbackError } = await supabase
-            .from('DND_player_character')
-            .update(baseCharacterData)
-            .eq('id', parseInt(loadedCharacterId, 10));
-          error = fallbackError;
-        } else {
-          error = updateError;
-        }
-      } else {
-        const { data: insertData, error: insertError } = await supabase
-          .from('DND_player_character')
-          .insert([fullCharacterData])
-          .select('id')
-          .single();
-
-        if (insertError && isMissingRaceAbilityChoicesColumnError(insertError)) {
-          usedRaceChoiceColumnFallback = true;
-          const { data: retryInsertData, error: retryInsertError } = await supabase
-            .from('DND_player_character')
-            .insert([fullCharacterDataWithoutRaceAbilityChoices])
-            .select('id')
-            .single();
-
-          if (retryInsertError && isMissingCharacterColumnError(retryInsertError)) {
-            usedFallbackSchema = true;
-            const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
-              .from('DND_player_character')
-              .insert([baseCharacterData])
-              .select('id')
-              .single();
-            error = fallbackInsertError;
-            if (!fallbackInsertError && fallbackInsertData?.id != null) {
-              localStorage.setItem('loadedCharacterId', String(fallbackInsertData.id));
-            }
-          } else {
-            error = retryInsertError;
-            if (!retryInsertError && retryInsertData?.id != null) {
-              localStorage.setItem('loadedCharacterId', String(retryInsertData.id));
-            }
-          }
-        } else if (insertError && isMissingCharacterColumnError(insertError)) {
-          usedFallbackSchema = true;
-          const { data: fallbackInsertData, error: fallbackInsertError } = await supabase
-            .from('DND_player_character')
-            .insert([baseCharacterData])
-            .select('id')
-            .single();
-          error = fallbackInsertError;
-          if (!fallbackInsertError && fallbackInsertData?.id != null) {
-            localStorage.setItem('loadedCharacterId', String(fallbackInsertData.id));
-          }
-        } else {
-          error = insertError;
-          if (!insertError && insertData?.id != null) {
-            localStorage.setItem('loadedCharacterId', String(insertData.id));
-          }
+          throw err;
         }
       }
 
-      if (error) throw error;
+      if (!saveResult && lastSkillColumnError) throw lastSkillColumnError;
+      if (!saveResult) throw new Error('No valid class skill column found while saving.');
 
-      if (usedFallbackSchema) {
+      if (saveResult.usedFallbackSchema) {
         alert('Character saved with base fields only. Run the DND migration to store race/background/spells/equipment and notes.');
-      } else if (usedRaceChoiceColumnFallback) {
+      } else if (saveResult.usedRaceChoiceColumnFallback) {
         alert('Character saved, but race choice selections require the latest DND migration to persist.');
+      } else if (saveResult.usedSubclassColumnFallback) {
+        alert('Character saved, but subclass requires the latest DND migration to persist.');
+      } else if (!resolvedSubclassColumn && selectedSubclassIdForSave != null) {
+        alert('Character saved, but subclass column was not found in DND_player_character so subclass could not be persisted.');
       } else {
         alert('Character saved successfully!');
       }
@@ -1128,6 +1635,16 @@ export default function DNDModCharacterCreator() {
       console.error('Failed to save character:', err);
       alert('Failed to save character. Please try again.');
     }
+  };
+
+  const openOverview = () => {
+    const loadedCharacterId = localStorage.getItem('loadedCharacterId');
+    if (!loadedCharacterId) {
+      alert('Save the character first, then open Overview.');
+      return;
+    }
+
+    navigate(`/DNDmod_character_overview?mod=${encodeURIComponent(dndMod)}`);
   };
 
   const SectionButton = ({ sectionKey, label }) => (
@@ -1222,6 +1739,12 @@ export default function DNDModCharacterCreator() {
             >
               Save
             </button>
+            <button
+              onClick={openOverview}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold shadow hover:bg-indigo-700 transition"
+            >
+              Overview
+            </button>
           </div>
 
           {activeSection === 'basics' && (
@@ -1284,12 +1807,14 @@ export default function DNDModCharacterCreator() {
                 <div>
                   <label className="block font-semibold text-gray-700 mb-1">Armor Class</label>
                   <input
-                    type="number"
-                    min="0"
-                    value={armorClass}
-                    onChange={(e) => setArmorClass(e.target.value)}
-                    className="w-full rounded border border-gray-300 px-2 py-1"
+                    type="text"
+                    value={`${armorClass || suggestedArmorClass} (10 + DEX mod)`}
+                    readOnly
+                    className="w-full rounded border border-gray-300 bg-gray-100 px-2 py-1 text-gray-800"
                   />
+                  <p className="mt-1 text-xs text-gray-600">
+                    Without armor or a shield, your character&apos;s AC equals 10 + Dexterity modifier.
+                  </p>
                 </div>
                 <div>
                   <label className="block font-semibold text-gray-700 mb-1">Initiative Bonus</label>
@@ -1590,7 +2115,7 @@ export default function DNDModCharacterCreator() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div><span className="font-semibold">Hit Dice:</span> {selectedClass.hitDice || '—'}</div>
+                    <div><span className="font-semibold">Hit Dice:</span> {scaledHitDiceLabel || '—'}</div>
                     <div><span className="font-semibold">Prof. Armour:</span> {selectedClass.profArmour || '—'}</div>
                     <div><span className="font-semibold">Prof. Weapons:</span> {selectedClass.profWeapons || '—'}</div>
                     <div><span className="font-semibold">Prof. Saving Throws:</span> {selectedClass.profSavingThrows || '—'}</div>
@@ -1605,16 +2130,15 @@ export default function DNDModCharacterCreator() {
                   </div>
 
                   {(() => {
-                    const skillChoice = parseSkillChoices(selectedClass.profSkills || '');
-                    if (!skillChoice.isChoice) {
-                      return <div><span className="font-semibold">Skill Proficiencies:</span> {selectedClass.profSkills || '—'}</div>;
+                    if (!classSkillChoiceConfig.isChoice) {
+                      return <div><span className="font-semibold">Skill Proficiencies:</span> {mapSkillText(selectedClass.profSkills) || '—'}</div>;
                     }
 
                     return (
                       <div className="space-y-2">
-                        <div className="font-semibold">Skill Choices (pick {skillChoice.count})</div>
+                        <div className="font-semibold">Skill Choices (pick {classSkillChoiceConfig.count})</div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {Array.from({ length: skillChoice.count }).map((_, index) => (
+                          {Array.from({ length: classSkillChoiceConfig.count }).map((_, index) => (
                             <select
                               key={`skill-choice-${index}`}
                               value={skillChoices[index] || ''}
@@ -1627,7 +2151,7 @@ export default function DNDModCharacterCreator() {
                               className="w-full rounded border-gray-300 text-sm"
                             >
                               <option value="">Select skill</option>
-                              {skillChoice.options.map((option) => (
+                              {classSkillChoiceOptions.map((option) => (
                                 <option
                                   key={`${option}-${index}`}
                                   value={option}
@@ -1639,6 +2163,45 @@ export default function DNDModCharacterCreator() {
                             </select>
                           ))}
                         </div>
+
+                        {bonusSkillChoiceFeatures.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="font-semibold">Additional Skill Choices from Features</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {bonusSkillChoiceFeatures.map((feature, bonusIndex) => {
+                                const slotIndex = classSkillChoiceConfig.count + bonusIndex;
+                                return (
+                                  <div key={`bonus-skill-choice-${feature.id}`} className="space-y-1">
+                                    <label className="block text-xs font-semibold text-gray-700">
+                                      {feature.name} ({formatLevelOrdinal(feature.level)})
+                                    </label>
+                                    <select
+                                      value={skillChoices[slotIndex] || ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        const newChoices = [...skillChoices];
+                                        newChoices[slotIndex] = value;
+                                        setSkillChoices(newChoices);
+                                      }}
+                                      className="w-full rounded border-gray-300 text-sm"
+                                    >
+                                      <option value="">Select skill</option>
+                                      {classSkillChoiceOptions.map((option) => (
+                                        <option
+                                          key={`${option}-bonus-${feature.id}`}
+                                          value={option}
+                                          disabled={skillChoices.includes(option) && skillChoices[slotIndex] !== option}
+                                        >
+                                          {option}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -1651,9 +2214,54 @@ export default function DNDModCharacterCreator() {
                     {selectedClassFeatures.length > 0 && (
                       <div className="space-y-2 mt-2">
                         {selectedClassFeatures.map((feature) => (
-                          <div key={feature.id} className="rounded border border-gray-300 p-2 bg-white">
-                            <p className="font-semibold">{feature.name}</p>
-                            <p className="whitespace-pre-wrap">{feature.text || 'No description provided.'}</p>
+                          <div key={feature.id} className="rounded border border-gray-300 bg-white overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedClassFeatureId((prev) => (prev === feature.id ? null : feature.id))}
+                              className="w-full px-3 py-2 flex items-center justify-between gap-2 text-left hover:bg-gray-50"
+                            >
+                              <div>
+                                <p className="font-semibold">{feature.name}</p>
+                                <p className="text-xs text-gray-600">{formatLevelOrdinal(feature.level)}</p>
+                              </div>
+                              <span className="text-gray-500 text-lg leading-none">
+                                {expandedClassFeatureId === feature.id ? '−' : '+'}
+                              </span>
+                            </button>
+
+                            {expandedClassFeatureId === feature.id && (
+                              <div className="border-t border-gray-200 px-3 py-2">
+                                {String(feature.text || '').trim() && (
+                                  <p className="whitespace-pre-wrap">{feature.text}</p>
+                                )}
+
+                                {isSubclassSelectionFeature(feature) && (
+                                  <div className="mt-3 space-y-2">
+                                    <label className="block text-xs font-semibold text-gray-700">Choose Subclass</label>
+                                    <select
+                                      value={selectedSubclassId}
+                                      onChange={(e) => setSelectedSubclassId(e.target.value)}
+                                      className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+                                    >
+                                      <option value="">Select subclass</option>
+                                      {classSubclasses.map((subclass) => (
+                                        <option key={`subclass-choice-${subclass.id}`} value={String(subclass.id)}>
+                                          {subclass.name}
+                                        </option>
+                                      ))}
+                                    </select>
+
+                                    {classSubclasses.length === 0 && (
+                                      <p className="text-xs text-gray-600">No subclasses found for this class/mod.</p>
+                                    )}
+
+                                    {selectedSubclass?.description && (
+                                      <p className="text-xs text-gray-700 whitespace-pre-wrap">{selectedSubclass.description}</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1880,7 +2488,12 @@ export default function DNDModCharacterCreator() {
           <div className="w-full max-w-3xl rounded-lg border border-gray-300 bg-white p-4 text-sm text-gray-800">
             <h3 className="text-lg font-semibold mb-2">Quick Summary</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div><span className="font-semibold">Class:</span> {selectedClass?.name || '—'}</div>
+              <div>
+                <span className="font-semibold">Class:</span>{' '}
+                {selectedClass?.name
+                  ? (selectedSubclass?.name ? `${selectedClass.name} (${selectedSubclass.name})` : selectedClass.name)
+                  : '—'}
+              </div>
               <div><span className="font-semibold">Level:</span> {classLevel}</div>
               <div><span className="font-semibold">Race:</span> {selectedRace?.name || '—'}</div>
               <div><span className="font-semibold">Background:</span> {selectedBackground?.name || '—'}</div>

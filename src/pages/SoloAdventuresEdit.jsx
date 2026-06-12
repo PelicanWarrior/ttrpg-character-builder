@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import AddNPCModal from './AddNPCModal';
 import { supabase } from '../supabaseClient';
 
 export default function SoloAdventuresEdit() {
@@ -8,6 +9,7 @@ export default function SoloAdventuresEdit() {
   const username = localStorage.getItem('username') || '';
 
   const [userId, setUserId] = useState(null);
+  const [adventureTtrpgId, setAdventureTtrpgId] = useState(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [firstPageId, setFirstPageId] = useState('');
@@ -32,20 +34,135 @@ export default function SoloAdventuresEdit() {
   const [choices, setChoices] = useState([]);
   const [loadingChoices, setLoadingChoices] = useState(false);
   const [choiceError, setChoiceError] = useState('');
+  const [supportsChoiceSkillRouting, setSupportsChoiceSkillRouting] = useState(true);
+  const [availableSkills, setAvailableSkills] = useState([]);
+  const [loadingSkillOptions, setLoadingSkillOptions] = useState(false);
+  const [skillsError, setSkillsError] = useState('');
+  const [availableBattleNpcs, setAvailableBattleNpcs] = useState([]);
+  const [loadingBattleNpcs, setLoadingBattleNpcs] = useState(false);
+  const [battleNpcError, setBattleNpcError] = useState('');
+  const [battleNpcSystem, setBattleNpcSystem] = useState('');
+  const [showCreateBattleNpcModal, setShowCreateBattleNpcModal] = useState(false);
+  const [battleNpcCreationTarget, setBattleNpcCreationTarget] = useState('');
+  const [battleNpcModalNpc, setBattleNpcModalNpc] = useState(null);
 
   const [newChoiceText, setNewChoiceText] = useState('');
+  const [newChoiceHasSkillCheck, setNewChoiceHasSkillCheck] = useState(false);
+  const [newChoiceSurpriseBattle, setNewChoiceSurpriseBattle] = useState(false);
+  const [newChoiceBattle, setNewChoiceBattle] = useState(false);
+  const [newChoiceBattleNpcIds, setNewChoiceBattleNpcIds] = useState([]);
+  const [newChoiceSelectedBattleNpcId, setNewChoiceSelectedBattleNpcId] = useState('');
+  const [newChoiceSkillName, setNewChoiceSkillName] = useState('');
+  const [newChoiceDifficulty, setNewChoiceDifficulty] = useState('');
   const [newChoiceNextPageId, setNewChoiceNextPageId] = useState('');
+  const [newChoiceSuccessPageId, setNewChoiceSuccessPageId] = useState('');
+  const [newChoiceFailurePageId, setNewChoiceFailurePageId] = useState('');
   const [addingChoice, setAddingChoice] = useState(false);
 
   const [editingChoiceId, setEditingChoiceId] = useState('');
   const [editingChoiceText, setEditingChoiceText] = useState('');
+  const [editingChoiceHasSkillCheck, setEditingChoiceHasSkillCheck] = useState(false);
+  const [editingChoiceSurpriseBattle, setEditingChoiceSurpriseBattle] = useState(false);
+  const [editingChoiceBattle, setEditingChoiceBattle] = useState(false);
+  const [editingChoiceBattleNpcIds, setEditingChoiceBattleNpcIds] = useState([]);
+  const [editingChoiceSelectedBattleNpcId, setEditingChoiceSelectedBattleNpcId] = useState('');
+  const [editingChoiceSkillName, setEditingChoiceSkillName] = useState('');
+  const [editingChoiceDifficulty, setEditingChoiceDifficulty] = useState('');
   const [editingChoiceNextPageId, setEditingChoiceNextPageId] = useState('');
+  const [editingChoiceSuccessPageId, setEditingChoiceSuccessPageId] = useState('');
+  const [editingChoiceFailurePageId, setEditingChoiceFailurePageId] = useState('');
   const [savingChoice, setSavingChoice] = useState(false);
 
-  const [skillChecksByChoice, setSkillChecksByChoice] = useState({});
-  const [loadingSkillChecks, setLoadingSkillChecks] = useState(false);
-  const [skillCheckError, setSkillCheckError] = useState('');
-  const [newSkillCheckByChoice, setNewSkillCheckByChoice] = useState({});
+  const isMissingSkillRoutingColumnsError = (err) => {
+    const message = String(err?.message || '').toLowerCase();
+    return (
+      message.includes('success_page_id') ||
+      message.includes('failure_page_id') ||
+      message.includes('has_skill_check') ||
+      message.includes('surprise_battle') ||
+      message.includes('battle') ||
+      message.includes('battle_npc_ids') ||
+      message.includes('skill_name') ||
+      message.includes('skill_difficulty')
+    );
+  };
+
+  const normalizeBattleNpcIds = (value) => {
+    let raw = value;
+
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+
+      if (!trimmed) return [];
+
+      try {
+        raw = JSON.parse(trimmed);
+      } catch {
+        raw = trimmed.split(',');
+      }
+    }
+
+    if (!Array.isArray(raw)) return [];
+
+    return raw
+      .map((item) => parseInt(item, 10))
+      .filter((item) => Number.isFinite(item) && item > 0);
+  };
+
+  const appendBattleNpcId = (selectedNpcId, setSelectedNpcId, setBattleNpcIds) => {
+    const parsedNpcId = parseInt(selectedNpcId, 10);
+    if (!Number.isFinite(parsedNpcId) || parsedNpcId <= 0) return;
+
+    setBattleNpcIds((prev) => [...prev, parsedNpcId]);
+    setSelectedNpcId('');
+  };
+
+  const removeBattleNpcIdAtIndex = (indexToRemove, setBattleNpcIds) => {
+    setBattleNpcIds((prev) => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  const getBattleNpcLabel = (npcId) => {
+    const match = availableBattleNpcs.find((npc) => String(npc.id) === String(npcId));
+    return match?.name || `NPC #${npcId}`;
+  };
+
+  const getBattleNpcById = (npcId) => availableBattleNpcs.find((npc) => String(npc.id) === String(npcId)) || null;
+
+  const handleCreatedBattleNpc = (npc) => {
+    const createdId = npc?.id;
+    const createdName = String(npc?.Name || npc?.name || '').trim();
+
+    if (!createdId) {
+      setShowCreateBattleNpcModal(false);
+      setBattleNpcCreationTarget('');
+      return;
+    }
+
+    setAvailableBattleNpcs((prev) => {
+      const normalizedNpc = {
+        ...npc,
+        id: createdId,
+        name: createdName || `NPC #${createdId}`,
+      };
+      const withoutExisting = prev.filter((item) => String(item.id) !== String(createdId));
+
+      return [...withoutExisting, normalizedNpc].sort((left, right) =>
+        left.name.localeCompare(right.name)
+      );
+    });
+
+    if (battleNpcCreationTarget === 'new') {
+      setNewChoiceSelectedBattleNpcId(String(createdId));
+    }
+
+    if (battleNpcCreationTarget === 'edit') {
+      setEditingChoiceSelectedBattleNpcId(String(createdId));
+    }
+
+    setShowCreateBattleNpcModal(false);
+    setBattleNpcCreationTarget('');
+    setBattleNpcModalNpc(null);
+  };
 
   useEffect(() => {
     let active = true;
@@ -78,7 +195,7 @@ export default function SoloAdventuresEdit() {
 
       const { data: adventureData, error: adventureError } = await supabase
         .from('Solo_Adventures')
-        .select('id, title, description, user_id, first_page_id')
+        .select('id, title, description, user_id, first_page_id, ttrpg_id')
         .eq('id', adventureId)
         .eq('user_id', userData.id)
         .single();
@@ -92,6 +209,7 @@ export default function SoloAdventuresEdit() {
       }
 
       setUserId(userData.id);
+      setAdventureTtrpgId(adventureData.ttrpg_id || null);
       setTitle(adventureData.title || '');
       setDescription(adventureData.description || '');
       setFirstPageId(adventureData.first_page_id ? String(adventureData.first_page_id) : '');
@@ -168,7 +286,9 @@ export default function SoloAdventuresEdit() {
 
       const { data, error: choicesErr } = await supabase
         .from('Solo_Adventure_Choices')
-        .select('id, page_id, choice_text, next_page_id, choice_order')
+        .select(
+          'id, page_id, choice_text, next_page_id, success_page_id, failure_page_id, has_skill_check, surprise_battle, battle, battle_npc_ids, skill_name, skill_difficulty, choice_order'
+        )
         .eq('page_id', selectedPageId)
         .order('choice_order', { ascending: true })
         .order('id', { ascending: true });
@@ -176,9 +296,48 @@ export default function SoloAdventuresEdit() {
       if (!active) return;
 
       if (choicesErr) {
-        setChoiceError(choicesErr.message || 'Failed to load choices.');
+        if (isMissingSkillRoutingColumnsError(choicesErr)) {
+          const { data: fallbackData, error: fallbackErr } = await supabase
+            .from('Solo_Adventure_Choices')
+            .select('id, page_id, choice_text, next_page_id, choice_order')
+            .eq('page_id', selectedPageId)
+            .order('choice_order', { ascending: true })
+            .order('id', { ascending: true });
+
+          if (!active) return;
+
+          if (fallbackErr) {
+            setChoiceError(fallbackErr.message || 'Failed to load options.');
+          } else {
+            setSupportsChoiceSkillRouting(false);
+            setChoices(
+              (fallbackData || []).map((choice) => ({
+                ...choice,
+                has_skill_check: false,
+                surprise_battle: false,
+                battle: false,
+                battle_npc_ids: [],
+                skill_name: null,
+                skill_difficulty: null,
+                success_page_id: null,
+                failure_page_id: null,
+              }))
+            );
+          }
+        } else {
+          setChoiceError(choicesErr.message || 'Failed to load options.');
+        }
       } else {
-        setChoices(data || []);
+        setSupportsChoiceSkillRouting(true);
+        setChoices(
+          (data || []).map((choice) => ({
+            ...choice,
+            has_skill_check: !!choice.has_skill_check,
+            surprise_battle: !!choice.surprise_battle,
+            battle: !!choice.battle,
+            battle_npc_ids: normalizeBattleNpcIds(choice.battle_npc_ids),
+          }))
+        );
       }
 
       setLoadingChoices(false);
@@ -194,48 +353,233 @@ export default function SoloAdventuresEdit() {
   useEffect(() => {
     let active = true;
 
-    const loadSkillChecks = async () => {
-      if (!choices.length) {
-        setSkillChecksByChoice({});
+    const loadBattleNpcOptions = async () => {
+      if (!adventureTtrpgId) {
+        setAvailableBattleNpcs([]);
+        setBattleNpcSystem('');
         return;
       }
 
-      setLoadingSkillChecks(true);
-      setSkillCheckError('');
+      setLoadingBattleNpcs(true);
+      setBattleNpcError('');
 
-      const choiceIds = choices.map((c) => c.id);
-      const { data, error: checksErr } = await supabase
-        .from('Solo_Adventure_Choice_Skill_Checks')
-        .select('id, choice_id, skill_name, difficulty, success_text, failure_text, check_order')
-        .in('choice_id', choiceIds)
-        .order('check_order', { ascending: true })
-        .order('id', { ascending: true });
+      const { data: ttrpgData, error: ttrpgError } = await supabase
+        .from('TTRPGs')
+        .select('id, TTRPG_name, Initials')
+        .eq('id', adventureTtrpgId)
+        .single();
 
       if (!active) return;
 
-      if (checksErr) {
-        setSkillCheckError(checksErr.message || 'Failed to load skill checks.');
-        setLoadingSkillChecks(false);
+      if (ttrpgError) {
+        setBattleNpcError(ttrpgError.message || 'Failed to load NPC options.');
+        setAvailableBattleNpcs([]);
+        setBattleNpcSystem('');
+        setLoadingBattleNpcs(false);
         return;
       }
 
-      const grouped = {};
-      for (const row of data || []) {
-        const key = String(row.choice_id);
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(row);
+      const upperInitials = String(ttrpgData?.Initials || '').toUpperCase();
+      const ttrpgName = String(ttrpgData?.TTRPG_name || '');
+
+      let npcQuery = null;
+
+      if (upperInitials === 'SW' || /star\s*wars/i.test(ttrpgName)) {
+        setBattleNpcSystem('SW');
+        npcQuery = supabase
+          .from('SW_campaign_NPC')
+          .select('id, Name, Race, Description, PictureID, Brawn, Cunning, Presence, Agility, Intellect, Willpower, Force_Rating, Soak, Wound, Strain, Skills, Abilities, Force_Abilities, Equipment')
+          .order('Name', { ascending: true });
+      } else if (upperInitials === 'FA' || upperInitials === 'F' || /fallout/i.test(ttrpgName)) {
+        setBattleNpcSystem('FA');
+        npcQuery = supabase.from('Fa_campaign_NPC').select('id, Name').order('Name', { ascending: true });
+      } else if (upperInitials === 'DND' || /dungeons?\s*&?\s*dragons/i.test(ttrpgName)) {
+        setBattleNpcSystem('DND');
+        npcQuery = supabase.from('DND_campaign_NPC').select('id, Name').order('Name', { ascending: true });
       }
 
-      setSkillChecksByChoice(grouped);
-      setLoadingSkillChecks(false);
+      if (!npcQuery) {
+        setAvailableBattleNpcs([]);
+        setBattleNpcSystem('');
+        setLoadingBattleNpcs(false);
+        return;
+      }
+
+      const { data: npcData, error: npcError } = await npcQuery;
+
+      if (!active) return;
+
+      if (npcError) {
+        setBattleNpcError(npcError.message || 'Failed to load NPC options.');
+        setAvailableBattleNpcs([]);
+      } else {
+        setAvailableBattleNpcs(
+          (npcData || []).map((npc) => ({
+            ...npc,
+            id: npc.id,
+            name: npc.Name || `NPC #${npc.id}`,
+          }))
+        );
+      }
+
+      setLoadingBattleNpcs(false);
     };
 
-    loadSkillChecks();
+    loadBattleNpcOptions();
 
     return () => {
       active = false;
     };
-  }, [choices]);
+  }, [adventureTtrpgId]);
+
+  useEffect(() => {
+    let active = true;
+
+    const querySkills = async (selectClause, orderColumn, filterColumn, filterValue) => {
+      let query = supabase.from('skills').select(selectClause);
+      if (filterColumn && filterValue !== null && filterValue !== undefined && filterValue !== '') {
+        query = query.eq(filterColumn, filterValue);
+      }
+      query = query.order(orderColumn, { ascending: true });
+      return query;
+    };
+
+    const normalizeSkillRows = (rows) =>
+      (rows || [])
+        .map((row) => String(row.skill || row.name || '').trim())
+        .filter(Boolean);
+
+    const runSkillQuery = async (filterColumn, filterValue) => {
+      const skillResult = await querySkills('id, skill', 'skill', filterColumn, filterValue);
+      if (!skillResult.error) {
+        return { rows: normalizeSkillRows(skillResult.data), error: null };
+      }
+
+      const message = String(skillResult.error?.message || '').toLowerCase();
+      if (!message.includes('skill')) {
+        return { rows: [], error: skillResult.error };
+      }
+
+      const nameResult = await querySkills('id, name', 'name', filterColumn, filterValue);
+      if (!nameResult.error) {
+        return { rows: normalizeSkillRows(nameResult.data), error: null };
+      }
+
+      return { rows: [], error: nameResult.error };
+    };
+
+    const isMissingColumnError = (err) => {
+      const msg = String(err?.message || '').toLowerCase();
+      return msg.includes('column') && msg.includes('does not exist');
+    };
+
+    const loadSkillOptions = async () => {
+      if (!adventureTtrpgId) {
+        setAvailableSkills([]);
+        return;
+      }
+
+      setLoadingSkillOptions(true);
+      setSkillsError('');
+
+      let ttrpgName = '';
+      let ttrpgInitials = '';
+
+      const { data: ttrpgData } = await supabase
+        .from('TTRPGs')
+        .select('id, TTRPG_name, Initials')
+        .eq('id', adventureTtrpgId)
+        .single();
+
+      if (!active) return;
+
+      ttrpgName = ttrpgData?.TTRPG_name || '';
+      ttrpgInitials = ttrpgData?.Initials || '';
+
+      const attempts = [
+        { column: 'ttrpg_id', value: adventureTtrpgId },
+        { column: 'TTRPG', value: adventureTtrpgId },
+        { column: 'ttrpg', value: adventureTtrpgId },
+        { column: 'ttrpg_initials', value: ttrpgInitials },
+        { column: 'Initials', value: ttrpgInitials },
+        { column: 'ttrpg_name', value: ttrpgName },
+        { column: 'TTRPG_name', value: ttrpgName },
+      ];
+
+      let resolved = [];
+
+      for (const attempt of attempts) {
+        if (!attempt.value) continue;
+
+        const result = await runSkillQuery(attempt.column, attempt.value);
+        if (!active) return;
+
+        if (result.error) {
+          if (isMissingColumnError(result.error)) {
+            continue;
+          }
+
+          setSkillsError(result.error.message || 'Failed to load skills.');
+          setLoadingSkillOptions(false);
+          return;
+        }
+
+        if (result.rows.length > 0) {
+          resolved = result.rows;
+          break;
+        }
+      }
+
+      if (resolved.length === 0) {
+        const fallback = await runSkillQuery(null, null);
+        if (!active) return;
+
+        if (fallback.error) {
+          setSkillsError(fallback.error.message || 'Failed to load skills.');
+          setAvailableSkills([]);
+        } else {
+          resolved = fallback.rows;
+          setAvailableSkills(resolved);
+        }
+      } else {
+        setAvailableSkills(resolved);
+      }
+
+      setLoadingSkillOptions(false);
+    };
+
+    loadSkillOptions();
+
+    return () => {
+      active = false;
+    };
+  }, [adventureTtrpgId]);
+
+  useEffect(() => {
+    if (supportsChoiceSkillRouting) return;
+
+    setNewChoiceHasSkillCheck(false);
+    setNewChoiceSurpriseBattle(false);
+    setNewChoiceBattle(false);
+    setNewChoiceBattleNpcIds([]);
+    setNewChoiceSelectedBattleNpcId('');
+    setNewChoiceSkillName('');
+    setNewChoiceDifficulty('');
+    setNewChoiceSuccessPageId('');
+    setNewChoiceFailurePageId('');
+
+    if (editingChoiceHasSkillCheck) {
+      setEditingChoiceHasSkillCheck(false);
+      setEditingChoiceSurpriseBattle(false);
+      setEditingChoiceBattle(false);
+      setEditingChoiceBattleNpcIds([]);
+      setEditingChoiceSelectedBattleNpcId('');
+      setEditingChoiceSkillName('');
+      setEditingChoiceDifficulty('');
+      setEditingChoiceSuccessPageId('');
+      setEditingChoiceFailurePageId('');
+    }
+  }, [supportsChoiceSkillRouting, editingChoiceHasSkillCheck]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -360,7 +704,7 @@ export default function SoloAdventuresEdit() {
   };
 
   const handleDeletePage = async (pageId) => {
-    if (!window.confirm('Delete this page and all its choices?')) return;
+    if (!window.confirm('Delete this page and all its options?')) return;
 
     const { error: delErr } = await supabase
       .from('Solo_Adventure_Pages')
@@ -381,13 +725,39 @@ export default function SoloAdventuresEdit() {
     }
   };
 
+  const resetNewChoiceForm = () => {
+    setNewChoiceText('');
+    setNewChoiceHasSkillCheck(false);
+    setNewChoiceSurpriseBattle(false);
+    setNewChoiceBattle(false);
+    setNewChoiceBattleNpcIds([]);
+    setNewChoiceSelectedBattleNpcId('');
+    setNewChoiceSkillName('');
+    setNewChoiceDifficulty('');
+    setNewChoiceNextPageId('');
+    setNewChoiceSuccessPageId('');
+    setNewChoiceFailurePageId('');
+  };
+
   const handleAddChoice = async () => {
     if (!selectedPageId) {
       setChoiceError('Select a page first.');
       return;
     }
     if (!newChoiceText.trim()) {
-      setChoiceError('Choice text is required.');
+      setChoiceError('Option text is required.');
+      return;
+    }
+    if (!supportsChoiceSkillRouting && newChoiceHasSkillCheck) {
+      setChoiceError('Skill check fields are not available yet. Run the new SQL migration first.');
+      return;
+    }
+    if (newChoiceHasSkillCheck && !newChoiceSkillName.trim()) {
+      setChoiceError('Skill name is required when skill check is enabled.');
+      return;
+    }
+    if ((newChoiceSurpriseBattle || newChoiceBattle) && newChoiceBattleNpcIds.length === 0) {
+      setChoiceError('Select at least one NPC for battle options.');
       return;
     }
 
@@ -395,67 +765,137 @@ export default function SoloAdventuresEdit() {
     setChoiceError('');
 
     const nextOrder = choices.length + 1;
+    const payload = {
+      page_id: parseInt(selectedPageId, 10),
+      choice_text: newChoiceText.trim(),
+      choice_order: nextOrder,
+      next_page_id: newChoiceHasSkillCheck ? null : (newChoiceNextPageId ? parseInt(newChoiceNextPageId, 10) : null),
+    };
+
+    if (supportsChoiceSkillRouting) {
+      payload.has_skill_check = newChoiceHasSkillCheck;
+      payload.surprise_battle = !!newChoiceSurpriseBattle;
+      payload.battle = !!newChoiceBattle;
+      payload.battle_npc_ids = newChoiceSurpriseBattle || newChoiceBattle ? newChoiceBattleNpcIds : [];
+      payload.skill_name = newChoiceHasSkillCheck ? newChoiceSkillName.trim() : null;
+      payload.skill_difficulty = newChoiceHasSkillCheck ? newChoiceDifficulty.trim() || null : null;
+      payload.success_page_id = newChoiceHasSkillCheck ? (newChoiceSuccessPageId ? parseInt(newChoiceSuccessPageId, 10) : null) : null;
+      payload.failure_page_id = newChoiceHasSkillCheck ? (newChoiceFailurePageId ? parseInt(newChoiceFailurePageId, 10) : null) : null;
+    }
+
+    const selectClause = supportsChoiceSkillRouting
+      ? 'id, page_id, choice_text, next_page_id, success_page_id, failure_page_id, has_skill_check, surprise_battle, battle, battle_npc_ids, skill_name, skill_difficulty, choice_order'
+      : 'id, page_id, choice_text, next_page_id, choice_order';
+
     const { data, error: addErr } = await supabase
       .from('Solo_Adventure_Choices')
-      .insert([
-        {
-          page_id: parseInt(selectedPageId, 10),
-          choice_text: newChoiceText.trim(),
-          next_page_id: newChoiceNextPageId ? parseInt(newChoiceNextPageId, 10) : null,
-          choice_order: nextOrder,
-        },
-      ])
-      .select('id, page_id, choice_text, next_page_id, choice_order')
+      .insert([payload])
+      .select(selectClause)
       .single();
 
     setAddingChoice(false);
 
     if (addErr || !data) {
-      setChoiceError(addErr?.message || 'Failed to add choice.');
+      setChoiceError(addErr?.message || 'Failed to add option.');
       return;
     }
 
-    setChoices((prev) => [...prev, data]);
-    setNewChoiceText('');
-    setNewChoiceNextPageId('');
+    setChoices((prev) => [
+      ...prev,
+      {
+        ...data,
+        has_skill_check: supportsChoiceSkillRouting ? !!data.has_skill_check : false,
+        surprise_battle: supportsChoiceSkillRouting ? !!data.surprise_battle : false,
+        battle: supportsChoiceSkillRouting ? !!data.battle : false,
+        battle_npc_ids: supportsChoiceSkillRouting ? normalizeBattleNpcIds(data.battle_npc_ids) : [],
+        skill_name: supportsChoiceSkillRouting ? data.skill_name : null,
+        skill_difficulty: supportsChoiceSkillRouting ? data.skill_difficulty : null,
+        success_page_id: supportsChoiceSkillRouting ? data.success_page_id : null,
+        failure_page_id: supportsChoiceSkillRouting ? data.failure_page_id : null,
+      },
+    ]);
+    resetNewChoiceForm();
   };
 
   const startEditChoice = (choice) => {
     setEditingChoiceId(String(choice.id));
     setEditingChoiceText(choice.choice_text || '');
+    setEditingChoiceHasSkillCheck(!!choice.has_skill_check);
+    setEditingChoiceSurpriseBattle(!!choice.surprise_battle);
+    setEditingChoiceBattle(!!choice.battle);
+    setEditingChoiceBattleNpcIds(normalizeBattleNpcIds(choice.battle_npc_ids));
+    setEditingChoiceSelectedBattleNpcId('');
+    setEditingChoiceSkillName(choice.skill_name || '');
+    setEditingChoiceDifficulty(choice.skill_difficulty || '');
     setEditingChoiceNextPageId(choice.next_page_id ? String(choice.next_page_id) : '');
+    setEditingChoiceSuccessPageId(choice.success_page_id ? String(choice.success_page_id) : '');
+    setEditingChoiceFailurePageId(choice.failure_page_id ? String(choice.failure_page_id) : '');
   };
 
   const cancelEditChoice = () => {
     setEditingChoiceId('');
     setEditingChoiceText('');
+    setEditingChoiceHasSkillCheck(false);
+    setEditingChoiceSurpriseBattle(false);
+    setEditingChoiceBattle(false);
+    setEditingChoiceBattleNpcIds([]);
+    setEditingChoiceSelectedBattleNpcId('');
+    setEditingChoiceSkillName('');
+    setEditingChoiceDifficulty('');
     setEditingChoiceNextPageId('');
+    setEditingChoiceSuccessPageId('');
+    setEditingChoiceFailurePageId('');
   };
 
   const handleSaveChoice = async () => {
     if (!editingChoiceId) return;
     if (!editingChoiceText.trim()) {
-      setChoiceError('Choice text is required.');
+      setChoiceError('Option text is required.');
+      return;
+    }
+    if (!supportsChoiceSkillRouting && editingChoiceHasSkillCheck) {
+      setChoiceError('Skill check fields are not available yet. Run the new SQL migration first.');
+      return;
+    }
+    if (editingChoiceHasSkillCheck && !editingChoiceSkillName.trim()) {
+      setChoiceError('Skill name is required when skill check is enabled.');
+      return;
+    }
+    if ((editingChoiceSurpriseBattle || editingChoiceBattle) && editingChoiceBattleNpcIds.length === 0) {
+      setChoiceError('Select at least one NPC for battle options.');
       return;
     }
 
     setSavingChoice(true);
     setChoiceError('');
 
+    const payload = {
+      choice_text: editingChoiceText.trim(),
+      next_page_id: editingChoiceHasSkillCheck ? null : (editingChoiceNextPageId ? parseInt(editingChoiceNextPageId, 10) : null),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (supportsChoiceSkillRouting) {
+      payload.has_skill_check = editingChoiceHasSkillCheck;
+      payload.surprise_battle = !!editingChoiceSurpriseBattle;
+      payload.battle = !!editingChoiceBattle;
+      payload.battle_npc_ids = editingChoiceSurpriseBattle || editingChoiceBattle ? editingChoiceBattleNpcIds : [];
+      payload.skill_name = editingChoiceHasSkillCheck ? editingChoiceSkillName.trim() : null;
+      payload.skill_difficulty = editingChoiceHasSkillCheck ? editingChoiceDifficulty.trim() || null : null;
+      payload.success_page_id = editingChoiceHasSkillCheck ? (editingChoiceSuccessPageId ? parseInt(editingChoiceSuccessPageId, 10) : null) : null;
+      payload.failure_page_id = editingChoiceHasSkillCheck ? (editingChoiceFailurePageId ? parseInt(editingChoiceFailurePageId, 10) : null) : null;
+    }
+
     const { error: saveErr } = await supabase
       .from('Solo_Adventure_Choices')
-      .update({
-        choice_text: editingChoiceText.trim(),
-        next_page_id: editingChoiceNextPageId ? parseInt(editingChoiceNextPageId, 10) : null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(payload)
       .eq('id', editingChoiceId)
       .eq('page_id', selectedPageId);
 
     setSavingChoice(false);
 
     if (saveErr) {
-      setChoiceError(saveErr.message || 'Failed to save choice.');
+      setChoiceError(saveErr.message || 'Failed to save option.');
       return;
     }
 
@@ -465,7 +905,15 @@ export default function SoloAdventuresEdit() {
           ? {
               ...c,
               choice_text: editingChoiceText.trim(),
-              next_page_id: editingChoiceNextPageId ? parseInt(editingChoiceNextPageId, 10) : null,
+              has_skill_check: editingChoiceHasSkillCheck,
+              surprise_battle: editingChoiceSurpriseBattle,
+              battle: editingChoiceBattle,
+              battle_npc_ids: editingChoiceSurpriseBattle || editingChoiceBattle ? [...editingChoiceBattleNpcIds] : [],
+              skill_name: editingChoiceHasSkillCheck ? editingChoiceSkillName.trim() : null,
+              skill_difficulty: editingChoiceHasSkillCheck ? editingChoiceDifficulty.trim() || null : null,
+              next_page_id: editingChoiceHasSkillCheck ? null : (editingChoiceNextPageId ? parseInt(editingChoiceNextPageId, 10) : null),
+              success_page_id: editingChoiceHasSkillCheck ? (editingChoiceSuccessPageId ? parseInt(editingChoiceSuccessPageId, 10) : null) : null,
+              failure_page_id: editingChoiceHasSkillCheck ? (editingChoiceFailurePageId ? parseInt(editingChoiceFailurePageId, 10) : null) : null,
             }
           : c
       )
@@ -474,7 +922,7 @@ export default function SoloAdventuresEdit() {
   };
 
   const handleDeleteChoice = async (choiceId) => {
-    if (!window.confirm('Delete this choice?')) return;
+    if (!window.confirm('Delete this option?')) return;
 
     const { error: delErr } = await supabase
       .from('Solo_Adventure_Choices')
@@ -483,104 +931,11 @@ export default function SoloAdventuresEdit() {
       .eq('page_id', selectedPageId);
 
     if (delErr) {
-      setChoiceError(delErr.message || 'Failed to delete choice.');
+      setChoiceError(delErr.message || 'Failed to delete option.');
       return;
     }
 
     setChoices((prev) => prev.filter((c) => String(c.id) !== String(choiceId)));
-  };
-
-  const getSkillCheckDraft = (choiceId) => {
-    const key = String(choiceId);
-    return (
-      newSkillCheckByChoice[key] || {
-        skill_name: '',
-        difficulty: '',
-        success_text: '',
-        failure_text: '',
-      }
-    );
-  };
-
-  const updateSkillCheckDraft = (choiceId, field, value) => {
-    const key = String(choiceId);
-    const current = getSkillCheckDraft(choiceId);
-    setNewSkillCheckByChoice((prev) => ({
-      ...prev,
-      [key]: {
-        ...current,
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleAddSkillCheck = async (choiceId) => {
-    const key = String(choiceId);
-    const draft = getSkillCheckDraft(choiceId);
-
-    if (!draft.skill_name.trim()) {
-      setSkillCheckError('Skill name is required for a skill check.');
-      return;
-    }
-
-    setSkillCheckError('');
-    const nextOrder = (skillChecksByChoice[key] || []).length + 1;
-
-    const { data, error: addErr } = await supabase
-      .from('Solo_Adventure_Choice_Skill_Checks')
-      .insert([
-        {
-          choice_id: parseInt(choiceId, 10),
-          skill_name: draft.skill_name.trim(),
-          difficulty: draft.difficulty.trim() || null,
-          success_text: draft.success_text.trim() || null,
-          failure_text: draft.failure_text.trim() || null,
-          check_order: nextOrder,
-        },
-      ])
-      .select('id, choice_id, skill_name, difficulty, success_text, failure_text, check_order')
-      .single();
-
-    if (addErr || !data) {
-      setSkillCheckError(addErr?.message || 'Failed to add skill check.');
-      return;
-    }
-
-    setSkillChecksByChoice((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] || []), data],
-    }));
-
-    setNewSkillCheckByChoice((prev) => ({
-      ...prev,
-      [key]: {
-        skill_name: '',
-        difficulty: '',
-        success_text: '',
-        failure_text: '',
-      },
-    }));
-  };
-
-  const handleDeleteSkillCheck = async (choiceId, checkId) => {
-    if (!window.confirm('Delete this skill check?')) return;
-
-    const { error: delErr } = await supabase
-      .from('Solo_Adventure_Choice_Skill_Checks')
-      .delete()
-      .eq('id', checkId)
-      .eq('choice_id', choiceId);
-
-    if (delErr) {
-      setSkillCheckError(delErr.message || 'Failed to delete skill check.');
-      return;
-    }
-
-    const key = String(choiceId);
-    setSkillChecksByChoice((prev) => ({
-      ...prev,
-      [key]: (prev[key] || []).filter((c) => String(c.id) !== String(checkId)),
-    }));
   };
 
   const selectedPage = pages.find((p) => String(p.id) === String(selectedPageId));
@@ -605,60 +960,57 @@ export default function SoloAdventuresEdit() {
 
         <div className="rounded-3xl border-4 border-gray-900 bg-white p-8 shadow-2xl">
           {loading && <p className="text-lg text-gray-700">Loading adventure...</p>}
-
           {!loading && error && <p className="text-lg font-semibold text-red-700">{error}</p>}
 
           {!loading && !error && (
             <div className="space-y-6">
               <div className="rounded-3xl border-2 border-amber-500 bg-amber-200 p-6 shadow-sm">
-              <label className="mb-3 block text-base font-bold text-gray-900" htmlFor="edit-adventure-title">
-                TITLE
-              </label>
-              <input
-                id="edit-adventure-title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-2xl border-2 border-amber-800 bg-amber-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-amber-500"
-              />
+                <label className="mb-3 block text-base font-bold text-gray-900" htmlFor="edit-adventure-title">
+                  TITLE
+                </label>
+                <input
+                  id="edit-adventure-title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full rounded-2xl border-2 border-amber-800 bg-amber-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-amber-500"
+                />
 
-              <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="edit-adventure-description">
-                DESCRIPTION
-              </label>
-              <textarea
-                id="edit-adventure-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows="5"
-                className="w-full rounded-2xl border-2 border-emerald-800 bg-emerald-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-emerald-500"
-              />
+                <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="edit-adventure-description">
+                  DESCRIPTION
+                </label>
+                <textarea
+                  id="edit-adventure-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows="5"
+                  className="w-full rounded-2xl border-2 border-emerald-800 bg-emerald-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-emerald-500"
+                />
 
-              <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="edit-adventure-first-page">
-                FIRST PAGE
-              </label>
-              <select
-                id="edit-adventure-first-page"
-                value={firstPageId}
-                onChange={(e) => setFirstPageId(e.target.value)}
-                className="w-full rounded-2xl border-2 border-sky-800 bg-sky-50 px-5 py-3 text-base text-sky-950 shadow-sm outline-none transition focus:border-sky-500"
-              >
-                <option value="">-- Select First Page --</option>
-                {pages.map((p) => (
-                  <option key={p.id} value={String(p.id)}>
-                    {p.title}
-                  </option>
-                ))}
-              </select>
+                <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="edit-adventure-first-page">
+                  FIRST PAGE
+                </label>
+                <select
+                  id="edit-adventure-first-page"
+                  value={firstPageId}
+                  onChange={(e) => setFirstPageId(e.target.value)}
+                  className="w-full rounded-2xl border-2 border-sky-800 bg-sky-50 px-5 py-3 text-base text-sky-950 shadow-sm outline-none transition focus:border-sky-500"
+                >
+                  <option value="">-- Select First Page --</option>
+                  {pages.map((p) => (
+                    <option key={p.id} value={String(p.id)}>
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
 
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="mt-6 w-full rounded-2xl bg-gray-900 px-5 py-3 text-base font-bold uppercase tracking-wide text-black transition hover:bg-gray-800 disabled:opacity-70"
-              >
-                {saving ? 'Saving...' : 'Save Adventure'}
-              </button>
-
-              {error && !loading && <p className="mt-4 text-base font-semibold text-red-700">{error}</p>}
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="mt-6 w-full rounded-2xl bg-gray-900 px-5 py-3 text-base font-bold uppercase tracking-wide text-black transition hover:bg-gray-800 disabled:opacity-70"
+                >
+                  {saving ? 'Saving...' : 'Save Adventure'}
+                </button>
               </div>
 
               <div className="rounded-3xl border-2 border-violet-500 bg-violet-200 p-6 shadow-sm">
@@ -777,9 +1129,24 @@ export default function SoloAdventuresEdit() {
                     </p>
 
                     {choiceError && <p className="mt-3 font-semibold text-red-700">{choiceError}</p>}
-                    {skillCheckError && <p className="mt-3 font-semibold text-red-700">{skillCheckError}</p>}
+                    {!supportsChoiceSkillRouting && (
+                      <p className="mt-3 text-sm font-semibold text-amber-800">
+                        Skill-check destinations are disabled until the choice migration is applied.
+                      </p>
+                    )}
+                    {supportsChoiceSkillRouting && loadingSkillOptions && (
+                      <p className="mt-3 text-sm text-gray-700">Loading skill list for this TTRPG...</p>
+                    )}
+                    {supportsChoiceSkillRouting && skillsError && (
+                      <p className="mt-3 text-sm font-semibold text-red-700">{skillsError}</p>
+                    )}
+                    {supportsChoiceSkillRouting && !loadingSkillOptions && !skillsError && availableSkills.length === 0 && (
+                      <p className="mt-3 text-sm font-semibold text-amber-800">No skills found for this TTRPG yet.</p>
+                    )}
+                    {supportsChoiceSkillRouting && battleNpcError && (
+                      <p className="mt-3 text-sm font-semibold text-amber-800">{battleNpcError}</p>
+                    )}
                     {loadingChoices && <p className="mt-3 text-gray-700">Loading options...</p>}
-                    {loadingSkillChecks && <p className="mt-3 text-gray-700">Loading skill checks...</p>}
 
                     {!loadingChoices && (
                       <div className="mt-4 space-y-3">
@@ -793,18 +1160,188 @@ export default function SoloAdventuresEdit() {
                                   onChange={(e) => setEditingChoiceText(e.target.value)}
                                   className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
                                 />
-                                <select
-                                  value={editingChoiceNextPageId}
-                                  onChange={(e) => setEditingChoiceNextPageId(e.target.value)}
-                                  className="mt-3 w-full rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none"
-                                >
-                                  <option value="">-- No destination --</option>
-                                  {pages.map((p) => (
-                                    <option key={p.id} value={String(p.id)}>
-                                      {p.title}
-                                    </option>
-                                  ))}
-                                </select>
+
+                                {supportsChoiceSkillRouting && (
+                                  <div className="mt-3 flex flex-wrap items-center gap-4 text-sm font-semibold text-gray-800">
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={editingChoiceHasSkillCheck}
+                                        onChange={(e) => setEditingChoiceHasSkillCheck(e.target.checked)}
+                                      />
+                                      Add skill check to this option
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={editingChoiceSurpriseBattle}
+                                        onChange={(e) => {
+                                          const checked = e.target.checked;
+                                          setEditingChoiceSurpriseBattle(checked);
+                                          if (checked) setEditingChoiceBattle(false);
+                                        }}
+                                      />
+                                      Surprise Battle
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={editingChoiceBattle}
+                                        onChange={(e) => {
+                                          const checked = e.target.checked;
+                                          setEditingChoiceBattle(checked);
+                                          if (checked) setEditingChoiceSurpriseBattle(false);
+                                        }}
+                                      />
+                                      Battle
+                                    </label>
+                                  </div>
+                                )}
+
+                                {supportsChoiceSkillRouting && editingChoiceHasSkillCheck ? (
+                                  <div className="mt-3 space-y-2">
+                                    <select
+                                      value={editingChoiceSkillName}
+                                      onChange={(e) => setEditingChoiceSkillName(e.target.value)}
+                                      className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                                    >
+                                      <option value="">-- Select Skill --</option>
+                                      {availableSkills.map((skill) => (
+                                        <option key={skill} value={skill}>
+                                          {skill}
+                                        </option>
+                                      ))}
+                                      {editingChoiceSkillName && !availableSkills.includes(editingChoiceSkillName) && (
+                                        <option value={editingChoiceSkillName}>{editingChoiceSkillName}</option>
+                                      )}
+                                    </select>
+                                    <input
+                                      type="text"
+                                      value={editingChoiceDifficulty}
+                                      onChange={(e) => setEditingChoiceDifficulty(e.target.value)}
+                                      placeholder="Difficulty (optional)"
+                                      className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                                    />
+                                    <select
+                                      value={editingChoiceSuccessPageId}
+                                      onChange={(e) => setEditingChoiceSuccessPageId(e.target.value)}
+                                      className="w-full rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none"
+                                    >
+                                      <option value="">-- On Success --</option>
+                                      {pages.map((p) => (
+                                        <option key={p.id} value={String(p.id)}>
+                                          {p.title}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={editingChoiceFailurePageId}
+                                      onChange={(e) => setEditingChoiceFailurePageId(e.target.value)}
+                                      className="w-full rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none"
+                                    >
+                                      <option value="">-- On Failure --</option>
+                                      {pages.map((p) => (
+                                        <option key={p.id} value={String(p.id)}>
+                                          {p.title}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <div className="mt-3 space-y-3">
+                                    <select
+                                      value={editingChoiceNextPageId}
+                                      onChange={(e) => setEditingChoiceNextPageId(e.target.value)}
+                                      className="w-full rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none"
+                                    >
+                                      <option value="">-- Destination Page --</option>
+                                      {pages.map((p) => (
+                                        <option key={p.id} value={String(p.id)}>
+                                          {p.title}
+                                        </option>
+                                      ))}
+                                    </select>
+
+                                    {(editingChoiceSurpriseBattle || editingChoiceBattle) && (
+                                      <div className="space-y-2 rounded-xl border border-sky-300 bg-white p-3">
+                                        <p className="text-sm font-semibold text-gray-900">Battle NPCs</p>
+                                        <div className="flex flex-col gap-2 sm:flex-row">
+                                          <select
+                                            value={editingChoiceSelectedBattleNpcId}
+                                            onChange={(e) => setEditingChoiceSelectedBattleNpcId(e.target.value)}
+                                            disabled={loadingBattleNpcs || availableBattleNpcs.length === 0}
+                                            className="flex-1 rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none disabled:opacity-60"
+                                          >
+                                            <option value="">-- Select NPC --</option>
+                                            {availableBattleNpcs.map((npc) => (
+                                              <option key={npc.id} value={String(npc.id)}>
+                                                {npc.name}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <button
+                                            type="button"
+                                            onClick={() => appendBattleNpcId(editingChoiceSelectedBattleNpcId, setEditingChoiceSelectedBattleNpcId, setEditingChoiceBattleNpcIds)}
+                                            disabled={!editingChoiceSelectedBattleNpcId}
+                                            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-sky-700 disabled:opacity-60"
+                                          >
+                                            Add NPC
+                                          </button>
+                                          {battleNpcSystem === 'SW' && (
+                                            <>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setBattleNpcCreationTarget('edit');
+                                                  setBattleNpcModalNpc(null);
+                                                  setShowCreateBattleNpcModal(true);
+                                                }}
+                                                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-amber-600"
+                                              >
+                                                Create
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const selectedNpc = getBattleNpcById(editingChoiceSelectedBattleNpcId);
+                                                  if (!selectedNpc) return;
+                                                  setBattleNpcCreationTarget('edit');
+                                                  setBattleNpcModalNpc(selectedNpc);
+                                                  setShowCreateBattleNpcModal(true);
+                                                }}
+                                                disabled={!editingChoiceSelectedBattleNpcId}
+                                                className="rounded-lg bg-yellow-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-yellow-700 disabled:opacity-60"
+                                              >
+                                                Edit
+                                              </button>
+                                            </>
+                                          )}
+                                        </div>
+                                        {loadingBattleNpcs && <p className="text-sm text-gray-700">Loading NPCs...</p>}
+                                        {!loadingBattleNpcs && availableBattleNpcs.length === 0 && !battleNpcError && (
+                                          <p className="text-sm text-amber-800">No NPC list is available for this TTRPG yet.</p>
+                                        )}
+                                        {editingChoiceBattleNpcIds.length > 0 && (
+                                          <div className="space-y-2">
+                                            {editingChoiceBattleNpcIds.map((npcId, index) => (
+                                              <div key={`${npcId}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
+                                                <span className="text-sm text-gray-900">{getBattleNpcLabel(npcId)}</span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => removeBattleNpcIdAtIndex(index, setEditingChoiceBattleNpcIds)}
+                                                  className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold uppercase text-black transition hover:bg-red-700"
+                                                >
+                                                  Remove
+                                                </button>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
                                 <div className="mt-3 flex gap-3">
                                   <button
                                     onClick={handleSaveChoice}
@@ -825,73 +1362,25 @@ export default function SoloAdventuresEdit() {
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="font-semibold text-gray-900">{choice.choice_text}</p>
-                                  <p className="text-sm text-gray-700">Goes to: {pageTitleById(choice.next_page_id)}</p>
-
-                                  <div className="mt-2 rounded-lg border border-sky-300 bg-white p-3">
-                                    <p className="text-xs font-bold uppercase text-gray-800">Skill Checks</p>
-                                    {(skillChecksByChoice[String(choice.id)] || []).length === 0 && (
-                                      <p className="mt-1 text-xs text-gray-600">No skill checks for this option.</p>
-                                    )}
-                                    {(skillChecksByChoice[String(choice.id)] || []).map((check) => (
-                                      <div key={check.id} className="mt-2 flex items-start justify-between gap-3 rounded border border-sky-200 bg-sky-50 p-2">
-                                        <div>
-                                          <p className="text-xs font-semibold text-gray-900">
-                                            {check.skill_name}
-                                            {check.difficulty ? ` (${check.difficulty})` : ''}
-                                          </p>
-                                          {check.success_text && (
-                                            <p className="text-xs text-green-700">Success: {check.success_text}</p>
-                                          )}
-                                          {check.failure_text && (
-                                            <p className="text-xs text-red-700">Failure: {check.failure_text}</p>
-                                          )}
-                                        </div>
-                                        <button
-                                          onClick={() => handleDeleteSkillCheck(choice.id, check.id)}
-                                          className="rounded bg-red-600 px-2 py-1 text-xs font-bold uppercase text-black hover:bg-red-700"
-                                        >
-                                          Remove
-                                        </button>
-                                      </div>
-                                    ))}
-
-                                    <div className="mt-2 rounded border border-sky-200 bg-white p-2">
-                                      <input
-                                        type="text"
-                                        value={getSkillCheckDraft(choice.id).skill_name}
-                                        onChange={(e) => updateSkillCheckDraft(choice.id, 'skill_name', e.target.value)}
-                                        placeholder="Skill name (e.g. Stealth)"
-                                        className="w-full rounded border border-sky-400 bg-sky-50 px-2 py-1 text-xs text-gray-900 outline-none"
-                                      />
-                                      <input
-                                        type="text"
-                                        value={getSkillCheckDraft(choice.id).difficulty}
-                                        onChange={(e) => updateSkillCheckDraft(choice.id, 'difficulty', e.target.value)}
-                                        placeholder="Difficulty (optional)"
-                                        className="mt-2 w-full rounded border border-sky-400 bg-sky-50 px-2 py-1 text-xs text-gray-900 outline-none"
-                                      />
-                                      <input
-                                        type="text"
-                                        value={getSkillCheckDraft(choice.id).success_text}
-                                        onChange={(e) => updateSkillCheckDraft(choice.id, 'success_text', e.target.value)}
-                                        placeholder="Success text (optional)"
-                                        className="mt-2 w-full rounded border border-sky-400 bg-sky-50 px-2 py-1 text-xs text-gray-900 outline-none"
-                                      />
-                                      <input
-                                        type="text"
-                                        value={getSkillCheckDraft(choice.id).failure_text}
-                                        onChange={(e) => updateSkillCheckDraft(choice.id, 'failure_text', e.target.value)}
-                                        placeholder="Failure text (optional)"
-                                        className="mt-2 w-full rounded border border-sky-400 bg-sky-50 px-2 py-1 text-xs text-gray-900 outline-none"
-                                      />
-                                      <button
-                                        onClick={() => handleAddSkillCheck(choice.id)}
-                                        className="mt-2 rounded bg-indigo-600 px-2 py-1 text-xs font-bold uppercase text-black hover:bg-indigo-700"
-                                      >
-                                        Add Skill Check
-                                      </button>
-                                    </div>
-                                  </div>
+                                  {supportsChoiceSkillRouting && choice.has_skill_check ? (
+                                    <>
+                                      <p className="text-sm text-gray-700">
+                                        Skill Check: {choice.skill_name || 'Unnamed'}
+                                        {choice.skill_difficulty ? ` (${choice.skill_difficulty})` : ''}
+                                      </p>
+                                      <p className="text-sm text-gray-700">On Success: {pageTitleById(choice.success_page_id)}</p>
+                                      <p className="text-sm text-gray-700">On Failure: {pageTitleById(choice.failure_page_id)}</p>
+                                    </>
+                                  ) : (
+                                    <p className="text-sm text-gray-700">Destination: {pageTitleById(choice.next_page_id)}</p>
+                                  )}
+                                  {!!choice.surprise_battle && <p className="text-sm text-gray-700">Mode: Surprise Battle</p>}
+                                  {!!choice.battle && <p className="text-sm text-gray-700">Mode: Battle</p>}
+                                  {!!choice.battle_npc_ids?.length && (
+                                    <p className="text-sm text-gray-700">
+                                      Battle NPCs: {choice.battle_npc_ids.map((npcId) => getBattleNpcLabel(npcId)).join(', ')}
+                                    </p>
+                                  )}
                                 </div>
                                 <div className="flex gap-2">
                                   <button
@@ -923,18 +1412,185 @@ export default function SoloAdventuresEdit() {
                         placeholder="Option text shown to player"
                         className="mt-3 w-full rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
                       />
-                      <select
-                        value={newChoiceNextPageId}
-                        onChange={(e) => setNewChoiceNextPageId(e.target.value)}
-                        className="mt-3 w-full rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
-                      >
-                        <option value="">-- No destination --</option>
-                        {pages.map((p) => (
-                          <option key={p.id} value={String(p.id)}>
-                            {p.title}
-                          </option>
-                        ))}
-                      </select>
+
+                      {supportsChoiceSkillRouting && (
+                        <div className="mt-3 flex flex-wrap items-center gap-4 text-sm font-semibold text-gray-800">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={newChoiceHasSkillCheck}
+                              onChange={(e) => setNewChoiceHasSkillCheck(e.target.checked)}
+                            />
+                            Add skill check to this option
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={newChoiceSurpriseBattle}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setNewChoiceSurpriseBattle(checked);
+                                if (checked) setNewChoiceBattle(false);
+                              }}
+                            />
+                            Surprise Battle
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={newChoiceBattle}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setNewChoiceBattle(checked);
+                                if (checked) setNewChoiceSurpriseBattle(false);
+                              }}
+                            />
+                            Battle
+                          </label>
+                        </div>
+                      )}
+
+                      {supportsChoiceSkillRouting && newChoiceHasSkillCheck ? (
+                        <div className="mt-3 space-y-2">
+                          <select
+                            value={newChoiceSkillName}
+                            onChange={(e) => setNewChoiceSkillName(e.target.value)}
+                            className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                          >
+                            <option value="">-- Select Skill --</option>
+                            {availableSkills.map((skill) => (
+                              <option key={skill} value={skill}>
+                                {skill}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            value={newChoiceDifficulty}
+                            onChange={(e) => setNewChoiceDifficulty(e.target.value)}
+                            placeholder="Difficulty (optional)"
+                            className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                          />
+                          <select
+                            value={newChoiceSuccessPageId}
+                            onChange={(e) => setNewChoiceSuccessPageId(e.target.value)}
+                            className="w-full rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
+                          >
+                            <option value="">-- On Success --</option>
+                            {pages.map((p) => (
+                              <option key={p.id} value={String(p.id)}>
+                                {p.title}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={newChoiceFailurePageId}
+                            onChange={(e) => setNewChoiceFailurePageId(e.target.value)}
+                            className="w-full rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
+                          >
+                            <option value="">-- On Failure --</option>
+                            {pages.map((p) => (
+                              <option key={p.id} value={String(p.id)}>
+                                {p.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="mt-3 space-y-3">
+                          <select
+                            value={newChoiceNextPageId}
+                            onChange={(e) => setNewChoiceNextPageId(e.target.value)}
+                            className="w-full rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
+                          >
+                            <option value="">-- Destination Page --</option>
+                            {pages.map((p) => (
+                              <option key={p.id} value={String(p.id)}>
+                                {p.title}
+                              </option>
+                            ))}
+                          </select>
+
+                          {(newChoiceSurpriseBattle || newChoiceBattle) && (
+                            <div className="space-y-2 rounded-xl border border-sky-300 bg-sky-50 p-3">
+                              <p className="text-sm font-semibold text-gray-900">Battle NPCs</p>
+                              <div className="flex flex-col gap-2 sm:flex-row">
+                                <select
+                                  value={newChoiceSelectedBattleNpcId}
+                                  onChange={(e) => setNewChoiceSelectedBattleNpcId(e.target.value)}
+                                  disabled={loadingBattleNpcs || availableBattleNpcs.length === 0}
+                                  className="flex-1 rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none disabled:opacity-60"
+                                >
+                                  <option value="">-- Select NPC --</option>
+                                  {availableBattleNpcs.map((npc) => (
+                                    <option key={npc.id} value={String(npc.id)}>
+                                      {npc.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => appendBattleNpcId(newChoiceSelectedBattleNpcId, setNewChoiceSelectedBattleNpcId, setNewChoiceBattleNpcIds)}
+                                  disabled={!newChoiceSelectedBattleNpcId}
+                                  className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-sky-700 disabled:opacity-60"
+                                >
+                                  Add NPC
+                                </button>
+                                {battleNpcSystem === 'SW' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setBattleNpcCreationTarget('new');
+                                        setBattleNpcModalNpc(null);
+                                        setShowCreateBattleNpcModal(true);
+                                      }}
+                                      className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-amber-600"
+                                    >
+                                      Create
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const selectedNpc = getBattleNpcById(newChoiceSelectedBattleNpcId);
+                                        if (!selectedNpc) return;
+                                        setBattleNpcCreationTarget('new');
+                                        setBattleNpcModalNpc(selectedNpc);
+                                        setShowCreateBattleNpcModal(true);
+                                      }}
+                                      disabled={!newChoiceSelectedBattleNpcId}
+                                      className="rounded-lg bg-yellow-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-yellow-700 disabled:opacity-60"
+                                    >
+                                      Edit
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                              {loadingBattleNpcs && <p className="text-sm text-gray-700">Loading NPCs...</p>}
+                              {!loadingBattleNpcs && availableBattleNpcs.length === 0 && !battleNpcError && (
+                                <p className="text-sm text-amber-800">No NPC list is available for this TTRPG yet.</p>
+                              )}
+                              {newChoiceBattleNpcIds.length > 0 && (
+                                <div className="space-y-2">
+                                  {newChoiceBattleNpcIds.map((npcId, index) => (
+                                    <div key={`${npcId}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-sky-200 bg-white px-3 py-2">
+                                      <span className="text-sm text-gray-900">{getBattleNpcLabel(npcId)}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeBattleNpcIdAtIndex(index, setNewChoiceBattleNpcIds)}
+                                        className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold uppercase text-black transition hover:bg-red-700"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <button
                         onClick={handleAddChoice}
                         disabled={addingChoice}
@@ -950,6 +1606,18 @@ export default function SoloAdventuresEdit() {
           )}
         </div>
       </div>
+
+      <AddNPCModal
+        isOpen={showCreateBattleNpcModal}
+        onClose={() => {
+          setShowCreateBattleNpcModal(false);
+          setBattleNpcCreationTarget('');
+          setBattleNpcModalNpc(null);
+        }}
+        onSave={handleCreatedBattleNpc}
+        campaignId={null}
+        npcToEdit={battleNpcModalNpc}
+      />
     </div>
   );
 }

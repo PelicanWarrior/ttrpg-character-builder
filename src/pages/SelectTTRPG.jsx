@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { DND_DEFAULT_SKILLS } from '../constants/dndSkills';
 
 export default function SelectTTRPG() {
   const navigate = useNavigate();
@@ -15,11 +16,13 @@ export default function SelectTTRPG() {
   const [diceMap, setDiceMap] = useState({});
   const [characters, setCharacters] = useState([]);
   const [showCharacterList, setShowCharacterList] = useState(false);
+  const [copyingCharacterId, setCopyingCharacterId] = useState(null);
   const [dndCharacterLists, setDndCharacterLists] = useState({});
   const [activeDndListId, setActiveDndListId] = useState(null);
   const [loadingDndCharacters, setLoadingDndCharacters] = useState(false);
   const [dndCharacterError, setDndCharacterError] = useState('');
   const [dndClassMap, setDndClassMap] = useState({});
+  const [dndSubclassMap, setDndSubclassMap] = useState({});
   const [campaigns, setCampaigns] = useState([]);
   const [faCharacters, setFaCharacters] = useState([]);
   const [showFaCharacterList, setShowFaCharacterList] = useState(false);
@@ -35,6 +38,12 @@ export default function SelectTTRPG() {
   const [newTtrpgInitials, setNewTtrpgInitials] = useState('');
   const [newTtrpgDndMod, setNewTtrpgDndMod] = useState(false);
   const [newTtrpgCustomSystems, setNewTtrpgCustomSystems] = useState(false);
+  const [showModifySkillsModal, setShowModifySkillsModal] = useState(false);
+  const [activeDndSkillMod, setActiveDndSkillMod] = useState('');
+  const [dndSkillMappings, setDndSkillMappings] = useState({});
+  const [loadingSkillMappings, setLoadingSkillMappings] = useState(false);
+  const [savingSkillMappings, setSavingSkillMappings] = useState(false);
+  const [skillMappingError, setSkillMappingError] = useState('');
   const addFormRef = useRef(null);
 
   useEffect(() => {
@@ -106,6 +115,126 @@ export default function SelectTTRPG() {
     const newVal = !current;
     await supabase.from('TTRPGs').update({ show: newVal }).eq('TTRPG_name', name);
     setTtrpgRows(prev => prev.map(r => r.name === name ? { ...r, show: newVal } : r));
+  };
+
+  const loadDndSkillMappings = async (modName) => {
+    if (!modName) return;
+
+    setLoadingSkillMappings(true);
+    setSkillMappingError('');
+
+    const defaults = DND_DEFAULT_SKILLS.reduce((acc, skill) => {
+      acc[skill] = skill;
+      return acc;
+    }, {});
+
+    try {
+      const { data, error } = await supabase
+        .from('dnd_mod_skill_mappings')
+        .select('base_skill, mapped_skill')
+        .eq('dndmod', modName);
+
+      if (error) {
+        const message = String(error?.message || '').toLowerCase();
+        const isMissingTableError =
+          (message.includes('relation') && message.includes('dnd_mod_skill_mappings') && message.includes('does not exist'))
+          || (message.includes('table') && message.includes('dnd_mod_skill_mappings') && message.includes('does not exist'));
+        if (isMissingTableError) {
+          setSkillMappingError('Skill mapping table is missing. Run sql/migrate_dnd_mod_skill_mappings.sql in Supabase.');
+        } else {
+          setSkillMappingError(`Failed to load skill mappings for this mod: ${error.message}`);
+        }
+        setDndSkillMappings(defaults);
+        return;
+      }
+
+      const merged = { ...defaults };
+      (data || []).forEach((row) => {
+        const baseSkill = String(row?.base_skill || '').trim();
+        const mappedSkill = String(row?.mapped_skill || '').trim();
+        if (!baseSkill || !mappedSkill) return;
+        if (!Object.prototype.hasOwnProperty.call(merged, baseSkill)) return;
+        merged[baseSkill] = mappedSkill;
+      });
+      setDndSkillMappings(merged);
+    } catch (err) {
+      console.error('Failed to load DnD skill mappings:', err);
+      setSkillMappingError('Failed to load skill mappings for this mod.');
+      setDndSkillMappings(defaults);
+    } finally {
+      setLoadingSkillMappings(false);
+    }
+  };
+
+  const openModifySkillsModal = async (modName) => {
+    setActiveDndSkillMod(modName);
+    setShowModifySkillsModal(true);
+    await loadDndSkillMappings(modName);
+  };
+
+  const closeModifySkillsModal = (forceClose = false) => {
+    if (savingSkillMappings && !forceClose) return;
+    setShowModifySkillsModal(false);
+    setActiveDndSkillMod('');
+    setDndSkillMappings({});
+    setSkillMappingError('');
+  };
+
+  const updateMappedSkill = (baseSkill, nextValue) => {
+    setDndSkillMappings((prev) => ({
+      ...prev,
+      [baseSkill]: nextValue,
+    }));
+  };
+
+  const handleSaveSkillMappings = async () => {
+    if (!activeDndSkillMod) return;
+
+    setSavingSkillMappings(true);
+    setSkillMappingError('');
+
+    try {
+      const rowsToUpsert = DND_DEFAULT_SKILLS
+        .map((baseSkill) => {
+          const mappedRaw = String(dndSkillMappings[baseSkill] || '').trim();
+          if (!mappedRaw || mappedRaw === baseSkill) return null;
+          return {
+            dndmod: activeDndSkillMod,
+            base_skill: baseSkill,
+            mapped_skill: mappedRaw,
+            updated_by: playerId,
+          };
+        })
+        .filter(Boolean);
+
+      if (rowsToUpsert.length > 0) {
+        const { error: upsertError } = await supabase
+          .from('dnd_mod_skill_mappings')
+          .upsert(rowsToUpsert, { onConflict: 'dndmod,base_skill' });
+        if (upsertError) throw upsertError;
+      }
+
+      const baseSkillsToClear = DND_DEFAULT_SKILLS.filter((baseSkill) => {
+        const mappedRaw = String(dndSkillMappings[baseSkill] || '').trim();
+        return !mappedRaw || mappedRaw === baseSkill;
+      });
+
+      if (baseSkillsToClear.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('dnd_mod_skill_mappings')
+          .delete()
+          .eq('dndmod', activeDndSkillMod)
+          .in('base_skill', baseSkillsToClear);
+        if (deleteError) throw deleteError;
+      }
+
+      closeModifySkillsModal(true);
+    } catch (err) {
+      console.error('Failed to save DnD skill mappings:', err);
+      setSkillMappingError(`Failed to save skill mappings: ${err.message || 'Unknown error'}`);
+    } finally {
+      setSavingSkillMappings(false);
+    }
   };
 
   const shouldShow = (row) => isAdmin || row.show === true;
@@ -348,6 +477,72 @@ export default function SelectTTRPG() {
     setRollResults({ poolResults, diffResults });
   };
 
+  const handleCopySWCharacter = async (character) => {
+    if (!character?.id || !playerId || copyingCharacterId) return;
+    setCopyingCharacterId(character.id);
+
+    try {
+      const { data: sourceCharacter, error: sourceError } = await supabase
+        .from('SW_player_characters')
+        .select('*')
+        .eq('id', character.id)
+        .eq('user_number', playerId)
+        .single();
+
+      if (sourceError || !sourceCharacter) {
+        throw new Error(sourceError?.message || 'Failed to load source character.');
+      }
+
+      const copyPayload = { ...sourceCharacter };
+      delete copyPayload.id;
+      copyPayload.campaign_joined = null;
+      copyPayload.name = `${sourceCharacter.name || 'Character'} (Copy)`;
+
+      const { data: insertedCharacter, error: insertError } = await supabase
+        .from('SW_player_characters')
+        .insert(copyPayload)
+        .select('id, name, race, career, spec, picture, campaign_joined')
+        .single();
+
+      if (insertError || !insertedCharacter) {
+        throw new Error(insertError?.message || 'Failed to create character copy.');
+      }
+
+      const { data: sourceEquipment, error: sourceEquipmentError } = await supabase
+        .from('SW_character_equipment')
+        .select('equipmentID, equipped')
+        .eq('characterID', character.id);
+
+      if (sourceEquipmentError) {
+        throw new Error(sourceEquipmentError.message || 'Failed to load source equipment.');
+      }
+
+      const equipmentRows = (sourceEquipment || []).map((entry) => ({
+        characterID: insertedCharacter.id,
+        equipmentID: entry.equipmentID,
+        equipped: entry.equipped,
+      }));
+
+      if (equipmentRows.length > 0) {
+        const { error: insertEquipmentError } = await supabase
+          .from('SW_character_equipment')
+          .insert(equipmentRows);
+
+        if (insertEquipmentError) {
+          throw new Error(insertEquipmentError.message || 'Failed to copy character equipment.');
+        }
+      }
+
+      setCharacters(prev => [...prev, insertedCharacter]);
+      alert(`Created copy: ${insertedCharacter.name}`);
+    } catch (err) {
+      console.error('Error copying character:', err);
+      alert(err.message || 'Failed to copy character.');
+    } finally {
+      setCopyingCharacterId(null);
+    }
+  };
+
   const fetchFaCharacters = async () => {
     if (!playerId) return;
     setLoadingFaCharacters(true);
@@ -391,12 +586,16 @@ export default function SelectTTRPG() {
     setLoadingDndCharacters(true);
     setDndCharacterError('');
     try {
-      const { data, error } = await supabase
+      let data = null;
+
+      const { data: rows, error } = await supabase
         .from('DND_player_character')
-        .select('id, Name, Class, Class_ProfSkills, Str, Dex, Con, Int, Wis, Cha')
+        .select('*')
         .eq('TTRPG', ttrpgId)
         .eq('User_ID', playerId);
       if (error) throw error;
+      data = rows || [];
+
       setDndCharacterLists((prev) => ({ ...prev, [ttrpgId]: data || [] }));
 
       const classIds = Array.from(new Set((data || [])
@@ -412,6 +611,25 @@ export default function SelectTTRPG() {
             const next = { ...prev };
             classRows.forEach((row) => {
               next[row.id] = row.ClassName || 'Unknown Class';
+            });
+            return next;
+          });
+        }
+      }
+
+      const subclassIds = Array.from(new Set((data || [])
+        .map((row) => row?.Subclass ?? row?.subclass ?? row?.SubClass ?? row?.sub_class)
+        .filter((id) => id != null)));
+      if (subclassIds.length > 0) {
+        const { data: subclassRows, error: subclassError } = await supabase
+          .from('DND_Subclasses')
+          .select('id, SubclassName')
+          .in('id', subclassIds);
+        if (!subclassError && subclassRows) {
+          setDndSubclassMap((prev) => {
+            const next = { ...prev };
+            subclassRows.forEach((row) => {
+              next[row.id] = row.SubclassName || 'Unknown Subclass';
             });
             return next;
           });
@@ -1158,6 +1376,22 @@ export default function SelectTTRPG() {
                                 <path d="M10 4c-4.5 0-7.5 4.5-8.3 5.8a.5.5 0 000 .4C2.5 11.5 5.5 16 10 16s7.5-4.5 8.3-5.8a.5.5 0 000-.4C17.5 8.5 14.5 4 10 4zm0 9a3 3 0 110-6 3 3 0 010 6z" />
                               </svg>
                             </button>
+                            <button
+                              onClick={() => handleCopySWCharacter(character)}
+                              disabled={copyingCharacterId === character.id}
+                              aria-label="Copy character"
+                              title="Copy"
+                              className="flex flex-1 min-w-0 items-center justify-center px-2 py-1 bg-slate-700 text-white font-bold rounded hover:bg-slate-800 transition text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {copyingCharacterId === character.id ? (
+                                <span className="text-[10px]">...</span>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+                                  <path d="M6 2a2 2 0 00-2 2v8a2 2 0 002 2h1V5a2 2 0 012-2h6V4a2 2 0 00-2-2H6z" />
+                                  <path d="M9 6a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V8a2 2 0 00-2-2H9z" />
+                                </svg>
+                              )}
+                            </button>
                             <button 
                               onClick={async () => {
                                 if (!confirm(`Delete ${character.name}?`)) return;
@@ -1259,6 +1493,15 @@ export default function SelectTTRPG() {
                         <input type="checkbox" checked={row.show} onChange={() => toggleTTRPGVisibility(row.name, row.show)} className="w-6 h-6 rounded" />
                         <span className="font-bold text-lg">Show {row.name}</span>
                       </div>
+                      <div className="flex">
+                        <button
+                          type="button"
+                          onClick={() => openModifySkillsModal(row.name)}
+                          className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded hover:bg-blue-700 transition"
+                        >
+                          Modify Skills
+                        </button>
+                      </div>
                     </div>
                   )}
                   <div className="p-10 text-center">
@@ -1345,7 +1588,12 @@ export default function SelectTTRPG() {
                                     <div>
                                       <h3 className="font-bold text-lg" style={{ color: '#ffffff' }}>{character.Name || 'Unnamed'}</h3>
                                       <p className="text-sm" style={{ color: '#dddddd' }}>
-                                        {dndClassMap[character.Class] || 'Unknown Class'}
+                                        {(() => {
+                                          const className = dndClassMap[character.Class] || 'Unknown Class';
+                                          const subclassId = character?.Subclass ?? character?.subclass ?? character?.SubClass ?? character?.sub_class;
+                                          const subclassName = subclassId != null ? dndSubclassMap[subclassId] : '';
+                                          return subclassName ? `${className} (${subclassName})` : className;
+                                        })()}
                                       </p>
                                     </div>
                                   </div>
@@ -1360,6 +1608,10 @@ export default function SelectTTRPG() {
                                       Edit
                                     </button>
                                     <button
+                                      onClick={() => {
+                                        localStorage.setItem('loadedCharacterId', character.id);
+                                        navigate(`/DNDmod_character_overview?mod=${encodeURIComponent(row.name)}`);
+                                      }}
                                       className="flex-1 min-w-0 px-2 py-1 bg-white text-black font-bold rounded hover:bg-gray-100 transition text-xs"
                                     >
                                       Overview
@@ -1469,6 +1721,81 @@ export default function SelectTTRPG() {
       )}
 
       {/* Admin: Add TTRPG */}
+      {showModifySkillsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 px-4"
+          onClick={closeModifySkillsModal}
+        >
+          <div
+            className="w-full max-w-3xl rounded-xl border border-gray-300 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-gray-200 px-6 py-4">
+              <h3 className="text-2xl font-bold text-gray-900">Modify Skills: {activeDndSkillMod}</h3>
+              <p className="text-sm text-gray-600 mt-1">Change displayed DnD skill names for this specific mod.</p>
+            </div>
+
+            <div className="max-h-[65vh] overflow-y-auto px-6 py-4">
+              {skillMappingError && (
+                <p className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{skillMappingError}</p>
+              )}
+
+              {loadingSkillMappings ? (
+                <p className="text-sm text-gray-600">Loading current skills...</p>
+              ) : (
+                <div className="space-y-2">
+                  {DND_DEFAULT_SKILLS.map((baseSkill) => (
+                    <div key={`dnd-skill-map-${baseSkill}`} className="grid grid-cols-1 gap-2 rounded border border-gray-200 p-3 sm:grid-cols-2 sm:items-center">
+                      <div className="text-sm font-semibold text-gray-800">{baseSkill}</div>
+                      <input
+                        type="text"
+                        value={dndSkillMappings[baseSkill] ?? baseSkill}
+                        onChange={(e) => updateMappedSkill(baseSkill, e.target.value)}
+                        placeholder={baseSkill}
+                        className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const reset = DND_DEFAULT_SKILLS.reduce((acc, skill) => {
+                    acc[skill] = skill;
+                    return acc;
+                  }, {});
+                  setDndSkillMappings(reset);
+                }}
+                disabled={savingSkillMappings || loadingSkillMappings}
+                className="px-4 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:opacity-60"
+              >
+                Reset to Defaults
+              </button>
+              <button
+                type="button"
+                onClick={closeModifySkillsModal}
+                disabled={savingSkillMappings}
+                className="px-4 py-2 rounded bg-gray-500 text-white hover:bg-gray-600 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSkillMappings}
+                disabled={savingSkillMappings || loadingSkillMappings}
+                className="px-5 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-60"
+              >
+                {savingSkillMappings ? 'Saving...' : 'Save Skills'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAdmin && (
         <div ref={addFormRef} className="max-w-3xl mx-auto mt-16 mb-8 p-6 border-4 border-gray-900 rounded-2xl bg-white shadow-xl">
           {!showAddForm ? (

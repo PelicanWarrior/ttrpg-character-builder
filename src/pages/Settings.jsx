@@ -3,6 +3,39 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { supabase } from '../supabaseClient';
 
+const DND_SKILL_OPTIONS = [
+  'Acrobatics',
+  'Animal Handling',
+  'Arcana',
+  'Athletics',
+  'Deception',
+  'History',
+  'Insight',
+  'Intimidation',
+  'Investigation',
+  'Medicine',
+  'Nature',
+  'Perception',
+  'Performance',
+  'Persuasion',
+  'Religion',
+  'Sleight of Hand',
+  'Stealth',
+  'Survival'
+];
+
+const DND_SKILL_COUNT_WORD_MAP = {
+  one: '1',
+  two: '2',
+  three: '3',
+  four: '4',
+  five: '5',
+  six: '6',
+  seven: '7',
+  eight: '8',
+  nine: '9'
+};
+
 // Force Power Tree Talent Name dropdown state
 // (must be after imports)
 
@@ -140,6 +173,8 @@ export default function Settings() {
   const [dndProfWeapons, setDndProfWeapons] = useState('');
   const [dndProfSavingThrows, setDndProfSavingThrows] = useState('');
   const [dndProfSkills, setDndProfSkills] = useState('');
+  const [dndProfSkillsChooseCount, setDndProfSkillsChooseCount] = useState('');
+  const [dndProfSkillsOptions, setDndProfSkillsOptions] = useState([]);
   const [dndPointsName, setDndPointsName] = useState('');
   const [dndAttire, setDndAttire] = useState('');
   const [dndExtraLevelFieldInput, setDndExtraLevelFieldInput] = useState('');
@@ -1469,6 +1504,52 @@ export default function Settings() {
       .filter((id) => id != null);
   };
 
+  const parseDndProfSkillsValue = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return { chooseCount: '', options: [] };
+
+    const chooseMatch = /^choose\s+(\w+)\s+from\s+(.+)$/i.exec(raw);
+    if (chooseMatch) {
+      const countToken = chooseMatch[1].toLowerCase();
+      const chooseCount = /^\d$/.test(countToken)
+        ? countToken
+        : (DND_SKILL_COUNT_WORD_MAP[countToken] || '');
+
+      const options = [...new Set(
+        chooseMatch[2]
+          .split(',')
+          .map((skill) => skill.trim())
+          .filter(Boolean)
+      )];
+
+      return { chooseCount, options };
+    }
+
+    const options = [...new Set(
+      raw
+        .split(',')
+        .map((skill) => skill.trim())
+        .filter(Boolean)
+    )];
+
+    return { chooseCount: '', options };
+  };
+
+  const buildDndProfSkillsValue = (chooseCount, options) => {
+    const normalizedChooseCount = String(chooseCount || '').replace(/\D/g, '').slice(0, 1);
+    const normalizedOptions = [...new Set(
+      (options || [])
+        .map((skill) => String(skill || '').trim())
+        .filter(Boolean)
+    )];
+
+    if (normalizedChooseCount && normalizedOptions.length > 0) {
+      return `Choose ${normalizedChooseCount} from ${normalizedOptions.join(', ')}`;
+    }
+
+    return normalizedOptions.join(', ');
+  };
+
   const getSelectedDndModValue = () => (
     selectedDndTTRPGs.length > 0
       ? selectedDndTTRPGs
@@ -2474,7 +2555,10 @@ export default function Settings() {
         setDndProfArmour(data.Prof_Armour || '');
         setDndProfWeapons(data.Prof_Weapons || '');
         setDndProfSavingThrows(data.Prof_SavingThrows || '');
+        const parsedProfSkills = parseDndProfSkillsValue(data.Prof_Skills || '');
         setDndProfSkills(data.Prof_Skills || '');
+        setDndProfSkillsChooseCount(parsedProfSkills.chooseCount);
+        setDndProfSkillsOptions(parsedProfSkills.options);
         setDndPointsName(data.PointsName || '');
         setDndAttire(data.Attire || '');
         const extraFieldNames = setDndExtraFieldNames(data.ExtraLevelFields);
@@ -2792,6 +2876,8 @@ export default function Settings() {
     setDndProfWeapons('');
     setDndProfSavingThrows('');
     setDndProfSkills('');
+    setDndProfSkillsChooseCount('');
+    setDndProfSkillsOptions([]);
     setDndPointsName('');
     setDndAttire('');
     setDndExtraLevelFieldInput('');
@@ -3111,6 +3197,8 @@ export default function Settings() {
       }
 
       const dndModValue = getSelectedDndModValue();
+      const normalizedDndProfSkills = buildDndProfSkillsValue(dndProfSkillsChooseCount, dndProfSkillsOptions);
+      setDndProfSkills(normalizedDndProfSkills);
       const normalizedExtraFields = setDndExtraFieldNames([
         ...dndExtraLevelFields,
         ...normalizeDndExtraFieldNames(dndExtraLevelFieldInput),
@@ -3129,7 +3217,7 @@ export default function Settings() {
           Prof_Armour: dndProfArmour,
           Prof_Weapons: dndProfWeapons,
           Prof_SavingThrows: dndProfSavingThrows,
-          Prof_Skills: dndProfSkills,
+          Prof_Skills: normalizedDndProfSkills,
           PointsName: dndPointsName,
           Attire: dndAttire,
           ExtraLevelFields: normalizedExtraFields,
@@ -3164,7 +3252,7 @@ export default function Settings() {
           Prof_Armour: dndProfArmour,
           Prof_Weapons: dndProfWeapons,
           Prof_SavingThrows: dndProfSavingThrows,
-          Prof_Skills: dndProfSkills,
+          Prof_Skills: normalizedDndProfSkills,
           PointsName: dndPointsName,
           Attire: dndAttire,
           ExtraLevelFields: normalizedExtraFields,
@@ -5922,7 +6010,7 @@ export default function Settings() {
       </div>
 
       {isAdmin && (
-        <div className="w-3/4 max-w-md space-y-4">
+        <div className="w-full max-w-[1600px] space-y-4 px-4">
           <div className="flex gap-3">
             <button
               onClick={handlePathfinderStats}
@@ -6574,13 +6662,43 @@ export default function Settings() {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Proficiency in Skills</label>
-                          <textarea
-                            value={dndProfSkills}
-                            onChange={(e) => setDndProfSkills(e.target.value)}
-                            placeholder="Enter skill proficiencies"
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                            rows={2}
-                          />
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm text-gray-700">Choose</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]"
+                              maxLength={1}
+                              value={dndProfSkillsChooseCount}
+                              onChange={(e) => setDndProfSkillsChooseCount(e.target.value.replace(/\D/g, '').slice(0, 1))}
+                              placeholder="0"
+                              className="w-14 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">skill(s) from:</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-48 overflow-y-auto border border-gray-300 rounded p-2">
+                            {DND_SKILL_OPTIONS.map((skill) => {
+                              const isSelected = dndProfSkillsOptions.includes(skill);
+                              return (
+                                <label key={`dnd-prof-skill-${skill}`} className="flex items-center gap-2 text-sm text-gray-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setDndProfSkillsOptions((prev) => [...new Set([...prev, skill])]);
+                                        return;
+                                      }
+                                      setDndProfSkillsOptions((prev) => prev.filter((item) => item !== skill));
+                                    }}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <span>{skill}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         <div>
