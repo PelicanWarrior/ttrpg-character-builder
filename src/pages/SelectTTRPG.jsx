@@ -367,6 +367,8 @@ export default function SelectTTRPG() {
   const handleRoll = async () => {
     if (!dicePopup || !dicePopup.details) return;
 
+    setRollResults(null);
+
     const poolResults = [];
     const combinedDice = [...(dicePopup.details || []), ...(dicePopup.boosts || [])];
 
@@ -657,7 +659,9 @@ export default function SelectTTRPG() {
             borderRadius: '10px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
             zIndex: 9999,
-            minWidth: '760px',
+            width: 'fit-content',
+            minWidth: '460px',
+            maxWidth: 'calc(100vw - 24px)',
             display: 'flex',
             flexDirection: 'column',
             pointerEvents: 'auto',
@@ -675,7 +679,7 @@ export default function SelectTTRPG() {
           <h3 className="font-bold text-lg mb-4" style={{ color: '#000' }}>{dicePopup.label || 'Dice Pool'}</h3>
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{ flex: '0 0 420px' }}>
+            <div style={{ minWidth: '420px', width: 'fit-content', display: rollResults ? 'none' : 'block' }}>
               <div className="flex items-end mb-1" style={{ gap: 8, alignItems: 'flex-end' }}>
                 {dicePopup.details.map((d, i) => (
                   <div key={i} className="flex flex-col items-center" style={{ minWidth: 56 }}>
@@ -954,13 +958,9 @@ export default function SelectTTRPG() {
               </div>
             </div>
 
-            <div style={{ flex: '0 0 260px', borderLeft: '1px solid #e5e7eb', paddingLeft: 12, marginLeft: 12 }}>
-              <h4 className="font-bold text-lg mb-2" style={{ color: '#000' }}>Outcome</h4>
-              {!rollResults && (
-                <div className="text-sm text-gray-500">No roll yet. Press <strong>Roll</strong> to show outcome.</div>
-              )}
-
-              {rollResults && (
+            {rollResults && (
+              <div style={{ flex: '1 1 auto', borderLeft: 'none', paddingLeft: 0, marginLeft: 0 }}>
+                <h4 className="font-bold text-lg mb-2" style={{ color: '#000' }}>Outcome</h4>
                 <div className="text-sm" style={{ color: '#000' }}>
                   {(() => {
                     const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
@@ -1003,8 +1003,16 @@ export default function SelectTTRPG() {
                     );
                   })()}
                 </div>
-              )}
-            </div>
+                <div className="mt-4">
+                  <button
+                    onClick={handleRoll}
+                    className="px-4 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+                  >
+                    Roll Again
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

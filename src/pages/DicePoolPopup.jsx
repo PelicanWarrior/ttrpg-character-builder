@@ -216,6 +216,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
   // Simulate a dice roll
   const handleRoll = async () => {
     if (!dicePopup) return;
+    setRollResults(null);
     const poolDetails = dicePopup.details || [];
     const boostsArr = dicePopup.boosts || [];
     const setbacksArr = isForceRoll ? [] : (dicePopup.setbacks || []);
@@ -242,6 +243,7 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
   const setbacksArr = dicePopup.setbacks || [];
   const isForceRoll = Boolean(dicePopup.isForceRoll);
   const difficultyLocked = Boolean(dicePopup.difficultyLocked);
+  const parsedRoll = rollResults ? parseRollResults(rollResults.poolResults, rollResults.diffResults) : null;
 
   return (
     <>
@@ -249,7 +251,9 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
         style={{
           backgroundColor: 'white',
           borderRadius: '10px',
-          width: '100%',
+          width: 'fit-content',
+          minWidth: '420px',
+          maxWidth: 'calc(100vw - 40px)',
           display: 'flex',
           flexDirection: 'column',
           pointerEvents: 'auto',
@@ -258,11 +262,10 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
       >
         <h3 className="font-bold text-lg mb-4" style={{ color: '#000' }}>{dicePopup.label || 'Dice Pool'}</h3>
 
-        {/* MAIN FLEX: left column + outcome panel */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-
-        {/* LEFT COLUMN: pool, boosts, setbacks, difficulty, roll */}
-        <div style={{ flex: '0 0 420px' }}>
+        {!rollResults ? (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            {/* Dice setup panel (hidden after roll) */}
+            <div style={{ minWidth: '420px', width: 'fit-content' }}>
 
         <div className="flex items-end mb-1" style={{ gap: 8, alignItems: 'flex-end' }}>
                   {poolDetails.map((d, i) => (
@@ -527,106 +530,99 @@ export default function DicePoolPopup({ dicePopup, setDicePopup, onUseResult, fr
                   )}
                 </div>}
 
-                {/* Roll button or Use Result button */}
+                {/* Roll button */}
                 <div className="mt-6">
-                  {!rollResults ? (
-                    <button
-                      onClick={handleRoll}
-                      className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
-                    >
-                      Roll
-                    </button>
-                  ) : fromSkillCheck ? (
-                    <button
-                      className="w-full px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-bold"
-                      onClick={() => {
-                        if (!rollResults) return;
-                        const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
-                        onUseResult(parsed.netSuccess, parsed.netAdvantage, parsed);
-                        setDicePopup(null);
-                      }}
-                    >
-                      {actionLabel}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleRoll}
-                      className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
-                    >
-                      Roll Again
-                    </button>
-                  )}
+                  <button
+                    onClick={handleRoll}
+                    className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+                  >
+                    Roll
+                  </button>
                 </div>
-                </div>
+            </div>
+          </div>
+        ) : (
+          <div className="border border-gray-300 rounded-md p-4" style={{ color: '#000' }}>
+            <h4 className="font-bold text-lg mb-3">Outcome</h4>
+            {(() => {
+              const rows = [
+                { label: 'Success', value: parsedRoll?.counts?.success || 0 },
+                { label: 'Failure', value: parsedRoll?.counts?.failure || 0 },
+                { label: 'Advantage', value: parsedRoll?.counts?.advantage || 0 },
+                { label: 'Threat', value: parsedRoll?.counts?.threat || 0 },
+                { label: 'Triumph', value: parsedRoll?.counts?.triumph || 0 },
+                { label: 'Despair', value: parsedRoll?.counts?.despair || 0 },
+              ].filter((r) => r.value > 0);
 
-                {/* Outcome panel to the right */}
-                <div style={{ flex: '0 0 260px', borderLeft: '1px solid #e5e7eb', paddingLeft: 12 }}>
-                  <h4 className="font-bold text-lg mb-2" style={{ color: '#000' }}>Outcome</h4>
-                  {!rollResults && (
-                    <div className="text-sm text-gray-500">No roll yet. Press <strong>Roll</strong> to show outcome.</div>
-                  )}
-                  {rollResults && (
-                    <div className="text-sm" style={{ color: '#000' }}>
-                      {(() => {
-                        const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
-                        const rows = [
-                          { label: 'Success', value: parsed.counts.success },
-                          { label: 'Failure', value: parsed.counts.failure },
-                          { label: 'Advantage', value: parsed.counts.advantage },
-                          { label: 'Threat', value: parsed.counts.threat },
-                          { label: 'Triumph', value: parsed.counts.triumph },
-                          { label: 'Despair', value: parsed.counts.despair },
-                        ].filter((r) => r.value > 0);
+              if (isForceRoll) {
+                return rows.length > 0
+                  ? rows.map((row) => (
+                    <div key={row.label} className="mb-2">
+                      {row.value} {row.label}
+                    </div>
+                  ))
+                  : <div className="mb-2">No symbols rolled.</div>;
+              }
 
-                        return (
-                          <>
-                            {isForceRoll ? (
-                              rows.map((row) => (
-                                <div key={row.label} className="mb-2">
-                                  {row.value} {row.label}
-                                </div>
-                              ))
-                            ) : (
-                              <>
-                                <div className="mb-2 font-semibold">
-                                  {parsed.netSuccess > 0
-                                    ? parsed.counts.triumph > 0
-                                      ? 'TRIUMPH SUCCESS!!'
-                                      : `${parsed.netSuccess} Net Success - Action succeeds`
-                                    : parsed.netFailure > 0
-                                      ? `${parsed.netFailure} Net Failure - Action fails`
-                                      : '0 Net Success - Action fails'}
-                                </div>
-                                {(parsed.netAdvantage > 0 || parsed.netThreat > 0) && (
-                                  <div className="mb-2">
-                                    {parsed.netAdvantage > 0
-                                      ? `${parsed.netAdvantage} Net Advantage - Positive side effects`
-                                      : `${parsed.netThreat} Net Threat - Negative side effects`}
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </>
-                        );
-                      })()}
-                      {onUseResult && !fromSkillCheck && (
-                        <button
-                          className="mt-3 px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-                          onClick={() => {
-                            if (!rollResults) return;
-                            const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
-                            onUseResult(parsed.netSuccess, parsed.netAdvantage, parsed);
-                            setDicePopup(null);
-                          }}
-                        >
-                          Use Result
-                        </button>
-                      )}
+              return (
+                <>
+                  <div className="mb-2 font-semibold">
+                    {(parsedRoll?.netSuccess || 0) > 0
+                      ? (parsedRoll?.counts?.triumph || 0) > 0
+                        ? 'TRIUMPH SUCCESS!!'
+                        : `${parsedRoll.netSuccess} Net Success - Action succeeds`
+                      : (parsedRoll?.netFailure || 0) > 0
+                        ? `${parsedRoll.netFailure} Net Failure - Action fails`
+                        : '0 Net Success - Action fails'}
+                  </div>
+                  {((parsedRoll?.netAdvantage || 0) > 0 || (parsedRoll?.netThreat || 0) > 0) && (
+                    <div className="mb-2">
+                      {(parsedRoll?.netAdvantage || 0) > 0
+                        ? `${parsedRoll.netAdvantage} Net Advantage - Positive side effects`
+                        : `${parsedRoll.netThreat} Net Threat - Negative side effects`}
                     </div>
                   )}
-                </div>
-              </div>
-        </div>
+                </>
+              );
+            })()}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={handleRoll}
+                className="px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+              >
+                Roll Again
+              </button>
+
+              {fromSkillCheck && onUseResult && (
+                <button
+                  className="px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-bold"
+                  onClick={() => {
+                    if (!parsedRoll) return;
+                    onUseResult(parsedRoll.netSuccess, parsedRoll.netAdvantage, parsedRoll);
+                    setDicePopup(null);
+                  }}
+                >
+                  {actionLabel}
+                </button>
+              )}
+
+              {onUseResult && !fromSkillCheck && (
+                <button
+                  className="px-3 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-bold"
+                  onClick={() => {
+                    if (!parsedRoll) return;
+                    onUseResult(parsedRoll.netSuccess, parsedRoll.netAdvantage, parsedRoll);
+                    setDicePopup(null);
+                  }}
+                >
+                  Use Result
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

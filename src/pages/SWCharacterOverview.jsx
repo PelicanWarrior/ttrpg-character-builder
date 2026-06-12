@@ -28,13 +28,9 @@ export default function SWCharacterOverview() {
   const [equipmentSearchInput, setEquipmentSearchInput] = useState('');
   const [showEquipmentDropdown, setShowEquipmentDropdown] = useState(false);
   const equipmentDropdownRef = useRef(null);
-  const otherItemPopupRef = useRef(null);
-  const consumablePopupRef = useRef(null);
   const [inventory, setInventory] = useState([]);
   const [armour, setArmour] = useState([]);
   const [otherItems, setOtherItems] = useState([]);
-  const [openOtherItemDescriptionKey, setOpenOtherItemDescriptionKey] = useState(null);
-  const [openConsumableDescriptionKey, setOpenConsumableDescriptionKey] = useState(null);
   const [shipCatalog, setShipCatalog] = useState([]);
   const [characterShips, setCharacterShips] = useState([]);
   const [selectedShipId, setSelectedShipId] = useState('');
@@ -424,6 +420,9 @@ export default function SWCharacterOverview() {
   const handleRoll = async () => {
     if (!dicePopup || !dicePopup.details) return;
 
+    // Clear prior outcome immediately so only the latest roll result is shown.
+    setRollResults(null);
+
     const poolResults = [];
 
     const combinedDice = [...(dicePopup.details || []), ...((dicePopup.boosts || []))];
@@ -627,42 +626,6 @@ export default function SWCharacterOverview() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showEquipmentDropdown]);
-
-  useEffect(() => {
-    if (!openOtherItemDescriptionKey) return;
-
-    const handleClickOutsideOtherItemPopup = (event) => {
-      if (otherItemPopupRef.current && !otherItemPopupRef.current.contains(event.target)) {
-        setOpenOtherItemDescriptionKey(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutsideOtherItemPopup);
-    document.addEventListener('touchstart', handleClickOutsideOtherItemPopup);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutsideOtherItemPopup);
-      document.removeEventListener('touchstart', handleClickOutsideOtherItemPopup);
-    };
-  }, [openOtherItemDescriptionKey]);
-
-  useEffect(() => {
-    if (!openConsumableDescriptionKey) return;
-
-    const handleClickOutsideConsumablePopup = (event) => {
-      if (consumablePopupRef.current && !consumablePopupRef.current.contains(event.target)) {
-        setOpenConsumableDescriptionKey(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutsideConsumablePopup);
-    document.addEventListener('touchstart', handleClickOutsideConsumablePopup);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutsideConsumablePopup);
-      document.removeEventListener('touchstart', handleClickOutsideConsumablePopup);
-    };
-  }, [openConsumableDescriptionKey]);
 
   useEffect(() => {
     const fetchCharacterData = async () => {
@@ -1065,7 +1028,6 @@ export default function SWCharacterOverview() {
 
             return {
               id: item.id || 0,
-              equipment_id: equipId,
               equipment_name: equipData?.name || '',
               description: equipData?.description || '',
               skill: skillData?.skill || '',
@@ -1525,7 +1487,6 @@ export default function SWCharacterOverview() {
         } else if (data && data[0]) {
           const newItem = {
             id: data[0].id,
-            equipment_id: equipmentToAdd.id,
             equipment_name: equipmentToAdd.name,
             description: equipmentToAdd.description || '',
             skill: skillData?.skill || '',
@@ -1632,99 +1593,23 @@ export default function SWCharacterOverview() {
     }
   };
 
-  const handleOtherItemQuantityChange = async (groupedItem, change) => {
-    if (!characterId || !groupedItem) return;
-
-    if (change > 0) {
-      const sampleItem = groupedItem.items?.[0];
-      if (!sampleItem) return;
-
-      if (sampleItem.custom) {
-        const { data, error } = await supabase
-          .from('SW_custom_inventory')
-          .insert({
-            Name: sampleItem.equipment_name,
-            Description: sampleItem.description || '',
-            characterID: characterId,
-          })
-          .select();
-
+  const handleOtherItemDelete = async (index) => {
+    const itemToDelete = otherItems[index];
+    if (itemToDelete.id && characterId) {
+      const confirmDelete = confirm(`Do you really want to delete ${itemToDelete.equipment_name}?`);
+      if (confirmDelete) {
+        const targetTable = itemToDelete.custom ? 'SW_custom_inventory' : 'SW_character_equipment';
+        const { error } = await supabase
+          .from(targetTable)
+          .delete()
+          .eq('id', itemToDelete.id);
         if (error) {
-          console.error('Error adding another custom item:', error);
-          return;
+          console.error('Error deleting other item:', error);
+        } else {
+          const updatedOtherItems = [...otherItems];
+          updatedOtherItems.splice(index, 1);
+          setOtherItems(updatedOtherItems);
         }
-
-        if (data && data[0]) {
-          setOtherItems((prev) => ([
-            ...prev,
-            {
-              id: data[0].id,
-              equipment_name: data[0].Name || sampleItem.equipment_name,
-              description: data[0].Description || sampleItem.description || '',
-              special: '',
-              consumable: false,
-              custom: true,
-            },
-          ]));
-        }
-        return;
-      }
-
-      const equipmentId = sampleItem.equipment_id
-        || equipment.find((e) => e.name === sampleItem.equipment_name)?.id;
-
-      if (!equipmentId) return;
-
-      const { data, error } = await supabase
-        .from('SW_character_equipment')
-        .insert({
-          characterID: characterId,
-          equipmentID: equipmentId,
-          equipped: false,
-        })
-        .select();
-
-      if (error) {
-        console.error('Error adding another item:', error);
-        return;
-      }
-
-      const equipmentData = equipment.find((e) => e.id === equipmentId);
-      if (data && data[0]) {
-        setOtherItems((prev) => ([
-          ...prev,
-          {
-            id: data[0].id,
-            equipment_id: equipmentId,
-            equipment_name: equipmentData?.name || sampleItem.equipment_name,
-            description: equipmentData?.description || sampleItem.description || '',
-            special: equipmentData?.special || sampleItem.special || '',
-            consumable: equipmentData?.consumable ?? sampleItem.consumable,
-            custom: false,
-          },
-        ]));
-      }
-      return;
-    }
-
-    if (change < 0) {
-      const itemToRemove = groupedItem.items?.[0];
-      if (!itemToRemove?.id) return;
-
-      const targetTable = itemToRemove.custom ? 'SW_custom_inventory' : 'SW_character_equipment';
-      const { error } = await supabase
-        .from(targetTable)
-        .delete()
-        .eq('id', itemToRemove.id);
-
-      if (error) {
-        console.error('Error removing one item:', error);
-        return;
-      }
-
-      setOtherItems((prev) => prev.filter((item) => item.id !== itemToRemove.id));
-      if (groupedItem.count <= 1) {
-        setOpenOtherItemDescriptionKey((current) => (current === groupedItem.key ? null : current));
       }
     }
   };
@@ -1744,58 +1629,6 @@ export default function SWCharacterOverview() {
       console.error('Error using consumable:', error);
     } else {
       setOtherItems(prev => prev.filter(item => item.id !== itemToRemove.id));
-    }
-  };
-
-  const handleConsumableQuantityChange = async (consumableItem, change) => {
-    if (!characterId || !consumableItem) return;
-
-    if (change < 0) {
-      await handleUseConsumable(consumableItem.name);
-      if (consumableItem.count <= 1) {
-        setOpenConsumableDescriptionKey((current) => (current === consumableItem.key ? null : current));
-      }
-      return;
-    }
-
-    if (change > 0) {
-      const sampleItem = consumableItem.items?.[0];
-      if (!sampleItem) return;
-
-      const equipmentId = sampleItem.equipment_id
-        || equipment.find((e) => e.name === sampleItem.equipment_name)?.id;
-
-      if (!equipmentId) return;
-
-      const { data, error } = await supabase
-        .from('SW_character_equipment')
-        .insert({
-          characterID: characterId,
-          equipmentID: equipmentId,
-          equipped: false,
-        })
-        .select();
-
-      if (error) {
-        console.error('Error adding another consumable:', error);
-        return;
-      }
-
-      const equipmentData = equipment.find((e) => e.id === equipmentId);
-      if (data && data[0]) {
-        setOtherItems((prev) => ([
-          ...prev,
-          {
-            id: data[0].id,
-            equipment_id: equipmentId,
-            equipment_name: equipmentData?.name || consumableItem.name,
-            description: equipmentData?.description || consumableItem.description || '',
-            special: equipmentData?.special || consumableItem.special || '',
-            consumable: true,
-            custom: false,
-          },
-        ]));
-      }
     }
   };
 
@@ -2104,48 +1937,21 @@ export default function SWCharacterOverview() {
   const consolidatedConsumables = otherItems
     .filter(item => item.consumable)
     .reduce((acc, item) => {
-    const key = (item.equipment_name || '').trim().toLowerCase();
-    if (!acc[key]) {
-      acc[key] = {
-        key,
+    if (!acc[item.equipment_name]) {
+      acc[item.equipment_name] = {
         name: item.equipment_name,
         count: 0,
         description: item.description,
         special: item.special,
         ids: [],
-        items: [],
       };
     }
-    acc[key].count += 1;
-    acc[key].ids.push(item.id);
-    acc[key].items.push(item);
+    acc[item.equipment_name].count += 1;
+    acc[item.equipment_name].ids.push(item.id);
     return acc;
     }, {});
 
   const consumableList = Object.values(consolidatedConsumables);
-
-  const groupedOtherItems = Object.values(
-    otherItems.reduce((acc, item) => {
-      const rawName = item.equipment_name || 'Unnamed Item';
-      const key = rawName.trim().toLowerCase();
-      if (!acc[key]) {
-        acc[key] = {
-          key,
-          name: rawName,
-          description: item.description || '',
-          special: item.special || '',
-          count: 0,
-          items: [],
-        };
-      }
-
-      acc[key].count += 1;
-      acc[key].items.push(item);
-      if (!acc[key].description && item.description) acc[key].description = item.description;
-      if (!acc[key].special && item.special) acc[key].special = item.special;
-      return acc;
-    }, {})
-  ).sort((a, b) => a.name.localeCompare(b.name));
 
   const StatBox = ({ statName, value, size = 'md' }) => {
     const canvasRef = useRef(null);
@@ -2553,7 +2359,6 @@ export default function SWCharacterOverview() {
           <button className={`px-4 py-2 font-bold ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
-          <button className={`px-4 py-2 font-bold ${activeTab === 'backstory' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('backstory')}>Backstory</button>
         </div>
 
         {/* ==================== STATS TAB ==================== */}
@@ -2855,80 +2660,34 @@ export default function SWCharacterOverview() {
               <h3 className="font-bold text-lg mt-4">Other Items</h3>
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <colgroup>
-                  <col style={{ width: canEdit ? '42%' : '50%' }} />
-                  <col style={{ width: canEdit ? '38%' : '50%' }} />
-                  {canEdit && <col style={{ width: '20%' }} />}
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '58%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '5%' }} />
                 </colgroup>
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-black py-1">Name</th>
+                    <th className="border border-black py-1">Description</th>
                     <th className="border border-black py-1">Special</th>
-                    {canEdit && <th className="border border-black py-1">Actions</th>}
+                    <th className="border border-black py-1">Delete</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {groupedOtherItems.map((item) => (
-                    <tr key={item.key} className="bg-gray-100">
-                      <td className="border border-black py-1 px-2 relative" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                        {openOtherItemDescriptionKey === item.key && item.description && (
-                          <div
-                            ref={otherItemPopupRef}
-                            className="fixed bg-white border border-black rounded shadow-lg p-2 z-50"
-                            style={{
-                              left: 'max(10px, calc(50vw - 280px))',
-                              top: '12vh',
-                              width: 'min(560px, calc(100vw - 20px))',
-                              maxHeight: '76vh',
-                              overflowY: 'auto',
-                            }}
-                          >
-                            <button
-                              onClick={() => setOpenOtherItemDescriptionKey(null)}
-                              className="absolute top-1 right-1 w-6 h-6 leading-none text-black hover:text-red-700"
-                              aria-label="Close description"
-                            >
-                              X
-                            </button>
-                            <div className="pr-7" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                              {item.description}
-                            </div>
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setOpenOtherItemDescriptionKey((current) => (current === item.key ? null : item.key))}
-                          className="text-blue-700 underline hover:text-blue-900"
-                          style={{ textUnderlineOffset: '2px' }}
-                        >
-                          {item.name} x{item.count}
-                        </button>
-                        {!item.description && (
-                          <div className="text-xs text-gray-600 mt-1">No description</div>
-                        )}
+                  {otherItems.map((item, index) => (
+                    <tr key={index} className="bg-gray-100">
+                      <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                        {item.equipment_name}
+                      </td>
+                      <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                        {item.description || ''}
                       </td>
                       <td className="border border-black py-1" style={{ wordWrap: 'break-word' }}>
                         <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
                       </td>
-                      {canEdit && (
-                        <td className="border border-black py-1 px-1">
-                          <div className="flex items-center justify-center gap-1 sm:gap-2 w-full">
-                            <button
-                              onClick={() => handleOtherItemQuantityChange(item, -1)}
-                              disabled={item.count <= 0}
-                              className="w-7 h-7 sm:w-8 sm:h-8 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"
-                              aria-label={`Remove one ${item.name}`}
-                            >
-                              -
-                            </button>
-                            <button
-                              onClick={() => handleOtherItemQuantityChange(item, 1)}
-                              className="w-7 h-7 sm:w-8 sm:h-8 bg-green-600 text-white rounded hover:bg-green-700"
-                              aria-label={`Add one ${item.name}`}
-                            >
-                              +
-                            </button>
-                          </div>
-                        </td>
-                      )}
+                      <td className="border border-black py-1 text-center">
+                        <button onClick={() => handleOtherItemDelete(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -3323,81 +3082,40 @@ export default function SWCharacterOverview() {
                 <h3 className="font-bold text-lg mb-3">Consumables</h3>
                 <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed', width: '100%' }}>
                   <colgroup>
-                    <col style={{ width: canEdit ? '42%' : '50%' }} />
-                    <col style={{ width: canEdit ? '38%' : '50%' }} />
-                    {canEdit && <col style={{ width: '20%' }} />}
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '83%' }} />
+                    <col style={{ width: '5%' }} />
                   </colgroup>
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="border border-black py-1">Name</th>
-                      <th className="border border-black py-1">Special</th>
-                      {canEdit && <th className="border border-black py-1">Actions</th>}
+                      <th className="border border-black py-1">Description</th>
+                      <th className="border border-black py-1">Use</th>
                     </tr>
                   </thead>
                   <tbody>
                     {consumableList.map((item, index) => (
                       <tr key={index} className="bg-gray-100">
-                        <td className="border border-black py-1 px-2 relative" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                          {openConsumableDescriptionKey === item.key && item.description && (
-                            <div
-                              ref={consumablePopupRef}
-                              className="fixed bg-white border border-black rounded shadow-lg p-2 z-50"
-                              style={{
-                                left: 'max(10px, calc(50vw - 280px))',
-                                top: '12vh',
-                                width: 'min(560px, calc(100vw - 20px))',
-                                maxHeight: '76vh',
-                                overflowY: 'auto',
-                              }}
-                            >
-                              <button
-                                onClick={() => setOpenConsumableDescriptionKey(null)}
-                                className="absolute top-1 right-1 w-6 h-6 leading-none text-black hover:text-red-700"
-                                aria-label="Close consumable description"
-                              >
-                                X
-                              </button>
-                              <div className="pr-7" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                {item.description}
-                              </div>
+                        <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                          {item.name} x{item.count}
+                        </td>
+                        <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
+                          <div>{item.description || ''}</div>
+                          {item.special && (
+                            <div>
+                              Special: <ItemQualityText text={item.special} onQualityClick={handleItemQualityClick} />
                             </div>
                           )}
-                          <button
-                            onClick={() => {
-                              setOpenOtherItemDescriptionKey(null);
-                              setOpenConsumableDescriptionKey((current) => (current === item.key ? null : item.key));
-                            }}
-                            className="text-blue-700 underline hover:text-blue-900"
-                            style={{ textUnderlineOffset: '2px' }}
-                          >
-                            {item.name} x{item.count}
-                          </button>
-                          {!item.description && (
-                            <div className="text-xs text-gray-600 mt-1">No description</div>
-                          )}
-                        </td>
-                        <td className="border border-black py-1" style={{ wordWrap: 'break-word' }}>
-                          <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
                         </td>
                         {canEdit && (
-                          <td className="border border-black py-1 px-1">
-                            <div className="flex items-center justify-center gap-1 sm:gap-2 w-full">
-                              <button
-                                onClick={() => handleConsumableQuantityChange(item, -1)}
-                                disabled={item.count <= 0}
-                                className="w-7 h-7 sm:w-8 sm:h-8 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"
-                                aria-label={`Use one ${item.name}`}
-                              >
-                                -
-                              </button>
-                              <button
-                                onClick={() => handleConsumableQuantityChange(item, 1)}
-                                className="w-7 h-7 sm:w-8 sm:h-8 bg-green-600 text-white rounded hover:bg-green-700"
-                                aria-label={`Add one ${item.name}`}
-                              >
-                                +
-                              </button>
-                            </div>
+                          <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
+                            <button
+                              onClick={() => handleUseConsumable(item.name)}
+                              disabled={item.count === 0}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+                            >
+                              Use
+                            </button>
                           </td>
                         )}
                       </tr>
@@ -3497,65 +3215,63 @@ export default function SWCharacterOverview() {
           </div>
         )}
 
-        {activeTab === 'backstory' && (
-          <div className="border-2 border-black rounded-lg p-4 w-full text-center" style={{ minHeight: '500px' }}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-lg">Backstory</h3>
-              {canCampaignOwnerEditBackstory && (
-                <div className="flex items-center gap-2">
-                  {!editingBackstory ? (
+        <div className="border-2 border-black rounded-lg p-4 w-full text-center mt-4" style={{ minHeight: '500px' }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-lg">Backstory</h3>
+            {canCampaignOwnerEditBackstory && (
+              <div className="flex items-center gap-2">
+                {!editingBackstory ? (
+                  <button
+                    onClick={() => {
+                      setBackstoryDraft(backstory || '');
+                      setEditingBackstory(true);
+                    }}
+                    className="px-3 py-1 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 transition"
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <>
                     <button
                       onClick={() => {
+                        setEditingBackstory(false);
                         setBackstoryDraft(backstory || '');
-                        setEditingBackstory(true);
                       }}
-                      className="px-3 py-1 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 transition"
+                      disabled={savingBackstory}
+                      className="px-3 py-1 bg-gray-500 text-white text-sm font-semibold rounded hover:bg-gray-600 transition disabled:opacity-60"
                     >
-                      Edit
+                      Cancel
                     </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => {
-                          setEditingBackstory(false);
-                          setBackstoryDraft(backstory || '');
-                        }}
-                        disabled={savingBackstory}
-                        className="px-3 py-1 bg-gray-500 text-white text-sm font-semibold rounded hover:bg-gray-600 transition disabled:opacity-60"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSaveBackstory}
-                        disabled={savingBackstory}
-                        className="px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition disabled:opacity-60"
-                      >
-                        {savingBackstory ? 'Saving...' : 'Save'}
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {editingBackstory ? (
-              <textarea
-                ref={backstoryTextareaRef}
-                value={backstoryDraft}
-                onChange={(e) => {
-                  setBackstoryDraft(e.target.value);
-                  autoResizeBackstoryTextarea(e.currentTarget);
-                }}
-                rows={6}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-left"
-                style={{ resize: 'none', overflow: 'hidden' }}
-                placeholder="Enter character backstory..."
-              />
-            ) : (
-              <p className="text-left whitespace-pre-wrap">{backstory || 'No backstory provided.'}</p>
+                    <button
+                      onClick={handleSaveBackstory}
+                      disabled={savingBackstory}
+                      className="px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition disabled:opacity-60"
+                    >
+                      {savingBackstory ? 'Saving...' : 'Save'}
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
+
+          {editingBackstory ? (
+            <textarea
+              ref={backstoryTextareaRef}
+              value={backstoryDraft}
+              onChange={(e) => {
+                setBackstoryDraft(e.target.value);
+                autoResizeBackstoryTextarea(e.currentTarget);
+              }}
+              rows={6}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-left"
+              style={{ resize: 'none', overflow: 'hidden' }}
+              placeholder="Enter character backstory..."
+            />
+          ) : (
+            <p className="text-left whitespace-pre-wrap">{backstory || 'No backstory provided.'}</p>
+          )}
+        </div>
 
         {/* NEW: Dynamic Dice Pool Popup */}
         {dicePopup && (
@@ -3571,7 +3287,9 @@ export default function SWCharacterOverview() {
                 borderRadius: '10px',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
                 zIndex: 9999,
-                minWidth: '760px',
+                width: 'fit-content',
+                minWidth: '460px',
+                maxWidth: 'calc(100vw - 24px)',
                 display: 'flex',
                 flexDirection: 'column',
                 pointerEvents: 'auto',
@@ -3594,7 +3312,7 @@ export default function SWCharacterOverview() {
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
 
             {/* LEFT COLUMN: pool, boosts, setbacks, difficulty, roll */}
-            <div style={{ flex: '0 0 420px' }}>
+            <div style={{ minWidth: '420px', width: 'fit-content', display: rollResults ? 'none' : 'block' }}>
 
             <div className="flex items-end mb-1" style={{ gap: 8, alignItems: 'flex-end' }}>
               {dicePopup.details.map((d, i) => (
@@ -3897,14 +3615,10 @@ export default function SWCharacterOverview() {
             )}
             </div>
 
-            {/* Outcome panel to the right */}
-            <div style={{ flex: '0 0 260px', borderLeft: '1px solid #e5e7eb', paddingLeft: 12 }}>
-              <h4 className="font-bold text-lg mb-2" style={{ color: '#000' }}>Outcome</h4>
-              {!rollResults && (
-                <div className="text-sm text-gray-500">No roll yet. Press <strong>Roll</strong> to show outcome.</div>
-              )}
-
-              {rollResults && (
+            {/* Outcome panel to the right (only after a roll) */}
+            {rollResults && (
+              <div style={{ flex: '1 1 auto', borderLeft: 'none', paddingLeft: 0 }}>
+                <h4 className="font-bold text-lg mb-2" style={{ color: '#000' }}>Outcome</h4>
                 <div className="text-sm" style={{ color: '#000' }}>
                   {(() => {
                     const parsed = parseRollResults(rollResults.poolResults, rollResults.diffResults);
@@ -3949,8 +3663,16 @@ export default function SWCharacterOverview() {
                     );
                   })()}
                 </div>
-              )}
-            </div>
+                <div className="mt-4">
+                  <button
+                    onClick={handleRoll}
+                    className="px-4 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+                  >
+                    Roll Again
+                  </button>
+                </div>
+              </div>
+            )}
             </div>
           </div>
         )}
