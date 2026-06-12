@@ -752,14 +752,6 @@ export default function SWCharacterOverview() {
         ? characterData.talent_tree.split(',').map(entry => entry.trim()).filter(Boolean)
         : [];
 
-      const cleanedTalentNames = characterData.talents
-        ? characterData.talents
-            .split(',')
-            .map(entry => entry.trim())
-            .filter(Boolean)
-            .map(entry => entry.replace(/\s*\(.*\)$/, '').trim())
-        : [];
-
       const parsedForceEntries = talentTreeEntries
         .map((entry) => {
           const match = entry.match(/^force:([^:]+):ability_?(\d+)_(\d+)$/i);
@@ -772,18 +764,17 @@ export default function SWCharacterOverview() {
         })
         .filter(Boolean);
 
-      const forceAbilityMap = {};
+      const forceAbilityList = [];
 
-      const addForceAbility = (name, description, tree = '') => {
+      const addForceAbility = (name, description, tree = '', row = null, col = null) => {
         if (!name) return;
-        const key = `${name}::${description || ''}`;
-        if (!forceAbilityMap[key]) {
-          forceAbilityMap[key] = {
-            name,
-            description: description || '',
-            tree,
-          };
-        }
+        forceAbilityList.push({
+          name,
+          description: description || '',
+          tree,
+          row: Number.isFinite(row) ? row : null,
+          col: Number.isFinite(col) ? col : null,
+        });
       };
 
       if (parsedForceEntries.length > 0) {
@@ -878,37 +869,38 @@ export default function SWCharacterOverview() {
                     name: talent.talent_name,
                     description: talent.description || '',
                     tree: entry.sourceTree,
-                    sortKey: `${entry.sourceTree}|${entry.row}|${entry.col}|${talent.talent_name}`,
+                    row: entry.row,
+                    col: entry.col,
                   };
                 })
                 .filter(Boolean)
-                .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+                .sort((a, b) => {
+                  const treeCmp = (a.tree || '').localeCompare(b.tree || '');
+                  if (treeCmp !== 0) return treeCmp;
+                  const rowCmp = (a.row ?? Number.MAX_SAFE_INTEGER) - (b.row ?? Number.MAX_SAFE_INTEGER);
+                  if (rowCmp !== 0) return rowCmp;
+                  const colCmp = (a.col ?? Number.MAX_SAFE_INTEGER) - (b.col ?? Number.MAX_SAFE_INTEGER);
+                  if (colCmp !== 0) return colCmp;
+                  return (a.name || '').localeCompare(b.name || '');
+                });
 
               displayForceAbilities.forEach((ability) => {
-                addForceAbility(ability.name, ability.description, ability.tree);
+                addForceAbility(ability.name, ability.description, ability.tree, ability.row, ability.col);
               });
             }
           }
         }
       }
 
-      if (cleanedTalentNames.length > 0) {
-        const uniqueTalentNames = Array.from(new Set(cleanedTalentNames));
-        const { data: namedForceTalentData, error: namedForceTalentError } = await supabase
-          .from('SW_force_talents')
-          .select('id, talent_name, description')
-          .in('talent_name', uniqueTalentNames);
-
-        if (namedForceTalentError) {
-          console.error('Error fetching force talents by name for overview:', namedForceTalentError);
-        } else {
-          (namedForceTalentData || []).forEach((talent) => {
-            addForceAbility(talent.talent_name, talent.description || '', '');
-          });
-        }
-      }
-
-      const finalForceAbilities = Object.values(forceAbilityMap).sort((a, b) => a.name.localeCompare(b.name));
+      const finalForceAbilities = [...forceAbilityList].sort((a, b) => {
+        const treeCmp = (a.tree || '').localeCompare(b.tree || '');
+        if (treeCmp !== 0) return treeCmp;
+        const rowCmp = (a.row ?? Number.MAX_SAFE_INTEGER) - (b.row ?? Number.MAX_SAFE_INTEGER);
+        if (rowCmp !== 0) return rowCmp;
+        const colCmp = (a.col ?? Number.MAX_SAFE_INTEGER) - (b.col ?? Number.MAX_SAFE_INTEGER);
+        if (colCmp !== 0) return colCmp;
+        return (a.name || '').localeCompare(b.name || '');
+      });
       setForceAbilities(finalForceAbilities);
 
       if (characterData.career) {
@@ -2144,7 +2136,13 @@ export default function SWCharacterOverview() {
   )
     .map(([treeName, abilitiesInTree]) => ({
       treeName,
-      abilities: [...abilitiesInTree].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+      abilities: [...abilitiesInTree].sort((a, b) => {
+        const rowCmp = (a.row ?? Number.MAX_SAFE_INTEGER) - (b.row ?? Number.MAX_SAFE_INTEGER);
+        if (rowCmp !== 0) return rowCmp;
+        const colCmp = (a.col ?? Number.MAX_SAFE_INTEGER) - (b.col ?? Number.MAX_SAFE_INTEGER);
+        if (colCmp !== 0) return colCmp;
+        return (a.name || '').localeCompare(b.name || '');
+      }),
     }))
     .sort((a, b) => a.treeName.localeCompare(b.treeName));
 
