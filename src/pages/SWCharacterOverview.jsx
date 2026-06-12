@@ -29,10 +29,12 @@ export default function SWCharacterOverview() {
   const [showEquipmentDropdown, setShowEquipmentDropdown] = useState(false);
   const equipmentDropdownRef = useRef(null);
   const otherItemPopupRef = useRef(null);
+  const consumablePopupRef = useRef(null);
   const [inventory, setInventory] = useState([]);
   const [armour, setArmour] = useState([]);
   const [otherItems, setOtherItems] = useState([]);
   const [openOtherItemDescriptionKey, setOpenOtherItemDescriptionKey] = useState(null);
+  const [openConsumableDescriptionKey, setOpenConsumableDescriptionKey] = useState(null);
   const [shipCatalog, setShipCatalog] = useState([]);
   const [characterShips, setCharacterShips] = useState([]);
   const [selectedShipId, setSelectedShipId] = useState('');
@@ -643,6 +645,24 @@ export default function SWCharacterOverview() {
       document.removeEventListener('touchstart', handleClickOutsideOtherItemPopup);
     };
   }, [openOtherItemDescriptionKey]);
+
+  useEffect(() => {
+    if (!openConsumableDescriptionKey) return;
+
+    const handleClickOutsideConsumablePopup = (event) => {
+      if (consumablePopupRef.current && !consumablePopupRef.current.contains(event.target)) {
+        setOpenConsumableDescriptionKey(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutsideConsumablePopup);
+    document.addEventListener('touchstart', handleClickOutsideConsumablePopup);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideConsumablePopup);
+      document.removeEventListener('touchstart', handleClickOutsideConsumablePopup);
+    };
+  }, [openConsumableDescriptionKey]);
 
   useEffect(() => {
     const fetchCharacterData = async () => {
@@ -1727,6 +1747,58 @@ export default function SWCharacterOverview() {
     }
   };
 
+  const handleConsumableQuantityChange = async (consumableItem, change) => {
+    if (!characterId || !consumableItem) return;
+
+    if (change < 0) {
+      await handleUseConsumable(consumableItem.name);
+      if (consumableItem.count <= 1) {
+        setOpenConsumableDescriptionKey((current) => (current === consumableItem.key ? null : current));
+      }
+      return;
+    }
+
+    if (change > 0) {
+      const sampleItem = consumableItem.items?.[0];
+      if (!sampleItem) return;
+
+      const equipmentId = sampleItem.equipment_id
+        || equipment.find((e) => e.name === sampleItem.equipment_name)?.id;
+
+      if (!equipmentId) return;
+
+      const { data, error } = await supabase
+        .from('SW_character_equipment')
+        .insert({
+          characterID: characterId,
+          equipmentID: equipmentId,
+          equipped: false,
+        })
+        .select();
+
+      if (error) {
+        console.error('Error adding another consumable:', error);
+        return;
+      }
+
+      const equipmentData = equipment.find((e) => e.id === equipmentId);
+      if (data && data[0]) {
+        setOtherItems((prev) => ([
+          ...prev,
+          {
+            id: data[0].id,
+            equipment_id: equipmentId,
+            equipment_name: equipmentData?.name || consumableItem.name,
+            description: equipmentData?.description || consumableItem.description || '',
+            special: equipmentData?.special || consumableItem.special || '',
+            consumable: true,
+            custom: false,
+          },
+        ]));
+      }
+    }
+  };
+
   const handleDeleteEquipment = async (index, isArmour = false) => {
     if (isArmour) {
       const itemToDelete = armour[index];
@@ -2032,17 +2104,21 @@ export default function SWCharacterOverview() {
   const consolidatedConsumables = otherItems
     .filter(item => item.consumable)
     .reduce((acc, item) => {
-    if (!acc[item.equipment_name]) {
-      acc[item.equipment_name] = {
+    const key = (item.equipment_name || '').trim().toLowerCase();
+    if (!acc[key]) {
+      acc[key] = {
+        key,
         name: item.equipment_name,
         count: 0,
         description: item.description,
         special: item.special,
         ids: [],
+        items: [],
       };
     }
-    acc[item.equipment_name].count += 1;
-    acc[item.equipment_name].ids.push(item.id);
+    acc[key].count += 1;
+    acc[key].ids.push(item.id);
+    acc[key].items.push(item);
     return acc;
     }, {});
 
@@ -3246,40 +3322,81 @@ export default function SWCharacterOverview() {
                 <h3 className="font-bold text-lg mb-3">Consumables</h3>
                 <table className="border border-black w-full text-left mt-2" style={{ tableLayout: 'fixed', width: '100%' }}>
                   <colgroup>
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '83%' }} />
-                    <col style={{ width: '5%' }} />
+                    <col style={{ width: canEdit ? '42%' : '50%' }} />
+                    <col style={{ width: canEdit ? '38%' : '50%' }} />
+                    {canEdit && <col style={{ width: '20%' }} />}
                   </colgroup>
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="border border-black py-1">Name</th>
-                      <th className="border border-black py-1">Description</th>
-                      <th className="border border-black py-1">Use</th>
+                      <th className="border border-black py-1">Special</th>
+                      {canEdit && <th className="border border-black py-1">Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {consumableList.map((item, index) => (
                       <tr key={index} className="bg-gray-100">
-                        <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                          {item.name} x{item.count}
-                        </td>
-                        <td className="border border-black py-1" style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
-                          <div>{item.description || ''}</div>
-                          {item.special && (
-                            <div>
-                              Special: <ItemQualityText text={item.special} onQualityClick={handleItemQualityClick} />
+                        <td className="border border-black py-1 px-2 relative" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                          {openConsumableDescriptionKey === item.key && item.description && (
+                            <div
+                              ref={consumablePopupRef}
+                              className="fixed bg-white border border-black rounded shadow-lg p-2 z-50"
+                              style={{
+                                left: 'max(10px, calc(50vw - 280px))',
+                                top: '12vh',
+                                width: 'min(560px, calc(100vw - 20px))',
+                                maxHeight: '76vh',
+                                overflowY: 'auto',
+                              }}
+                            >
+                              <button
+                                onClick={() => setOpenConsumableDescriptionKey(null)}
+                                className="absolute top-1 right-1 w-6 h-6 leading-none text-black hover:text-red-700"
+                                aria-label="Close consumable description"
+                              >
+                                X
+                              </button>
+                              <div className="pr-7" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {item.description}
+                              </div>
                             </div>
                           )}
+                          <button
+                            onClick={() => {
+                              setOpenOtherItemDescriptionKey(null);
+                              setOpenConsumableDescriptionKey((current) => (current === item.key ? null : item.key));
+                            }}
+                            className="text-blue-700 underline hover:text-blue-900"
+                            style={{ textUnderlineOffset: '2px' }}
+                          >
+                            {item.name} x{item.count}
+                          </button>
+                          {!item.description && (
+                            <div className="text-xs text-gray-600 mt-1">No description</div>
+                          )}
+                        </td>
+                        <td className="border border-black py-1" style={{ wordWrap: 'break-word' }}>
+                          <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
                         </td>
                         {canEdit && (
-                          <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
-                            <button
-                              onClick={() => handleUseConsumable(item.name)}
-                              disabled={item.count === 0}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-                            >
-                              Use
-                            </button>
+                          <td className="border border-black py-1 px-1">
+                            <div className="flex items-center justify-center gap-1 sm:gap-2 w-full">
+                              <button
+                                onClick={() => handleConsumableQuantityChange(item, -1)}
+                                disabled={item.count <= 0}
+                                className="w-7 h-7 sm:w-8 sm:h-8 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"
+                                aria-label={`Use one ${item.name}`}
+                              >
+                                -
+                              </button>
+                              <button
+                                onClick={() => handleConsumableQuantityChange(item, 1)}
+                                className="w-7 h-7 sm:w-8 sm:h-8 bg-green-600 text-white rounded hover:bg-green-700"
+                                aria-label={`Add one ${item.name}`}
+                              >
+                                +
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>
