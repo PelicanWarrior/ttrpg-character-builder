@@ -2553,6 +2553,7 @@ export default function SWCharacterOverview() {
           <button className={`px-4 py-2 font-bold ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
           <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
+          <button className={`px-4 py-2 font-bold ${activeTab === 'backstory' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('backstory')}>Backstory</button>
         </div>
 
         {/* ==================== STATS TAB ==================== */}
@@ -3496,63 +3497,65 @@ export default function SWCharacterOverview() {
           </div>
         )}
 
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mt-4" style={{ minHeight: '500px' }}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-lg">Backstory</h3>
-            {canCampaignOwnerEditBackstory && (
-              <div className="flex items-center gap-2">
-                {!editingBackstory ? (
-                  <button
-                    onClick={() => {
-                      setBackstoryDraft(backstory || '');
-                      setEditingBackstory(true);
-                    }}
-                    className="px-3 py-1 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 transition"
-                  >
-                    Edit
-                  </button>
-                ) : (
-                  <>
+        {activeTab === 'backstory' && (
+          <div className="border-2 border-black rounded-lg p-4 w-full text-center" style={{ minHeight: '500px' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg">Backstory</h3>
+              {canCampaignOwnerEditBackstory && (
+                <div className="flex items-center gap-2">
+                  {!editingBackstory ? (
                     <button
                       onClick={() => {
-                        setEditingBackstory(false);
                         setBackstoryDraft(backstory || '');
+                        setEditingBackstory(true);
                       }}
-                      disabled={savingBackstory}
-                      className="px-3 py-1 bg-gray-500 text-white text-sm font-semibold rounded hover:bg-gray-600 transition disabled:opacity-60"
+                      className="px-3 py-1 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 transition"
                     >
-                      Cancel
+                      Edit
                     </button>
-                    <button
-                      onClick={handleSaveBackstory}
-                      disabled={savingBackstory}
-                      className="px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition disabled:opacity-60"
-                    >
-                      {savingBackstory ? 'Saving...' : 'Save'}
-                    </button>
-                  </>
-                )}
-              </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingBackstory(false);
+                          setBackstoryDraft(backstory || '');
+                        }}
+                        disabled={savingBackstory}
+                        className="px-3 py-1 bg-gray-500 text-white text-sm font-semibold rounded hover:bg-gray-600 transition disabled:opacity-60"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveBackstory}
+                        disabled={savingBackstory}
+                        className="px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition disabled:opacity-60"
+                      >
+                        {savingBackstory ? 'Saving...' : 'Save'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {editingBackstory ? (
+              <textarea
+                ref={backstoryTextareaRef}
+                value={backstoryDraft}
+                onChange={(e) => {
+                  setBackstoryDraft(e.target.value);
+                  autoResizeBackstoryTextarea(e.currentTarget);
+                }}
+                rows={6}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-left"
+                style={{ resize: 'none', overflow: 'hidden' }}
+                placeholder="Enter character backstory..."
+              />
+            ) : (
+              <p className="text-left whitespace-pre-wrap">{backstory || 'No backstory provided.'}</p>
             )}
           </div>
-
-          {editingBackstory ? (
-            <textarea
-              ref={backstoryTextareaRef}
-              value={backstoryDraft}
-              onChange={(e) => {
-                setBackstoryDraft(e.target.value);
-                autoResizeBackstoryTextarea(e.currentTarget);
-              }}
-              rows={6}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-left"
-              style={{ resize: 'none', overflow: 'hidden' }}
-              placeholder="Enter character backstory..."
-            />
-          ) : (
-            <p className="text-left whitespace-pre-wrap">{backstory || 'No backstory provided.'}</p>
-          )}
-        </div>
+        )}
 
         {/* NEW: Dynamic Dice Pool Popup */}
         {dicePopup && (
