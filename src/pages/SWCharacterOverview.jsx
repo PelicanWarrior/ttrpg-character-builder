@@ -28,6 +28,7 @@ export default function SWCharacterOverview() {
   const [equipmentSearchInput, setEquipmentSearchInput] = useState('');
   const [showEquipmentDropdown, setShowEquipmentDropdown] = useState(false);
   const equipmentDropdownRef = useRef(null);
+  const otherItemPopupRef = useRef(null);
   const [inventory, setInventory] = useState([]);
   const [armour, setArmour] = useState([]);
   const [otherItems, setOtherItems] = useState([]);
@@ -624,6 +625,24 @@ export default function SWCharacterOverview() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showEquipmentDropdown]);
+
+  useEffect(() => {
+    if (!openOtherItemDescriptionKey) return;
+
+    const handleClickOutsideOtherItemPopup = (event) => {
+      if (otherItemPopupRef.current && !otherItemPopupRef.current.contains(event.target)) {
+        setOpenOtherItemDescriptionKey(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutsideOtherItemPopup);
+    document.addEventListener('touchstart', handleClickOutsideOtherItemPopup);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideOtherItemPopup);
+      document.removeEventListener('touchstart', handleClickOutsideOtherItemPopup);
+    };
+  }, [openOtherItemDescriptionKey]);
 
   useEffect(() => {
     const fetchCharacterData = async () => {
@@ -2759,9 +2778,9 @@ export default function SWCharacterOverview() {
               <h3 className="font-bold text-lg mt-4">Other Items</h3>
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <colgroup>
-                  <col style={{ width: '45%' }} />
-                  <col style={{ width: '45%' }} />
-                  {canEdit && <col style={{ width: '10%' }} />}
+                  <col style={{ width: canEdit ? '42%' : '50%' }} />
+                  <col style={{ width: canEdit ? '38%' : '50%' }} />
+                  {canEdit && <col style={{ width: '20%' }} />}
                 </colgroup>
                 <thead>
                   <tr className="bg-gray-100">
@@ -2775,7 +2794,17 @@ export default function SWCharacterOverview() {
                     <tr key={item.key} className="bg-gray-100">
                       <td className="border border-black py-1 px-2 relative" style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
                         {openOtherItemDescriptionKey === item.key && item.description && (
-                          <div className="absolute left-2 right-2 bottom-full mb-2 bg-white border border-black rounded shadow-lg p-2 z-20">
+                          <div
+                            ref={otherItemPopupRef}
+                            className="fixed bg-white border border-black rounded shadow-lg p-2 z-50"
+                            style={{
+                              left: 'max(10px, calc(50vw - 280px))',
+                              top: '12vh',
+                              width: 'min(560px, calc(100vw - 20px))',
+                              maxHeight: '76vh',
+                              overflowY: 'auto',
+                            }}
+                          >
                             <button
                               onClick={() => setOpenOtherItemDescriptionKey(null)}
                               className="absolute top-1 right-1 w-6 h-6 leading-none text-black hover:text-red-700"
@@ -2783,7 +2812,7 @@ export default function SWCharacterOverview() {
                             >
                               X
                             </button>
-                            <div className="pr-7" style={{ whiteSpace: 'pre-wrap' }}>
+                            <div className="pr-7" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                               {item.description}
                             </div>
                           </div>
@@ -2803,19 +2832,19 @@ export default function SWCharacterOverview() {
                         <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
                       </td>
                       {canEdit && (
-                        <td className="border border-black py-1 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="border border-black py-1 px-1">
+                          <div className="flex items-center justify-center gap-1 sm:gap-2 w-full">
                             <button
                               onClick={() => handleOtherItemQuantityChange(item, -1)}
                               disabled={item.count <= 0}
-                              className="w-8 h-8 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"
+                              className="w-7 h-7 sm:w-8 sm:h-8 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"
                               aria-label={`Remove one ${item.name}`}
                             >
                               -
                             </button>
                             <button
                               onClick={() => handleOtherItemQuantityChange(item, 1)}
-                              className="w-8 h-8 bg-green-600 text-white rounded hover:bg-green-700"
+                              className="w-7 h-7 sm:w-8 sm:h-8 bg-green-600 text-white rounded hover:bg-green-700"
                               aria-label={`Add one ${item.name}`}
                             >
                               +
