@@ -66,6 +66,7 @@ export default function SWCharacterOverview() {
   // NEW: Dynamic popup state
   const [dicePopup, setDicePopup] = useState(null); // { pool, details, x, y }
   const [itemQualityPopup, setItemQualityPopup] = useState(null);
+  const [equipmentInfoPopup, setEquipmentInfoPopup] = useState(null); // { item, type }
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [rollResults, setRollResults] = useState(null); // { poolResults: [], diffResults: [] }
   const diceDragHandlersRef = useRef({ move: null, up: null });
@@ -265,6 +266,11 @@ export default function SWCharacterOverview() {
     const top = Math.min(rect.bottom + 8, window.innerHeight - 120);
 
     setItemQualityPopup({ ...details, left, top });
+  };
+
+  const handleEquipmentInfoClick = (item, type) => {
+    if (!item) return;
+    setEquipmentInfoPopup({ item, type });
   };
 
   const handleDicePopupDragStart = (e) => {
@@ -2572,8 +2578,8 @@ export default function SWCharacterOverview() {
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-black py-1">Equipped</th>
-                    <th className="border border-black py-1" style={{ minWidth: '950px', wordWrap: 'break-word' }}>Weapon / Effect</th>
+                    <th className="border border-black py-1" style={{ minWidth: '430px', wordWrap: 'break-word' }}>Item</th>
+                    <th className="border border-black py-1" style={{ minWidth: '520px', wordWrap: 'break-word' }}>Details</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2581,16 +2587,27 @@ export default function SWCharacterOverview() {
                     const pool = getFinalDicePool(item.skill, skills.find(s => s.skill === item.skill)?.stat || 'agility');
                     return (
                       <tr key={index} className="bg-gray-100">
-                        <td className="border border-black py-1 align-top">
-                          <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
-                          {canEdit && (
-                            <div className="mt-2">
-                              <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                        <td className="border border-black py-2 align-top" style={{ minWidth: '430px', wordWrap: 'break-word' }}>
+                          <div className="flex items-start gap-3">
+                            <div>
+                              <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
+                              {canEdit && (
+                                <div className="mt-2">
+                                  <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                                </div>
+                              )}
                             </div>
-                          )}
+                            <button
+                              type="button"
+                              onClick={() => handleEquipmentInfoClick(item, 'weapon')}
+                              className="text-left hover:underline"
+                            >
+                              <div className="font-semibold">{item.equipment_name}</div>
+                              <div className="text-sm text-gray-700">{item.skill || ''}</div>
+                            </button>
+                          </div>
                         </td>
-                        <td className="border border-black py-1" style={{ minWidth: '950px', wordWrap: 'break-word' }}>
-                          <div>{item.equipment_name}</div>
+                        <td className="border border-black py-2" style={{ minWidth: '520px', wordWrap: 'break-word' }}>
                           <div>{item.skill} (
                           <span 
                             className="cursor-pointer hover:underline text-blue-700"
@@ -2616,23 +2633,34 @@ export default function SWCharacterOverview() {
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-black py-1">Equipped</th>
-                    <th className="border border-black py-1" style={{ minWidth: '400px', wordWrap: 'break-word' }}>Armour / Soak / Defence</th>
+                    <th className="border border-black py-1" style={{ minWidth: '430px', wordWrap: 'break-word' }}>Item</th>
+                    <th className="border border-black py-1" style={{ minWidth: '520px', wordWrap: 'break-word' }}>Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {armour.map((item, index) => (
                     <tr key={index} className="bg-gray-100">
-                      <td className="border border-black py-1 align-top">
-                        <input type="checkbox" checked={item.equipped} onChange={() => handleArmourEquipToggle(index)} />
-                        {canEdit && (
-                          <div className="mt-2">
-                            <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                      <td className="border border-black py-2 align-top" style={{ minWidth: '430px', wordWrap: 'break-word' }}>
+                        <div className="flex items-start gap-3">
+                          <div>
+                            <input type="checkbox" checked={item.equipped} onChange={() => handleArmourEquipToggle(index)} />
+                            {canEdit && (
+                              <div className="mt-2">
+                                <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                              </div>
+                            )}
                           </div>
-                        )}
+                          <button
+                            type="button"
+                            onClick={() => handleEquipmentInfoClick(item, 'armour')}
+                            className="text-left hover:underline"
+                          >
+                            <div className="font-semibold">{item.equipment_name}</div>
+                            <div className="text-sm text-gray-700">{item.skill || ''}</div>
+                          </button>
+                        </div>
                       </td>
-                      <td className="border border-black py-1" style={{ minWidth: '400px', wordWrap: 'break-word' }}>
-                        <div>{item.equipment_name}</div>
+                      <td className="border border-black py-2" style={{ minWidth: '520px', wordWrap: 'break-word' }}>
                         <div>
                           <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
                         </div>
@@ -3703,6 +3731,57 @@ export default function SWCharacterOverview() {
               >
                 x
               </button>
+            </div>
+          </div>
+        )}
+
+        {equipmentInfoPopup && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2"
+            style={{ zIndex: 10002 }}
+            onClick={() => setEquipmentInfoPopup(null)}
+          >
+            <div
+              className="bg-white border-2 border-black rounded-lg w-full max-w-xl p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="font-bold text-lg">
+                  {equipmentInfoPopup.item.equipment_name || 'Item Details'}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setEquipmentInfoPopup(null)}
+                  className="text-red-600 hover:text-red-800 font-bold text-lg"
+                  aria-label="Close item details"
+                >
+                  x
+                </button>
+              </div>
+
+              <div className="mt-3 text-sm space-y-1">
+                <div><span className="font-semibold">Type:</span> {equipmentInfoPopup.type === 'armour' ? 'Armour' : 'Weapon'}</div>
+                <div><span className="font-semibold">Skill:</span> {equipmentInfoPopup.item.skill || 'N/A'}</div>
+                <div><span className="font-semibold">Range:</span> {equipmentInfoPopup.item.range || 'N/A'}</div>
+                <div><span className="font-semibold">Damage:</span> {equipmentInfoPopup.item.damage || 'N/A'}</div>
+                <div><span className="font-semibold">Critical:</span> {equipmentInfoPopup.item.critical || 'N/A'}</div>
+                <div><span className="font-semibold">Soak:</span> {equipmentInfoPopup.item.soak || 'N/A'}</div>
+                <div>
+                  <span className="font-semibold">Defence:</span>{' '}
+                  {equipmentInfoPopup.item.defence_melee && equipmentInfoPopup.item.defence_range
+                    ? `${equipmentInfoPopup.item.defence_melee} / ${equipmentInfoPopup.item.defence_range}`
+                    : equipmentInfoPopup.item.defence_melee || equipmentInfoPopup.item.defence_range || 'N/A'}
+                </div>
+                <div><span className="font-semibold">Equipped:</span> {equipmentInfoPopup.item.equipped ? 'Yes' : 'No'}</div>
+                <div className="pt-1">
+                  <span className="font-semibold">Special:</span>{' '}
+                  <ItemQualityText text={equipmentInfoPopup.item.special || ''} onQualityClick={handleItemQualityClick} />
+                </div>
+                <div>
+                  <span className="font-semibold">Description:</span>{' '}
+                  <span className="whitespace-pre-wrap">{equipmentInfoPopup.item.description || 'N/A'}</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
