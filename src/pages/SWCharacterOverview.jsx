@@ -2349,27 +2349,27 @@ export default function SWCharacterOverview() {
           isOverviewCollapsed ? 'max-h-0 opacity-0 mb-0' : 'max-h-40 opacity-100 mb-6'
         }`}
       >
-        <div className="grid grid-cols-3 gap-2 w-full">
-          <div className="border border-black rounded-md px-2 py-2 bg-gray-50">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Soak</div>
-            <div className="text-lg font-bold leading-tight">{totalSoak}</div>
+        <div className="flex flex-wrap gap-2 w-full justify-center sm:justify-start">
+          <div className="inline-flex flex-col items-center justify-center border border-black rounded-md px-3 py-2 bg-gray-50 w-fit min-w-[88px] text-center">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600 text-center">Soak</div>
+            <div className="text-lg font-bold leading-tight text-center">{totalSoak}</div>
           </div>
-          <div className="border border-black rounded-md px-2 py-2 bg-gray-50">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Wound</div>
-            <div className="text-lg font-bold leading-tight">{woundCurrent}/{woundThreshold}</div>
+          <div className="inline-flex flex-col items-center justify-center border border-black rounded-md px-3 py-2 bg-gray-50 w-fit min-w-[120px] text-center">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600 text-center">Wound</div>
+            <div className="text-lg font-bold leading-tight text-center">{woundCurrent}/{woundThreshold}</div>
             {canEdit && (
-              <div className="mt-1 flex gap-1">
+              <div className="mt-1 flex gap-1 justify-center">
                 <button onClick={() => handleWoundChange(1)} className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 <button onClick={() => handleWoundChange(-1)} className="px-1.5 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">-</button>
                 <button onClick={handleHealWound} className="px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Heal</button>
               </div>
             )}
           </div>
-          <div className="border border-black rounded-md px-2 py-2 bg-gray-50">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Strain</div>
-            <div className="text-lg font-bold leading-tight">{strainCurrent}/{strainThreshold}</div>
+          <div className="inline-flex flex-col items-center justify-center border border-black rounded-md px-3 py-2 bg-gray-50 w-fit min-w-[120px] text-center">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600 text-center">Strain</div>
+            <div className="text-lg font-bold leading-tight text-center">{strainCurrent}/{strainThreshold}</div>
             {canEdit && (
-              <div className="mt-1 flex gap-1">
+              <div className="mt-1 flex gap-1 justify-center">
                 <button onClick={() => handleStrainChange(1)} className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">+</button>
                 <button onClick={() => handleStrainChange(-1)} className="px-1.5 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">-</button>
                 <button onClick={handleHealStrain} className="px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Heal</button>
