@@ -2358,9 +2358,11 @@ export default function SWCharacterOverview() {
             <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600 text-center">Wound</div>
             <div className="text-lg font-bold leading-tight text-center">{woundCurrent}/{woundThreshold}</div>
             {canEdit && (
-              <div className="mt-1 flex gap-1 justify-center">
-                <button onClick={() => handleWoundChange(1)} className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">+</button>
-                <button onClick={() => handleWoundChange(-1)} className="px-1.5 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">-</button>
+              <div className="mt-1 flex flex-col gap-1 items-center">
+                <div className="flex gap-1 justify-center">
+                  <button onClick={() => handleWoundChange(1)} className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">+</button>
+                  <button onClick={() => handleWoundChange(-1)} className="px-1.5 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">-</button>
+                </div>
                 <button onClick={handleHealWound} className="px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Heal</button>
               </div>
             )}
@@ -2369,9 +2371,11 @@ export default function SWCharacterOverview() {
             <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600 text-center">Strain</div>
             <div className="text-lg font-bold leading-tight text-center">{strainCurrent}/{strainThreshold}</div>
             {canEdit && (
-              <div className="mt-1 flex gap-1 justify-center">
-                <button onClick={() => handleStrainChange(1)} className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">+</button>
-                <button onClick={() => handleStrainChange(-1)} className="px-1.5 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">-</button>
+              <div className="mt-1 flex flex-col gap-1 items-center">
+                <div className="flex gap-1 justify-center">
+                  <button onClick={() => handleStrainChange(1)} className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">+</button>
+                  <button onClick={() => handleStrainChange(-1)} className="px-1.5 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">-</button>
+                </div>
                 <button onClick={handleHealStrain} className="px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Heal</button>
               </div>
             )}
