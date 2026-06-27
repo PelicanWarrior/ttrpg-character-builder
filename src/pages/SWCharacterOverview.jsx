@@ -70,6 +70,14 @@ export default function SWCharacterOverview() {
   const [dicePopup, setDicePopup] = useState(null); // { pool, details, x, y }
   const [itemQualityPopup, setItemQualityPopup] = useState(null);
   const [equipmentInfoPopup, setEquipmentInfoPopup] = useState(null); // { item, type, index }
+  const [equipmentInfoPopupTab, setEquipmentInfoPopupTab] = useState('stats');
+  const [hardpointCatalog, setHardpointCatalog] = useState([]);
+  const [hardpointModsByEquipId, setHardpointModsByEquipId] = useState({});
+  const [shipHardpointModsByShipId, setShipHardpointModsByShipId] = useState({});
+  const [selectedHardpointCatalogId, setSelectedHardpointCatalogId] = useState('');
+  const [selectedShipHardpointCatalogIds, setSelectedShipHardpointCatalogIds] = useState({});
+  const [customEquipmentHardpoint, setCustomEquipmentHardpoint] = useState({ name: '', description: '', hp_cost: 1 });
+  const [customShipHardpointDrafts, setCustomShipHardpointDrafts] = useState({});
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [rollResults, setRollResults] = useState(null); // { poolResults: [], diffResults: [] }
   const diceDragHandlersRef = useRef({ move: null, up: null });
@@ -80,6 +88,28 @@ export default function SWCharacterOverview() {
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  const DEFAULT_HARDPOINT_MODS = [
+    { id: 'weapon-beam-splitter', name: 'Beam Splitter', hp_cost: 3, applies_to: 'weapon', description: 'Converts fire to damage multiple targets at the cost of accuracy.' },
+    { id: 'weapon-augmented-spin-barrel', name: 'Augmented Spin Barrel', hp_cost: 2, applies_to: 'weapon', description: "Increases the weapon's range." },
+    { id: 'weapon-blaster-actuating-module', name: 'Blaster Actuating Module', hp_cost: 1, applies_to: 'weapon', description: 'Increases base damage and adds piercing capabilities.' },
+    { id: 'weapon-custom-grip', name: 'Custom Grip', hp_cost: 1, applies_to: 'weapon', description: 'Removes setback dice from combat checks.' },
+    { id: 'weapon-laser-sight', name: 'Laser Sight', hp_cost: 1, applies_to: 'weapon', description: 'Grants advantage on successful attacks.' },
+    { id: 'weapon-marksman-barrel', name: 'Marksman Barrel', hp_cost: 2, applies_to: 'weapon', description: "Extends the weapon's range and enhances accuracy." },
+    { id: 'weapon-multi-optic-sight', name: 'Multi-Optic Sight', hp_cost: 1, applies_to: 'weapon', description: 'Improves accuracy at long ranges.' },
+    { id: 'weapon-sling-harness', name: 'Weapon Sling / Harness', hp_cost: 2, applies_to: 'weapon', description: 'Reduces encumbrance and makes the weapon easier to carry.' },
+    { id: 'weapon-shock-pulse-emitter', name: 'Shock Pulse Emitter', hp_cost: 2, applies_to: 'weapon', description: 'Adds the stun quality to melee or brawl weapons.' },
+    { id: 'armour-armor-spikes', name: 'Armor Spikes', hp_cost: 1, applies_to: 'armour', description: 'Adds melee defensive capabilities.' },
+    { id: 'armour-electro-binoculars', name: 'Electro-binoculars (Integrated)', hp_cost: 1, applies_to: 'armour', description: 'Built-in zoom and targeting assistance.' },
+    { id: 'armour-personal-deflector-shield', name: 'Personal Deflector Shield', hp_cost: 2, applies_to: 'armour', description: 'Provides a boost to defense and soak values.' },
+    { id: 'armour-vacuum-seals', name: 'Vacuum Seals', hp_cost: 1, applies_to: 'armour', description: 'Protects the wearer from hostile atmospheric environments.' },
+    { id: 'ship-advanced-shields', name: 'Advanced Shields', hp_cost: 2, applies_to: 'ship', description: 'Upgrades shield output and improves defensive resilience.' },
+    { id: 'ship-enhanced-thrusters', name: 'Enhanced Thrusters', hp_cost: 1, applies_to: 'ship', description: 'Improves maneuverability and acceleration in flight.' },
+    { id: 'ship-improved-sensor-suite', name: 'Improved Sensor Suite', hp_cost: 1, applies_to: 'ship', description: 'Expands detection range and targeting support.' },
+    { id: 'ship-expanded-cargo-hold', name: 'Expanded Cargo Hold', hp_cost: 1, applies_to: 'ship', description: 'Increases cargo and storage flexibility.' },
+    { id: 'ship-reinforced-hull-plating', name: 'Reinforced Hull Plating', hp_cost: 2, applies_to: 'ship', description: 'Adds extra structural protection to the ship hull.' },
+    { id: 'ship-docking-clamps', name: 'Docking Clamps', hp_cost: 1, applies_to: 'ship', description: 'Allows secure external cargo or craft attachment.' },
+  ];
 
   const autoResizeBackstoryTextarea = (textareaEl) => {
     if (!textareaEl) return;
@@ -273,7 +303,230 @@ export default function SWCharacterOverview() {
 
   const handleEquipmentInfoClick = (item, type, index) => {
     if (!item) return;
+    setEquipmentInfoPopupTab('stats');
+    setSelectedHardpointCatalogId('');
+    setCustomEquipmentHardpoint({ name: '', description: '', hp_cost: 1 });
     setEquipmentInfoPopup({ item, type, index });
+  };
+
+  const getApplicableHardpointMods = (appliesTo) => {
+    const normalizedAppliesTo = String(appliesTo || '').toLowerCase();
+    return hardpointCatalog.filter((mod) => {
+      const modAppliesTo = String(mod.applies_to || '').toLowerCase();
+      return modAppliesTo === 'both' || modAppliesTo === normalizedAppliesTo;
+    });
+  };
+
+  const createCustomHardpointCatalogMod = async (appliesTo, draft) => {
+    const name = String(draft?.name || '').trim();
+    const description = String(draft?.description || '').trim();
+    const hpCost = Math.max(1, Number(draft?.hp_cost) || 1);
+
+    if (!name) {
+      alert('Enter a custom hard point name.');
+      return null;
+    }
+
+    const payload = {
+      name,
+      description: description || null,
+      hp_cost: hpCost,
+      applies_to: appliesTo,
+      user_id: playerId || null,
+      is_custom: true,
+    };
+
+    const { data, error } = await supabase
+      .from('SW_hardpoint_mod_catalog')
+      .insert(payload)
+      .select('id, name, hp_cost, applies_to, description, is_custom, user_id')
+      .single();
+
+    if (error) {
+      console.error('Error creating custom hard point mod:', error);
+      alert('Failed to create custom hard point mod. If this name already exists, choose a different name.');
+      return null;
+    }
+
+    if (data) {
+      setHardpointCatalog((prev) => [...prev, data].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))));
+    }
+
+    return data || payload;
+  };
+
+  const getPopupHardpointContext = () => {
+    if (!equipmentInfoPopup || !equipmentInfoPopup.item) return null;
+    const equipmentId = equipmentInfoPopup.item.id;
+    const installedMods = hardpointModsByEquipId[equipmentId] || [];
+    const baseHardPoints = Math.max(0, Number(equipmentInfoPopup.item.customization_hard_points) || 0);
+    const usedHardPoints = installedMods.reduce((sum, mod) => sum + (Math.max(1, Number(mod.hp_cost) || 1)), 0);
+    const remainingHardPoints = Math.max(0, baseHardPoints - usedHardPoints);
+    return { equipmentId, installedMods, baseHardPoints, usedHardPoints, remainingHardPoints };
+  };
+
+  const handleAddHardpointMod = async () => {
+    if (!equipmentInfoPopup || !equipmentInfoPopup.item || !characterId) return;
+    if (!selectedHardpointCatalogId) {
+      alert('Choose a hard point mod first.');
+      return;
+    }
+
+    let selectedMod = null;
+    if (selectedHardpointCatalogId === '__custom__') {
+      selectedMod = await createCustomHardpointCatalogMod(equipmentInfoPopup.type, customEquipmentHardpoint);
+      if (!selectedMod) return;
+    } else {
+      selectedMod = hardpointCatalog.find((mod) => String(mod.id) === String(selectedHardpointCatalogId));
+    }
+    if (!selectedMod) return;
+
+    const popupCtx = getPopupHardpointContext();
+    if (!popupCtx) return;
+    if ((Number(selectedMod.hp_cost) || 1) > popupCtx.remainingHardPoints) {
+      const shouldForceAdd = confirm(
+        `This item only has ${popupCtx.remainingHardPoints} hard point(s) free, but ${selectedMod.name} costs ${selectedMod.hp_cost} HP.\n\nDo you still want to add this mod?`
+      );
+      if (!shouldForceAdd) return;
+    }
+
+    const payload = {
+      character_equipment_id: popupCtx.equipmentId,
+      character_id: characterId,
+      user_id: playerId || null,
+      mod_id: selectedMod.id,
+      mod_name: selectedMod.name,
+      hp_cost: selectedMod.hp_cost || 1,
+    };
+
+    const { data, error } = await supabase
+      .from('SW_character_equipment_hardpoint_mods')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error adding hard point mod:', error);
+      alert('Failed to add hard point mod. Ensure Supabase migration is applied.');
+      return;
+    }
+
+    const createdMod = data || payload;
+    setHardpointModsByEquipId((prev) => ({
+      ...prev,
+      [popupCtx.equipmentId]: [...(prev[popupCtx.equipmentId] || []), createdMod],
+    }));
+    setSelectedHardpointCatalogId('');
+    setCustomEquipmentHardpoint({ name: '', description: '', hp_cost: 1 });
+  };
+
+  const getShipHardpointContext = (ship) => {
+    if (!ship) return null;
+    const installedMods = shipHardpointModsByShipId[ship.id] || [];
+    const baseHardPoints = Math.max(0, Number(ship.customization_hard_points) || 0);
+    const usedHardPoints = installedMods.reduce((sum, mod) => sum + (Math.max(1, Number(mod.hp_cost) || 1)), 0);
+    const remainingHardPoints = Math.max(0, baseHardPoints - usedHardPoints);
+    return { shipId: ship.id, installedMods, baseHardPoints, usedHardPoints, remainingHardPoints };
+  };
+
+  const handleAddShipHardpointMod = async (ship) => {
+    if (!ship || !characterId) return;
+
+    const selectedCatalogId = selectedShipHardpointCatalogIds[ship.id] || '';
+    if (!selectedCatalogId) {
+      alert('Choose a ship hard point mod first.');
+      return;
+    }
+
+    let selectedMod = null;
+    if (selectedCatalogId === '__custom__') {
+      selectedMod = await createCustomHardpointCatalogMod('ship', customShipHardpointDrafts[ship.id] || {});
+      if (!selectedMod) return;
+    } else {
+      selectedMod = hardpointCatalog.find((mod) => String(mod.id) === String(selectedCatalogId));
+    }
+    if (!selectedMod) return;
+
+    const shipCtx = getShipHardpointContext(ship);
+    if (!shipCtx) return;
+
+    if ((Number(selectedMod.hp_cost) || 1) > shipCtx.remainingHardPoints) {
+      const shouldForceAdd = confirm(
+        `This ship only has ${shipCtx.remainingHardPoints} hard point(s) free, but ${selectedMod.name} costs ${selectedMod.hp_cost} HP.\n\nDo you still want to add this mod?`
+      );
+      if (!shouldForceAdd) return;
+    }
+
+    const payload = {
+      character_ship_id: ship.id,
+      character_id: characterId,
+      user_id: playerId || null,
+      mod_id: selectedMod.id,
+      mod_name: selectedMod.name,
+      hp_cost: selectedMod.hp_cost || 1,
+    };
+
+    const { data, error } = await supabase
+      .from('SW_character_ship_hardpoint_mods')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error adding ship hard point mod:', error);
+      alert('Failed to add ship hard point mod. Ensure Supabase migration is applied.');
+      return;
+    }
+
+    const createdMod = data || payload;
+    setShipHardpointModsByShipId((prev) => ({
+      ...prev,
+      [ship.id]: [...(prev[ship.id] || []), createdMod],
+    }));
+    setSelectedShipHardpointCatalogIds((prev) => ({ ...prev, [ship.id]: '' }));
+    setCustomShipHardpointDrafts((prev) => ({
+      ...prev,
+      [ship.id]: { name: '', description: '', hp_cost: 1 },
+    }));
+  };
+
+  const handleRemoveShipHardpointMod = async (modRowId, shipId) => {
+    if (!modRowId || !shipId) return;
+
+    const { error } = await supabase
+      .from('SW_character_ship_hardpoint_mods')
+      .delete()
+      .eq('id', modRowId);
+
+    if (error) {
+      console.error('Error removing ship hard point mod:', error);
+      alert('Failed to remove ship hard point mod.');
+      return;
+    }
+
+    setShipHardpointModsByShipId((prev) => ({
+      ...prev,
+      [shipId]: (prev[shipId] || []).filter((mod) => mod.id !== modRowId),
+    }));
+  };
+
+  const handleRemoveHardpointMod = async (modRowId, equipmentId) => {
+    if (!modRowId || !equipmentId) return;
+    const { error } = await supabase
+      .from('SW_character_equipment_hardpoint_mods')
+      .delete()
+      .eq('id', modRowId);
+
+    if (error) {
+      console.error('Error removing hard point mod:', error);
+      alert('Failed to remove hard point mod.');
+      return;
+    }
+
+    setHardpointModsByEquipId((prev) => ({
+      ...prev,
+      [equipmentId]: (prev[equipmentId] || []).filter((mod) => mod.id !== modRowId),
+    }));
   };
 
   const handleDicePopupDragStart = (e) => {
@@ -624,8 +877,16 @@ export default function SWCharacterOverview() {
   }, [dicePopup, itemQualityPopup]);
 
   useEffect(() => {
+    const collapseAt = 170;
+    const expandAtTopOnly = 32;
+
     const handleScroll = () => {
-      setIsOverviewCollapsed(window.scrollY > 140);
+      const y = window.scrollY || 0;
+      setIsOverviewCollapsed((prev) => {
+        if (!prev && y > collapseAt) return true;
+        if (prev && y < expandAtTopOnly) return false;
+        return prev;
+      });
     };
 
     handleScroll();
@@ -961,48 +1222,124 @@ export default function SWCharacterOverview() {
       const sortedSkills = enrichedSkills.sort((a, b) => a.skill.localeCompare(b.skill));
       setSkills(sortedSkills);
 
-      const { data: equipmentData, error: equipError } = await supabase
+      let equipmentData = [];
+      const equipmentSelectWithCustomization = 'id, name, skill, damage, critical, special, soak, defence_melee, defence_range, range, consumable, description, customization_hard_points';
+      const equipmentSelectWithLegacyHp = 'id, name, skill, damage, critical, special, soak, defence_melee, defence_range, range, consumable, description, HP';
+      const equipmentSelectFallback = 'id, name, skill, damage, critical, special, soak, defence_melee, defence_range, range, consumable, description';
+      const normalizeEquipmentHardPoints = (row) => ({
+        ...row,
+        customization_hard_points: Math.max(
+          0,
+          Number(row.customization_hard_points ?? row.HP ?? row.hp ?? 0) || 0
+        ),
+      });
+
+      const { data: equipWithHpData, error: equipWithHpError } = await supabase
         .from('SW_equipment')
-        .select('id, name, skill, damage, critical, special, soak, defence_melee, defence_range, range, consumable, description');
-      if (equipError || !equipmentData) {
-        console.error('Error fetching equipment:', equipError);
-        return;
+        .select(equipmentSelectWithCustomization);
+
+      if (equipWithHpError) {
+        console.warn('Equipment query with customization_hard_points failed, trying legacy HP column.', equipWithHpError);
+
+        const { data: equipLegacyHpData, error: equipLegacyHpError } = await supabase
+          .from('SW_equipment')
+          .select(equipmentSelectWithLegacyHp);
+
+        if (equipLegacyHpError) {
+          console.warn('Legacy HP column query failed, falling back without hard points column.', equipLegacyHpError);
+
+          const { data: equipFallbackData, error: equipFallbackError } = await supabase
+            .from('SW_equipment')
+            .select(equipmentSelectFallback);
+
+          if (equipFallbackError || !equipFallbackData) {
+            console.error('Error fetching equipment:', equipFallbackError || equipLegacyHpError || equipWithHpError);
+            return;
+          }
+
+          equipmentData = equipFallbackData.map((row) => ({ ...row, customization_hard_points: 0 }));
+        } else {
+          equipmentData = (equipLegacyHpData || []).map(normalizeEquipmentHardPoints);
+        }
+      } else {
+        equipmentData = (equipWithHpData || []).map(normalizeEquipmentHardPoints);
+
+        // If customization_hard_points exists but is still 0 for legacy rows,
+        // try to merge values from the legacy HP column.
+        const { data: equipLegacyHpMergeData, error: equipLegacyHpMergeError } = await supabase
+          .from('SW_equipment')
+          .select('id, HP');
+
+        if (!equipLegacyHpMergeError && equipLegacyHpMergeData) {
+          const legacyHpById = new Map(
+            equipLegacyHpMergeData.map((row) => [row.id, Math.max(0, Number(row.HP ?? row.hp ?? 0) || 0)])
+          );
+
+          equipmentData = equipmentData.map((row) => {
+            const currentHp = Math.max(0, Number(row.customization_hard_points ?? 0) || 0);
+            const legacyHp = legacyHpById.get(row.id) ?? 0;
+            return {
+              ...row,
+              customization_hard_points: currentHp > 0 ? currentHp : legacyHp,
+            };
+          });
+        }
       }
+
       setEquipment(equipmentData);
+
+      const { data: hardpointCatalogData, error: hardpointCatalogError } = await supabase
+        .from('SW_hardpoint_mod_catalog')
+        .select('id, name, hp_cost, applies_to, description')
+        .order('name', { ascending: true });
+
+      if (hardpointCatalogError) {
+        console.warn('Hard point catalog table not found or unreadable, using fallback catalog.', hardpointCatalogError);
+        setHardpointCatalog(DEFAULT_HARDPOINT_MODS);
+      } else {
+        setHardpointCatalog(hardpointCatalogData && hardpointCatalogData.length > 0 ? hardpointCatalogData : DEFAULT_HARDPOINT_MODS);
+      }
       const activeCharacterId = characterData.id;
 
       const shipSelectColumns = 'id, name, class, silhouette, speed, handling, armor, defence_fore, defence_port, defence_starboard, defence_aft, hull_trauma_threshold, system_strain_threshold, manufacturer, hyperdrive_primary, hyperdrive_backup, navicomputer, sensor_range, ship_complement, encumbrance_capacity, passenger_capacity, consumables, price_credits, rarity, customization_hard_points, weapons, source, description';
-      const normalizeShipRecord = (row) => ({
-        ...row,
-        id: row.id ?? row.ID ?? row.Id,
-        name: row.name ?? row.Name ?? '',
-        class: row.class ?? row.Class ?? '',
-        silhouette: row.silhouette ?? row.Silhouette ?? null,
-        speed: row.speed ?? row.Speed ?? null,
-        handling: row.handling ?? row.Handling ?? null,
-        armor: row.armor ?? row.Armor ?? null,
-        defence_fore: row.defence_fore ?? row.Defence_Fore ?? row.defense_fore ?? row.Defense_Fore ?? null,
-        defence_port: row.defence_port ?? row.Defence_Port ?? row.defense_port ?? row.Defense_Port ?? null,
-        defence_starboard: row.defence_starboard ?? row.Defence_Starboard ?? row.defense_starboard ?? row.Defense_Starboard ?? null,
-        defence_aft: row.defence_aft ?? row.Defence_Aft ?? row.defense_aft ?? row.Defense_Aft ?? null,
-        hull_trauma_threshold: row.hull_trauma_threshold ?? row.Hull_Trauma_Threshold ?? null,
-        system_strain_threshold: row.system_strain_threshold ?? row.System_Strain_Threshold ?? null,
-        manufacturer: row.manufacturer ?? row.Manufacturer ?? '',
-        hyperdrive_primary: row.hyperdrive_primary ?? row.Hyperdrive_Primary ?? '',
-        hyperdrive_backup: row.hyperdrive_backup ?? row.Hyperdrive_Backup ?? '',
-        navicomputer: row.navicomputer ?? row.Navicomputer ?? '',
-        sensor_range: row.sensor_range ?? row.Sensor_Range ?? '',
-        ship_complement: row.ship_complement ?? row.Ship_Complement ?? '',
-        encumbrance_capacity: row.encumbrance_capacity ?? row.Encumbrance_Capacity ?? '',
-        passenger_capacity: row.passenger_capacity ?? row.Passenger_Capacity ?? '',
-        consumables: row.consumables ?? row.Consumables ?? '',
-        price_credits: row.price_credits ?? row.Price_Credits ?? null,
-        rarity: row.rarity ?? row.Rarity ?? null,
-        customization_hard_points: row.customization_hard_points ?? row.Customization_Hard_Points ?? null,
-        weapons: row.weapons ?? row.Weapons ?? '',
-        source: row.source ?? row.Source ?? '',
-        description: row.description ?? row.Description ?? '',
-      });
+      const normalizeShipRecord = (row) => {
+        const normalizedHardPoints = Math.max(
+          0,
+          Number(row.customization_hard_points ?? row.Customization_Hard_Points ?? row.HP ?? row.hp ?? 0) || 0
+        );
+
+        return {
+          ...row,
+          id: row.id ?? row.ID ?? row.Id,
+          name: row.name ?? row.Name ?? '',
+          class: row.class ?? row.Class ?? '',
+          silhouette: row.silhouette ?? row.Silhouette ?? null,
+          speed: row.speed ?? row.Speed ?? null,
+          handling: row.handling ?? row.Handling ?? null,
+          armor: row.armor ?? row.Armor ?? null,
+          defence_fore: row.defence_fore ?? row.Defence_Fore ?? row.defense_fore ?? row.Defense_Fore ?? null,
+          defence_port: row.defence_port ?? row.Defence_Port ?? row.defense_port ?? row.Defense_Port ?? null,
+          defence_starboard: row.defence_starboard ?? row.Defence_Starboard ?? row.defense_starboard ?? row.Defense_Starboard ?? null,
+          defence_aft: row.defence_aft ?? row.Defence_Aft ?? row.defense_aft ?? row.Defense_Aft ?? null,
+          hull_trauma_threshold: row.hull_trauma_threshold ?? row.Hull_Trauma_Threshold ?? null,
+          system_strain_threshold: row.system_strain_threshold ?? row.System_Strain_Threshold ?? null,
+          manufacturer: row.manufacturer ?? row.Manufacturer ?? '',
+          hyperdrive_primary: row.hyperdrive_primary ?? row.Hyperdrive_Primary ?? '',
+          hyperdrive_backup: row.hyperdrive_backup ?? row.Hyperdrive_Backup ?? '',
+          navicomputer: row.navicomputer ?? row.Navicomputer ?? '',
+          sensor_range: row.sensor_range ?? row.Sensor_Range ?? '',
+          ship_complement: row.ship_complement ?? row.Ship_Complement ?? '',
+          encumbrance_capacity: row.encumbrance_capacity ?? row.Encumbrance_Capacity ?? '',
+          passenger_capacity: row.passenger_capacity ?? row.Passenger_Capacity ?? '',
+          consumables: row.consumables ?? row.Consumables ?? '',
+          price_credits: row.price_credits ?? row.Price_Credits ?? null,
+          rarity: row.rarity ?? row.Rarity ?? null,
+          customization_hard_points: normalizedHardPoints,
+          weapons: row.weapons ?? row.Weapons ?? '',
+          source: row.source ?? row.Source ?? '',
+          description: row.description ?? row.Description ?? '',
+        };
+      };
       let shipData = [];
 
       const { data: primaryShipData, error: primaryShipError } = await supabase
@@ -1025,10 +1362,31 @@ export default function SWCharacterOverview() {
         shipData = primaryShipData || [];
       }
 
-      const normalizedShipData = (shipData || [])
+      let normalizedShipData = (shipData || [])
         .map(normalizeShipRecord)
         .filter((ship) => ship.id != null && ship.name)
         .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+      // If customization_hard_points exists but is still 0 for legacy rows,
+      // try to merge values from the legacy HP column.
+      const { data: shipLegacyHpMergeData, error: shipLegacyHpMergeError } = await supabase
+        .from('SW_ships')
+        .select('id, HP');
+
+      if (!shipLegacyHpMergeError && shipLegacyHpMergeData) {
+        const legacyHpByShipId = new Map(
+          shipLegacyHpMergeData.map((row) => [Number(row.id), Math.max(0, Number(row.HP ?? row.hp ?? 0) || 0)])
+        );
+
+        normalizedShipData = normalizedShipData.map((row) => {
+          const currentHp = Math.max(0, Number(row.customization_hard_points ?? 0) || 0);
+          const legacyHp = legacyHpByShipId.get(Number(row.id)) ?? 0;
+          return {
+            ...row,
+            customization_hard_points: currentHp > 0 ? currentHp : legacyHp,
+          };
+        });
+      }
 
       setShipCatalog(normalizedShipData);
 
@@ -1057,10 +1415,30 @@ export default function SWCharacterOverview() {
               soak: equipData?.soak || 0,
               defence_melee: equipData?.defence_melee || '',
               defence_range: equipData?.defence_range || '',
+              customization_hard_points: equipData?.customization_hard_points ?? 0,
               consumable: equipData?.consumable || false,
               equipped: item.equipped || false,
             };
           }));
+
+          const { data: hardpointModsData, error: hardpointModsError } = await supabase
+            .from('SW_character_equipment_hardpoint_mods')
+            .select('id, character_equipment_id, mod_id, mod_name, hp_cost, user_id, created_at')
+            .eq('character_id', activeCharacterId)
+            .order('created_at', { ascending: true });
+
+          if (hardpointModsError) {
+            console.warn('Hard point mods table not found or unreadable; hard points UI will remain local-empty until migration is applied.', hardpointModsError);
+            setHardpointModsByEquipId({});
+          } else {
+            const groupedMods = {};
+            (hardpointModsData || []).forEach((row) => {
+              const equipKey = row.character_equipment_id;
+              if (!groupedMods[equipKey]) groupedMods[equipKey] = [];
+              groupedMods[equipKey].push(row);
+            });
+            setHardpointModsByEquipId(groupedMods);
+          }
 
           const consumableItems = enrichedInventory.filter(item => item.consumable);
 
@@ -1141,6 +1519,25 @@ export default function SWCharacterOverview() {
             .sort((a, b) => a.name.localeCompare(b.name));
 
           setCharacterShips(enrichedShips);
+
+          const { data: shipHardpointModsData, error: shipHardpointModsError } = await supabase
+            .from('SW_character_ship_hardpoint_mods')
+            .select('id, character_ship_id, mod_id, mod_name, hp_cost, user_id, created_at')
+            .eq('character_id', activeCharacterId)
+            .order('created_at', { ascending: true });
+
+          if (shipHardpointModsError) {
+            console.warn('Ship hard point mods table not found or unreadable; ship hard points UI will remain local-empty until migration is applied.', shipHardpointModsError);
+            setShipHardpointModsByShipId({});
+          } else {
+            const groupedShipMods = {};
+            (shipHardpointModsData || []).forEach((row) => {
+              const shipKey = row.character_ship_id;
+              if (!groupedShipMods[shipKey]) groupedShipMods[shipKey] = [];
+              groupedShipMods[shipKey].push(row);
+            });
+            setShipHardpointModsByShipId(groupedShipMods);
+          }
 
           // Fetch crew assignments for these ships
           const shipIds = enrichedShips.map((s) => s.id);
@@ -1516,6 +1913,7 @@ export default function SWCharacterOverview() {
             soak: equipmentToAdd.soak || 0,
             defence_melee: equipmentToAdd.defence_melee || '',
             defence_range: equipmentToAdd.defence_range || '',
+            customization_hard_points: equipmentToAdd.customization_hard_points ?? 0,
             consumable: equipmentToAdd.consumable || false,
             equipped: false,
           };
@@ -1667,6 +2065,11 @@ export default function SWCharacterOverview() {
             const updatedArmour = [...armour];
             updatedArmour.splice(index, 1);
             setArmour(updatedArmour);
+            setHardpointModsByEquipId((prev) => {
+              const next = { ...prev };
+              delete next[itemToDelete.id];
+              return next;
+            });
           }
         }
       }
@@ -1685,6 +2088,11 @@ export default function SWCharacterOverview() {
             const updatedInventory = [...inventory];
             updatedInventory.splice(index, 1);
             setInventory(updatedInventory);
+            setHardpointModsByEquipId((prev) => {
+              const next = { ...prev };
+              delete next[itemToDelete.id];
+              return next;
+            });
           }
         }
       }
@@ -2390,6 +2798,7 @@ export default function SWCharacterOverview() {
           <div className="flex min-w-max">
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'stats' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('stats')}>Character Stats</button>
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
+            <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'backstory' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('backstory')}>Backstory</button>
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
@@ -2456,6 +2865,67 @@ export default function SWCharacterOverview() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* ==================== BACKSTORY TAB ==================== */}
+        {activeTab === 'backstory' && (
+          <div className="border-2 border-black rounded-lg p-4 w-full text-center" style={{ minHeight: '500px' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg">Backstory</h3>
+              {canCampaignOwnerEditBackstory && (
+                <div className="flex items-center gap-2">
+                  {!editingBackstory ? (
+                    <button
+                      onClick={() => {
+                        setBackstoryDraft(backstory || '');
+                        setEditingBackstory(true);
+                      }}
+                      className="px-3 py-1 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 transition"
+                    >
+                      Edit
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingBackstory(false);
+                          setBackstoryDraft(backstory || '');
+                        }}
+                        disabled={savingBackstory}
+                        className="px-3 py-1 bg-gray-500 text-white text-sm font-semibold rounded hover:bg-gray-600 transition disabled:opacity-60"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveBackstory}
+                        disabled={savingBackstory}
+                        className="px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition disabled:opacity-60"
+                      >
+                        {savingBackstory ? 'Saving...' : 'Save'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {editingBackstory ? (
+              <textarea
+                ref={backstoryTextareaRef}
+                value={backstoryDraft}
+                onChange={(e) => {
+                  setBackstoryDraft(e.target.value);
+                  autoResizeBackstoryTextarea(e.currentTarget);
+                }}
+                rows={6}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-left"
+                style={{ resize: 'none', overflow: 'hidden' }}
+                placeholder="Enter character backstory..."
+              />
+            ) : (
+              <p className="text-left whitespace-pre-wrap">{backstory || 'No backstory provided.'}</p>
+            )}
           </div>
         )}
 
@@ -2788,6 +3258,12 @@ export default function SWCharacterOverview() {
                           Condition
                         </button>
                         <button
+                          onClick={() => setShipSectionTabs((prev) => ({ ...prev, [ship.id]: 'hardpoints' }))}
+                          className={`px-3 py-1 text-xs font-semibold rounded ${shipSubTab === 'hardpoints' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                        >
+                          Hard Points
+                        </button>
+                        <button
                           onClick={() => setShipSectionTabs((prev) => ({ ...prev, [ship.id]: 'note' }))}
                           className={`px-3 py-1 text-xs font-semibold rounded ${shipSubTab === 'note' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
                         >
@@ -2881,6 +3357,175 @@ export default function SWCharacterOverview() {
                           )}
                         </div>
                       </div>
+                    </div>}
+
+                    {/* Hard Points */}
+                    {shipSubTab === 'hardpoints' && <div className="px-3 py-2 border-b border-black">
+                      <div className="font-semibold text-xs uppercase text-gray-500 mb-2">Hard Points</div>
+                      {(() => {
+                        const shipCtx = getShipHardpointContext(ship);
+                        if (!shipCtx) return null;
+
+                        const selectedShipCatalogId = selectedShipHardpointCatalogIds[ship.id] || '';
+                        const applicableShipMods = getApplicableHardpointMods('ship');
+                        const selectedShipMod = applicableShipMods.find((mod) => String(mod.id) === String(selectedShipCatalogId));
+                        const showCustomShipHardpointForm = selectedShipCatalogId === '__custom__';
+                        const customShipDraft = customShipHardpointDrafts[ship.id] || { name: '', description: '', hp_cost: 1 };
+
+                        const slotVisual = [];
+                        (shipCtx.installedMods || []).forEach((mod) => {
+                          const cost = Math.max(1, Number(mod.hp_cost) || 1);
+                          for (let i = 0; i < cost; i += 1) {
+                            slotVisual.push(mod);
+                          }
+                        });
+                        while (slotVisual.length < shipCtx.baseHardPoints) {
+                          slotVisual.push(null);
+                        }
+
+                        return (
+                          <>
+                            <div className="text-sm font-semibold mb-2">
+                              Hard Points: {shipCtx.usedHardPoints}/{shipCtx.baseHardPoints} used ({shipCtx.remainingHardPoints} free)
+                            </div>
+
+                            <div className="grid grid-cols-6 gap-2 mb-3">
+                              {slotVisual.length > 0 ? slotVisual.map((slot, idx) => (
+                                <div
+                                  key={`ship-hp-${ship.id}-${slot?.id || 'empty'}-${idx}`}
+                                  className={`border rounded px-2 py-2 text-xs text-center ${slot ? 'bg-blue-50 border-blue-400' : 'bg-gray-100 border-gray-300 text-gray-600'}`}
+                                  title={slot ? `${slot.mod_name} (${slot.hp_cost} HP)` : 'Empty ship hard point'}
+                                >
+                                  {slot ? slot.mod_name : 'Empty'}
+                                </div>
+                              )) : (
+                                <div className="text-sm text-gray-500 italic col-span-6">This ship has no hard point slots.</div>
+                              )}
+                            </div>
+
+                            <div className="border-t pt-2">
+                              <div className="flex flex-wrap gap-2 items-center">
+                                <select
+                                  value={selectedShipCatalogId}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setSelectedShipHardpointCatalogIds((prev) => ({ ...prev, [ship.id]: value }));
+                                  }}
+                                  className="border border-gray-400 rounded px-2 py-1 text-sm"
+                                >
+                                  <option value="">Select ship hard point mod...</option>
+                                  {applicableShipMods.map((mod) => (
+                                    <option key={mod.id} value={mod.id}>{mod.name} ({mod.hp_cost} HP)</option>
+                                  ))}
+                                  <option value="__custom__">+ Add custom hard point mod...</option>
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddShipHardpointMod(ship)}
+                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                >
+                                  + Add Mod
+                                </button>
+                              </div>
+
+                              {selectedShipMod && (
+                                <div className="mt-2 rounded border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-gray-700 whitespace-pre-wrap">
+                                  <span className="font-semibold">{selectedShipMod.name}:</span>{' '}
+                                  {selectedShipMod.description || 'No description available.'}
+                                </div>
+                              )}
+
+                              {showCustomShipHardpointForm && (
+                                <div className="mt-2 rounded border border-gray-200 bg-gray-50 p-2 space-y-2">
+                                  <div className="text-xs font-semibold text-gray-700">New Custom Ship Hard Point Mod</div>
+                                  <input
+                                    type="text"
+                                    value={customShipDraft.name}
+                                    onChange={(e) => setCustomShipHardpointDrafts((prev) => ({
+                                      ...prev,
+                                      [ship.id]: { ...customShipDraft, name: e.target.value },
+                                    }))}
+                                    placeholder="Name"
+                                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                                  />
+                                  <textarea
+                                    value={customShipDraft.description}
+                                    onChange={(e) => setCustomShipHardpointDrafts((prev) => ({
+                                      ...prev,
+                                      [ship.id]: { ...customShipDraft, description: e.target.value },
+                                    }))}
+                                    placeholder="Description"
+                                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs min-h-[64px]"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs text-gray-700">HP Cost</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={customShipDraft.hp_cost}
+                                      onChange={(e) => setCustomShipHardpointDrafts((prev) => ({
+                                        ...prev,
+                                        [ship.id]: { ...customShipDraft, hp_cost: Math.max(1, Number(e.target.value) || 1) },
+                                      }))}
+                                      className="w-20 border border-gray-300 rounded px-2 py-1 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedShipHardpointCatalogIds((prev) => ({ ...prev, [ship.id]: '' }));
+                                        setCustomShipHardpointDrafts((prev) => ({
+                                          ...prev,
+                                          [ship.id]: { name: '', description: '', hp_cost: 1 },
+                                        }));
+                                      }}
+                                      className="px-2 py-1 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 text-xs"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                  <div className="text-[11px] text-gray-500">When you click + Add Mod, this custom mod will be saved and installed.</div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="mt-3">
+                              <div className="font-semibold mb-1 text-sm">Installed Ship Mods</div>
+                              {shipCtx.installedMods.length > 0 ? (
+                                <div className="space-y-1">
+                                  {shipCtx.installedMods.map((mod) => {
+                                    const catalogMatch = hardpointCatalog.find((catalogMod) =>
+                                      (mod.mod_id != null && String(catalogMod.id) === String(mod.mod_id))
+                                      || String(catalogMod.name).toLowerCase() === String(mod.mod_name || '').toLowerCase()
+                                    );
+
+                                    return (
+                                      <div key={mod.id} className="flex items-center justify-between border border-gray-200 rounded px-2 py-1">
+                                        <div className="pr-2">
+                                          <div className="text-sm">{mod.mod_name} ({mod.hp_cost} HP)</div>
+                                          <div className="text-xs text-gray-600 whitespace-pre-wrap">{catalogMatch?.description || 'No description available.'}</div>
+                                        </div>
+                                        {canEdit && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveShipHardpointMod(mod.id, ship.id)}
+                                            className="px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                                          >
+                                            Remove
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-gray-500 italic">No ship hard point mods installed yet.</div>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>}
 
                     {/* Notes */}
@@ -3283,64 +3928,6 @@ export default function SWCharacterOverview() {
               })}
           </div>
         )}
-
-        <div className="border-2 border-black rounded-lg p-4 w-full text-center mt-4" style={{ minHeight: '500px' }}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-lg">Backstory</h3>
-            {canCampaignOwnerEditBackstory && (
-              <div className="flex items-center gap-2">
-                {!editingBackstory ? (
-                  <button
-                    onClick={() => {
-                      setBackstoryDraft(backstory || '');
-                      setEditingBackstory(true);
-                    }}
-                    className="px-3 py-1 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 transition"
-                  >
-                    Edit
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        setEditingBackstory(false);
-                        setBackstoryDraft(backstory || '');
-                      }}
-                      disabled={savingBackstory}
-                      className="px-3 py-1 bg-gray-500 text-white text-sm font-semibold rounded hover:bg-gray-600 transition disabled:opacity-60"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveBackstory}
-                      disabled={savingBackstory}
-                      className="px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded hover:bg-green-700 transition disabled:opacity-60"
-                    >
-                      {savingBackstory ? 'Saving...' : 'Save'}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {editingBackstory ? (
-            <textarea
-              ref={backstoryTextareaRef}
-              value={backstoryDraft}
-              onChange={(e) => {
-                setBackstoryDraft(e.target.value);
-                autoResizeBackstoryTextarea(e.currentTarget);
-              }}
-              rows={6}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-left"
-              style={{ resize: 'none', overflow: 'hidden' }}
-              placeholder="Enter character backstory..."
-            />
-          ) : (
-            <p className="text-left whitespace-pre-wrap">{backstory || 'No backstory provided.'}</p>
-          )}
-        </div>
 
         {/* NEW: Dynamic Dice Pool Popup */}
         {dicePopup && (
@@ -3808,46 +4395,210 @@ export default function SWCharacterOverview() {
                 </button>
               </div>
 
-              <div className="mt-3 text-sm space-y-1">
-                <div><span className="font-semibold">Type:</span> {equipmentInfoPopup.type === 'armour' ? 'Armour' : 'Weapon'}</div>
-                <div><span className="font-semibold">Skill:</span> {equipmentInfoPopup.item.skill || 'N/A'}</div>
-                <div><span className="font-semibold">Range:</span> {equipmentInfoPopup.item.range || 'N/A'}</div>
-                <div><span className="font-semibold">Damage:</span> {equipmentInfoPopup.item.damage || 'N/A'}</div>
-                <div><span className="font-semibold">Critical:</span> {equipmentInfoPopup.item.critical || 'N/A'}</div>
-                <div><span className="font-semibold">Soak:</span> {equipmentInfoPopup.item.soak || 'N/A'}</div>
-                <div>
-                  <span className="font-semibold">Defence:</span>{' '}
-                  {equipmentInfoPopup.item.defence_melee && equipmentInfoPopup.item.defence_range
-                    ? `${equipmentInfoPopup.item.defence_melee} / ${equipmentInfoPopup.item.defence_range}`
-                    : equipmentInfoPopup.item.defence_melee || equipmentInfoPopup.item.defence_range || 'N/A'}
-                </div>
-                <div><span className="font-semibold">Equipped:</span> {equipmentInfoPopup.item.equipped ? 'Yes' : 'No'}</div>
-                <div className="pt-1">
-                  <span className="font-semibold">Special:</span>{' '}
-                  <ItemQualityText text={equipmentInfoPopup.item.special || ''} onQualityClick={handleItemQualityClick} />
-                </div>
-                <div>
-                  <span className="font-semibold">Description:</span>{' '}
-                  <span className="whitespace-pre-wrap">{equipmentInfoPopup.item.description || 'N/A'}</span>
-                </div>
-                {canEdit && (
-                  <div className="pt-3">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await handleDeleteEquipment(
-                          equipmentInfoPopup.index,
-                          equipmentInfoPopup.type === 'armour'
-                        );
-                        setEquipmentInfoPopup(null);
-                      }}
-                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+              <div className="mt-3 border-b border-gray-300 pb-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEquipmentInfoPopupTab('stats')}
+                  className={`px-3 py-1 text-sm font-semibold rounded ${equipmentInfoPopupTab === 'stats' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                >
+                  Stats
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEquipmentInfoPopupTab('hardpoints')}
+                  className={`px-3 py-1 text-sm font-semibold rounded ${equipmentInfoPopupTab === 'hardpoints' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                >
+                  Hard Points
+                </button>
               </div>
+
+              {equipmentInfoPopupTab === 'stats' && (
+                <div className="mt-3 text-sm space-y-1">
+                  <div><span className="font-semibold">Type:</span> {equipmentInfoPopup.type === 'armour' ? 'Armour' : 'Weapon'}</div>
+                  <div><span className="font-semibold">Skill:</span> {equipmentInfoPopup.item.skill || 'N/A'}</div>
+                  <div><span className="font-semibold">Range:</span> {equipmentInfoPopup.item.range || 'N/A'}</div>
+                  <div><span className="font-semibold">Damage:</span> {equipmentInfoPopup.item.damage || 'N/A'}</div>
+                  <div><span className="font-semibold">Critical:</span> {equipmentInfoPopup.item.critical || 'N/A'}</div>
+                  <div><span className="font-semibold">Soak:</span> {equipmentInfoPopup.item.soak || 'N/A'}</div>
+                  <div>
+                    <span className="font-semibold">Defence:</span>{' '}
+                    {equipmentInfoPopup.item.defence_melee && equipmentInfoPopup.item.defence_range
+                      ? `${equipmentInfoPopup.item.defence_melee} / ${equipmentInfoPopup.item.defence_range}`
+                      : equipmentInfoPopup.item.defence_melee || equipmentInfoPopup.item.defence_range || 'N/A'}
+                  </div>
+                  <div><span className="font-semibold">Equipped:</span> {equipmentInfoPopup.item.equipped ? 'Yes' : 'No'}</div>
+                  <div><span className="font-semibold">Base Hard Points:</span> {Math.max(0, Number(equipmentInfoPopup.item.customization_hard_points) || 0)}</div>
+                  <div className="pt-1">
+                    <span className="font-semibold">Special:</span>{' '}
+                    <ItemQualityText text={equipmentInfoPopup.item.special || ''} onQualityClick={handleItemQualityClick} />
+                  </div>
+                  <div>
+                    <span className="font-semibold">Description:</span>{' '}
+                    <span className="whitespace-pre-wrap">{equipmentInfoPopup.item.description || 'N/A'}</span>
+                  </div>
+                  {canEdit && (
+                    <div className="pt-3">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await handleDeleteEquipment(
+                            equipmentInfoPopup.index,
+                            equipmentInfoPopup.type === 'armour'
+                          );
+                          setEquipmentInfoPopup(null);
+                        }}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {equipmentInfoPopupTab === 'hardpoints' && (() => {
+                const popupCtx = getPopupHardpointContext();
+                if (!popupCtx) return null;
+
+                const applicableMods = getApplicableHardpointMods(equipmentInfoPopup.type);
+                const selectedApplicableMod = applicableMods.find((mod) => String(mod.id) === String(selectedHardpointCatalogId));
+                const showCustomEquipmentHardpointForm = selectedHardpointCatalogId === '__custom__';
+
+                const slotVisual = [];
+                (popupCtx.installedMods || []).forEach((mod) => {
+                  const cost = Math.max(1, Number(mod.hp_cost) || 1);
+                  for (let i = 0; i < cost; i += 1) {
+                    slotVisual.push(mod);
+                  }
+                });
+                while (slotVisual.length < popupCtx.baseHardPoints) {
+                  slotVisual.push(null);
+                }
+
+                return (
+                  <div className="mt-3 text-sm space-y-3">
+                    <div className="font-semibold">
+                      Hard Points: {popupCtx.usedHardPoints}/{popupCtx.baseHardPoints} used ({popupCtx.remainingHardPoints} free)
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-2">
+                      {slotVisual.length > 0 ? slotVisual.map((slot, idx) => (
+                        <div
+                          key={`${slot?.id || 'empty'}-${idx}`}
+                          className={`border rounded px-2 py-2 text-xs text-center ${slot ? 'bg-blue-50 border-blue-400' : 'bg-gray-100 border-gray-300 text-gray-500'}`}
+                          title={slot ? `${slot.mod_name} (${slot.hp_cost} HP)` : 'Empty hard point'}
+                        >
+                          {slot ? slot.mod_name : 'Empty'}
+                        </div>
+                      )) : (
+                        <div className="text-gray-500 italic col-span-5">This item has no hard point slots yet.</div>
+                      )}
+                    </div>
+
+                    <div className="border-t pt-2">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <select
+                          value={selectedHardpointCatalogId}
+                          onChange={(e) => setSelectedHardpointCatalogId(e.target.value)}
+                          className="border border-gray-400 rounded px-2 py-1 text-sm"
+                        >
+                          <option value="">Select hard point mod...</option>
+                          {applicableMods.map((mod) => (
+                            <option key={mod.id} value={mod.id}>{mod.name} ({mod.hp_cost} HP)</option>
+                          ))}
+                          <option value="__custom__">+ Add custom hard point mod...</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleAddHardpointMod}
+                          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                        >
+                          + Add Mod
+                        </button>
+                      </div>
+                      {selectedApplicableMod && (
+                        <div className="mt-2 rounded border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-gray-700 whitespace-pre-wrap">
+                          <span className="font-semibold">{selectedApplicableMod.name}:</span>{' '}
+                          {selectedApplicableMod.description || 'No description available.'}
+                        </div>
+                      )}
+                      {showCustomEquipmentHardpointForm && (
+                        <div className="mt-2 rounded border border-gray-200 bg-gray-50 p-2 space-y-2">
+                          <div className="text-xs font-semibold text-gray-700">New Custom Hard Point Mod</div>
+                          <input
+                            type="text"
+                            value={customEquipmentHardpoint.name}
+                            onChange={(e) => setCustomEquipmentHardpoint((prev) => ({ ...prev, name: e.target.value }))}
+                            placeholder="Name"
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                          />
+                          <textarea
+                            value={customEquipmentHardpoint.description}
+                            onChange={(e) => setCustomEquipmentHardpoint((prev) => ({ ...prev, description: e.target.value }))}
+                            placeholder="Description"
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-xs min-h-[64px]"
+                          />
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-gray-700">HP Cost</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={customEquipmentHardpoint.hp_cost}
+                              onChange={(e) => setCustomEquipmentHardpoint((prev) => ({ ...prev, hp_cost: Math.max(1, Number(e.target.value) || 1) }))}
+                              className="w-20 border border-gray-300 rounded px-2 py-1 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedHardpointCatalogId('');
+                                setCustomEquipmentHardpoint({ name: '', description: '', hp_cost: 1 });
+                              }}
+                              className="px-2 py-1 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <div className="text-[11px] text-gray-500">When you click + Add Mod, this custom mod will be saved and installed.</div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="font-semibold mb-1">Installed Mods</div>
+                      {popupCtx.installedMods.length > 0 ? (
+                        <div className="space-y-1">
+                          {popupCtx.installedMods.map((mod) => {
+                            const catalogMatch = hardpointCatalog.find((catalogMod) =>
+                              (mod.mod_id != null && String(catalogMod.id) === String(mod.mod_id))
+                              || String(catalogMod.name).toLowerCase() === String(mod.mod_name || '').toLowerCase()
+                            );
+                            return (
+                            <div key={mod.id} className="flex items-center justify-between border border-gray-200 rounded px-2 py-1">
+                              <div className="pr-2">
+                                <div>{mod.mod_name} ({mod.hp_cost} HP)</div>
+                                <div className="text-xs text-gray-600 whitespace-pre-wrap">{catalogMatch?.description || 'No description available.'}</div>
+                              </div>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveHardpointMod(mod.id, popupCtx.equipmentId)}
+                                  className="px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          )})}
+                        </div>
+                      ) : (
+                        <div className="text-gray-500 italic">No hard point mods installed.</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
