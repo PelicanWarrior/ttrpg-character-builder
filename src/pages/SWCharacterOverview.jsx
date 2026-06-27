@@ -2578,16 +2578,14 @@ export default function SWCharacterOverview() {
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-black py-1" style={{ minWidth: '430px', wordWrap: 'break-word' }}>Item</th>
-                    <th className="border border-black py-1" style={{ minWidth: '520px', wordWrap: 'break-word' }}>Details</th>
+                    <th className="border border-black py-1" style={{ minWidth: '950px', wordWrap: 'break-word' }}>Item</th>
                   </tr>
                 </thead>
                 <tbody>
                   {inventory.map((item, index) => {
-                    const pool = getFinalDicePool(item.skill, skills.find(s => s.skill === item.skill)?.stat || 'agility');
                     return (
                       <tr key={index} className="bg-gray-100">
-                        <td className="border border-black py-2 align-top" style={{ minWidth: '430px', wordWrap: 'break-word' }}>
+                        <td className="border border-black py-2 align-top" style={{ minWidth: '950px', wordWrap: 'break-word' }}>
                           <div className="flex items-start gap-3">
                             <div>
                               <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
@@ -2607,21 +2605,6 @@ export default function SWCharacterOverview() {
                             </button>
                           </div>
                         </td>
-                        <td className="border border-black py-2" style={{ minWidth: '520px', wordWrap: 'break-word' }}>
-                          <div>{item.skill} (
-                          <span 
-                            className="cursor-pointer hover:underline text-blue-700"
-                            onClick={(e) => handleDicePoolClick(e, pool, item.skill)}
-                          >
-                            {pool}
-                          </span>
-                          )</div>
-                          <div>{item.range} Range</div>
-                          <div>Damage: {item.damage || ''}, Critical: {item.critical || ''}</div>
-                          <div>
-                            <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
-                          </div>
-                        </td>
                       </tr>
                     );
                   })}
@@ -2633,14 +2616,13 @@ export default function SWCharacterOverview() {
               <table className="border border-black w-full text-left mt-4" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-black py-1" style={{ minWidth: '430px', wordWrap: 'break-word' }}>Item</th>
-                    <th className="border border-black py-1" style={{ minWidth: '520px', wordWrap: 'break-word' }}>Details</th>
+                    <th className="border border-black py-1" style={{ minWidth: '950px', wordWrap: 'break-word' }}>Item</th>
                   </tr>
                 </thead>
                 <tbody>
                   {armour.map((item, index) => (
                     <tr key={index} className="bg-gray-100">
-                      <td className="border border-black py-2 align-top" style={{ minWidth: '430px', wordWrap: 'break-word' }}>
+                      <td className="border border-black py-2 align-top" style={{ minWidth: '950px', wordWrap: 'break-word' }}>
                         <div className="flex items-start gap-3">
                           <div>
                             <input type="checkbox" checked={item.equipped} onChange={() => handleArmourEquipToggle(index)} />
@@ -2658,17 +2640,6 @@ export default function SWCharacterOverview() {
                             <div className="font-semibold">{item.equipment_name}</div>
                             <div className="text-sm text-gray-700">{item.skill || ''}</div>
                           </button>
-                        </div>
-                      </td>
-                      <td className="border border-black py-2" style={{ minWidth: '520px', wordWrap: 'break-word' }}>
-                        <div>
-                          <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
-                        </div>
-                        <div>Soak: {item.soak}</div>
-                        <div>
-                          {item.defence_melee && item.defence_range 
-                            ? `${item.defence_melee} / ${item.defence_range}`
-                            : item.defence_melee || item.defence_range || ''}
                         </div>
                       </td>
                     </tr>
