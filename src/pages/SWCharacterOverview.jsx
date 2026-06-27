@@ -46,6 +46,7 @@ export default function SWCharacterOverview() {
   const [credits, setCredits] = useState(0);
   const [totalSoak, setTotalSoak] = useState(0);
   const [activeTab, setActiveTab] = useState('stats');
+  const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
   const [abilities, setAbilities] = useState([]);
   const [forceAbilities, setForceAbilities] = useState([]);
   const [skillBonuses, setSkillBonuses] = useState({});
@@ -619,6 +620,16 @@ export default function SWCharacterOverview() {
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, [dicePopup, itemQualityPopup]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsOverviewCollapsed(window.scrollY > 140);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Handle closing equipment dropdown when clicking outside
   useEffect(() => {
@@ -2328,43 +2339,55 @@ export default function SWCharacterOverview() {
           ))}
         </div>
       )}
-      <div className="flex items-center mb-4">
+
+      <div className="flex items-center mb-3">
         <p>{race ? `${race} ${career} - ${specialization}` : `${career} - ${specialization}`}</p>
       </div>
 
-      <div className="flex flex-wrap gap-4 mb-8 items-start w-full">
-          <div className="flex flex-wrap gap-3 w-full justify-center sm:justify-start">
-          <div className="flex items-start justify-center">
-            <SoakBox value={totalSoak} />
+      <div
+        className={`w-full overflow-hidden transition-all duration-300 ${
+          isOverviewCollapsed ? 'max-h-0 opacity-0 mb-0' : 'max-h-40 opacity-100 mb-6'
+        }`}
+      >
+        <div className="grid grid-cols-3 gap-2 w-full">
+          <div className="border border-black rounded-md px-2 py-2 bg-gray-50">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Soak</div>
+            <div className="text-lg font-bold leading-tight">{totalSoak}</div>
           </div>
-          <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
-            <WoundStrainSingleBox 
-              type="wound"
-              threshold={woundThreshold}
-              current={woundCurrent}
-              onChange={handleWoundChange}
-              onHeal={handleHealWound}
-              canEdit={canEdit}
-            />
-            <WoundStrainSingleBox 
-              type="strain"
-              threshold={strainThreshold}
-              current={strainCurrent}
-              onChange={handleStrainChange}
-              onHeal={handleHealStrain}
-              canEdit={canEdit}
-            />
+          <div className="border border-black rounded-md px-2 py-2 bg-gray-50">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Wound</div>
+            <div className="text-lg font-bold leading-tight">{woundCurrent}/{woundThreshold}</div>
+            {canEdit && (
+              <div className="mt-1 flex gap-1">
+                <button onClick={() => handleWoundChange(1)} className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">+</button>
+                <button onClick={() => handleWoundChange(-1)} className="px-1.5 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">-</button>
+                <button onClick={handleHealWound} className="px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Heal</button>
+              </div>
+            )}
+          </div>
+          <div className="border border-black rounded-md px-2 py-2 bg-gray-50">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Strain</div>
+            <div className="text-lg font-bold leading-tight">{strainCurrent}/{strainThreshold}</div>
+            {canEdit && (
+              <div className="mt-1 flex gap-1">
+                <button onClick={() => handleStrainChange(1)} className="px-1.5 py-0.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">+</button>
+                <button onClick={() => handleStrainChange(-1)} className="px-1.5 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700">-</button>
+                <button onClick={handleHealStrain} className="px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">Heal</button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <div className="w-full">
-        <div className="grid grid-cols-5 border-b-2 border-black mb-4 w-full">
-          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'stats' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('stats')}>Stats</button>
-          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
-          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
-          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
-          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
+        <div className="w-full overflow-x-auto border-b-2 border-black mb-4">
+          <div className="flex min-w-max">
+            <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'stats' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('stats')}>Character Stats</button>
+            <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
+            <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
+            <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
+            <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
+          </div>
         </div>
 
         {/* ==================== STATS TAB ==================== */}
