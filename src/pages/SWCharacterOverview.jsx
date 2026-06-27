@@ -2574,7 +2574,6 @@ export default function SWCharacterOverview() {
                   <tr className="bg-gray-100">
                     <th className="border border-black py-1">Equipped</th>
                     <th className="border border-black py-1" style={{ minWidth: '950px', wordWrap: 'break-word' }}>Weapon / Effect</th>
-                    <th className="border border-black py-1">Delete</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2582,8 +2581,13 @@ export default function SWCharacterOverview() {
                     const pool = getFinalDicePool(item.skill, skills.find(s => s.skill === item.skill)?.stat || 'agility');
                     return (
                       <tr key={index} className="bg-gray-100">
-                        <td className="border border-black py-1">
+                        <td className="border border-black py-1 align-top">
                           <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
+                          {canEdit && (
+                            <div className="mt-2">
+                              <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                            </div>
+                          )}
                         </td>
                         <td className="border border-black py-1" style={{ minWidth: '950px', wordWrap: 'break-word' }}>
                           <div>{item.equipment_name}</div>
@@ -2601,11 +2605,6 @@ export default function SWCharacterOverview() {
                             <ItemQualityText text={item.special || ''} onQualityClick={handleItemQualityClick} />
                           </div>
                         </td>
-                        {canEdit && (
-                          <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
-                            <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-                          </td>
-                        )}
                       </tr>
                     );
                   })}
@@ -2619,14 +2618,18 @@ export default function SWCharacterOverview() {
                   <tr className="bg-gray-100">
                     <th className="border border-black py-1">Equipped</th>
                     <th className="border border-black py-1" style={{ minWidth: '400px', wordWrap: 'break-word' }}>Armour / Soak / Defence</th>
-                    <th className="border border-black py-1">Delete</th>
                   </tr>
                 </thead>
                 <tbody>
                   {armour.map((item, index) => (
                     <tr key={index} className="bg-gray-100">
-                      <td className="border border-black py-1">
+                      <td className="border border-black py-1 align-top">
                         <input type="checkbox" checked={item.equipped} onChange={() => handleArmourEquipToggle(index)} />
+                        {canEdit && (
+                          <div className="mt-2">
+                            <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                          </div>
+                        )}
                       </td>
                       <td className="border border-black py-1" style={{ minWidth: '400px', wordWrap: 'break-word' }}>
                         <div>{item.equipment_name}</div>
@@ -2640,11 +2643,6 @@ export default function SWCharacterOverview() {
                             : item.defence_melee || item.defence_range || ''}
                         </div>
                       </td>
-                      {canEdit && (
-                        <td className="border border-black py-2 text-center align-middle" style={{ minWidth: '90px' }}>
-                          <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-                        </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>
