@@ -2316,7 +2316,10 @@ export default function SWCharacterOverview() {
             Change Picture
           </button>
         </div>
-        <h1 className="font-bold text-2xl">{characterName}</h1>
+        <div className="flex flex-col items-start">
+          <h1 className="font-bold text-2xl">{characterName}</h1>
+          <p className="text-sm text-gray-700 mt-1">{race ? `${race} ` : ''}{career}{specialization ? ` - ${specialization}` : ''}</p>
+        </div>
       </div>
 
       {/* Picture Selector Box */}
@@ -2339,10 +2342,6 @@ export default function SWCharacterOverview() {
           ))}
         </div>
       )}
-
-      <div className="flex items-center mb-3">
-        <p>{race ? `${race} ${career} - ${specialization}` : `${career} - ${specialization}`}</p>
-      </div>
 
       <div
         className={`w-full overflow-hidden transition-all duration-300 ${
@@ -2384,7 +2383,8 @@ export default function SWCharacterOverview() {
       </div>
 
       <div className="w-full">
-        <div className="w-full overflow-x-auto border-b-2 border-black mb-4">
+        <div className="w-full sticky top-0 z-30 bg-white">
+          <div className="w-full overflow-x-auto border-b-2 border-black mb-4">
           <div className="flex min-w-max">
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'stats' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('stats')}>Character Stats</button>
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
@@ -2392,6 +2392,7 @@ export default function SWCharacterOverview() {
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
             <button className={`px-4 py-2 text-sm font-bold text-center whitespace-nowrap ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
           </div>
+        </div>
         </div>
 
         {/* ==================== STATS TAB ==================== */}
