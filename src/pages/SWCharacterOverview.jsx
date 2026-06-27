@@ -46,6 +46,8 @@ export default function SWCharacterOverview() {
   const [credits, setCredits] = useState(0);
   const [totalSoak, setTotalSoak] = useState(0);
   const [activeTab, setActiveTab] = useState('stats');
+  const [shipSectionTabs, setShipSectionTabs] = useState({});
+  const [expandedShips, setExpandedShips] = useState({});
   const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
   const [abilities, setAbilities] = useState([]);
   const [forceAbilities, setForceAbilities] = useState([]);
@@ -2740,18 +2742,68 @@ export default function SWCharacterOverview() {
               <p className="text-gray-600">No ships added for this character yet.</p>
             ) : (
               <div className="flex flex-col gap-6">
-                {characterShips.map((ship) => (
+                {characterShips.map((ship) => {
+                  const shipSubTab = shipSectionTabs[ship.id] || 'stats';
+                  const isShipExpanded = !!expandedShips[ship.id];
+                  return (
                   <div key={ship.id} className="border-2 border-black rounded-lg overflow-hidden">
 
                     {/* Ship name / class */}
-                    <div className="bg-gray-200 px-3 py-2 border-b border-black">
-                      <div className="font-bold text-base">{ship.name}</div>
-                      {ship.class && <div className="text-sm text-gray-700">{ship.class}</div>}
-                      {ship.description && <div className="text-xs mt-1 whitespace-pre-wrap text-gray-600">{ship.description}</div>}
+                    <div className="bg-gray-200 px-3 py-2 border-b border-black flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-base">{ship.name}</div>
+                        {ship.class && <div className="text-sm text-gray-700">{ship.class}</div>}
+                        {ship.description && <div className="text-xs mt-1 whitespace-pre-wrap text-gray-600">{ship.description}</div>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedShips((prev) => ({ ...prev, [ship.id]: !isShipExpanded }))}
+                        className="px-2 py-1 text-lg leading-none bg-white border border-gray-400 rounded hover:bg-gray-100"
+                        aria-label={isShipExpanded ? 'Collapse ship' : 'Expand ship'}
+                      >
+                        {isShipExpanded ? '▲' : '▼'}
+                      </button>
+                    </div>
+
+                    {isShipExpanded && (
+                      <>
+                    <div className="px-3 py-2 border-b border-black bg-white overflow-x-auto">
+                      <div className="flex min-w-max gap-1">
+                        <button
+                          onClick={() => setShipSectionTabs((prev) => ({ ...prev, [ship.id]: 'stats' }))}
+                          className={`px-3 py-1 text-xs font-semibold rounded ${shipSubTab === 'stats' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                        >
+                          Stats
+                        </button>
+                        <button
+                          onClick={() => setShipSectionTabs((prev) => ({ ...prev, [ship.id]: 'weapons' }))}
+                          className={`px-3 py-1 text-xs font-semibold rounded ${shipSubTab === 'weapons' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                        >
+                          Weapons
+                        </button>
+                        <button
+                          onClick={() => setShipSectionTabs((prev) => ({ ...prev, [ship.id]: 'condition' }))}
+                          className={`px-3 py-1 text-xs font-semibold rounded ${shipSubTab === 'condition' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                        >
+                          Condition
+                        </button>
+                        <button
+                          onClick={() => setShipSectionTabs((prev) => ({ ...prev, [ship.id]: 'note' }))}
+                          className={`px-3 py-1 text-xs font-semibold rounded ${shipSubTab === 'note' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                        >
+                          Character Ship Note
+                        </button>
+                        <button
+                          onClick={() => setShipSectionTabs((prev) => ({ ...prev, [ship.id]: 'crew' }))}
+                          className={`px-3 py-1 text-xs font-semibold rounded ${shipSubTab === 'crew' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                        >
+                          Crew
+                        </button>
+                      </div>
                     </div>
 
                     {/* Stats */}
-                    <div className="px-3 py-2 border-b border-black">
+                    {shipSubTab === 'stats' && <div className="px-3 py-2 border-b border-black">
                       <div className="font-semibold text-xs uppercase text-gray-500 mb-1">Stats</div>
                       <div className="text-sm grid grid-cols-2 gap-x-4 gap-y-0.5">
                         <div>Silhouette: {ship.silhouette}</div>
@@ -2778,16 +2830,22 @@ export default function SWCharacterOverview() {
                         )}
                         {ship.source && <div>Source: {ship.source}</div>}
                       </div>
-                      {ship.weapons && (
-                        <div className="text-sm whitespace-pre-wrap mt-2">
-                          <span className="font-semibold">Weapons:</span>{' '}
+                    </div>}
+
+                    {/* Weapons */}
+                    {shipSubTab === 'weapons' && <div className="px-3 py-2 border-b border-black">
+                      <div className="font-semibold text-xs uppercase text-gray-500 mb-1">Weapons</div>
+                      {ship.weapons ? (
+                        <div className="text-sm whitespace-pre-wrap mt-1">
                           <ItemQualityText text={ship.weapons} onQualityClick={handleItemQualityClick} />
                         </div>
+                      ) : (
+                        <div className="text-sm text-gray-500 italic">No weapons listed for this ship.</div>
                       )}
-                    </div>
+                    </div>}
 
                     {/* Condition */}
-                    <div className="px-3 py-2 border-b border-black">
+                    {shipSubTab === 'condition' && <div className="px-3 py-2 border-b border-black">
                       <div className="font-semibold text-xs uppercase text-gray-500 mb-2">Condition</div>
                       <div className="flex flex-wrap gap-6">
                         <div>
@@ -2823,10 +2881,10 @@ export default function SWCharacterOverview() {
                           )}
                         </div>
                       </div>
-                    </div>
+                    </div>}
 
                     {/* Notes */}
-                    <div className="px-3 py-2 border-b border-black">
+                    {shipSubTab === 'note' && <div className="px-3 py-2 border-b border-black">
                       <div className="font-semibold text-xs uppercase text-gray-500 mb-2">Character Ship Note</div>
                       {canEdit ? (
                         <>
@@ -2852,10 +2910,10 @@ export default function SWCharacterOverview() {
                       ) : (
                         <div className="text-sm text-gray-500 italic">No note for this ship yet.</div>
                       )}
-                    </div>
+                    </div>}
 
                     {/* Crew */}
-                    <div className="px-3 py-2 border-b border-black">
+                    {shipSubTab === 'crew' && <div className="px-3 py-2 border-b border-black">
                       <div className="font-semibold text-xs uppercase text-gray-500 mb-2">Crew</div>
                       {ship.ship_complement && campaignIdState ? (
                         <>
@@ -2931,7 +2989,7 @@ export default function SWCharacterOverview() {
                       ) : (
                         <span className="text-xs text-gray-400">{campaignIdState ? 'No complement defined' : 'Open from campaign to allocate'}</span>
                       )}
-                    </div>
+                    </div>}
 
                     {/* Remove button */}
                     {canEdit && (
@@ -2944,8 +3002,10 @@ export default function SWCharacterOverview() {
                         </button>
                       </div>
                     )}
+                      </>
+                    )}
                   </div>
-                ))}
+                )})}
               </div>
             )}
 
