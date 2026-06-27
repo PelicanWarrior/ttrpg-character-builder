@@ -66,7 +66,7 @@ export default function SWCharacterOverview() {
   // NEW: Dynamic popup state
   const [dicePopup, setDicePopup] = useState(null); // { pool, details, x, y }
   const [itemQualityPopup, setItemQualityPopup] = useState(null);
-  const [equipmentInfoPopup, setEquipmentInfoPopup] = useState(null); // { item, type }
+  const [equipmentInfoPopup, setEquipmentInfoPopup] = useState(null); // { item, type, index }
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
   const [rollResults, setRollResults] = useState(null); // { poolResults: [], diffResults: [] }
   const diceDragHandlersRef = useRef({ move: null, up: null });
@@ -268,9 +268,9 @@ export default function SWCharacterOverview() {
     setItemQualityPopup({ ...details, left, top });
   };
 
-  const handleEquipmentInfoClick = (item, type) => {
+  const handleEquipmentInfoClick = (item, type, index) => {
     if (!item) return;
-    setEquipmentInfoPopup({ item, type });
+    setEquipmentInfoPopup({ item, type, index });
   };
 
   const handleDicePopupDragStart = (e) => {
@@ -2332,12 +2332,12 @@ export default function SWCharacterOverview() {
         <p>{race ? `${race} ${career} - ${specialization}` : `${career} - ${specialization}`}</p>
       </div>
 
-      <div className="flex flex-wrap gap-4 mb-8 items-start">
-          <div className="flex gap-4 min-w-[360px]">
-          <div className="flex items-start justify-center" style={{ width: '150px' }}>
+      <div className="flex flex-wrap gap-4 mb-8 items-start w-full">
+          <div className="flex flex-wrap gap-3 w-full justify-center sm:justify-start">
+          <div className="flex items-start justify-center">
             <SoakBox value={totalSoak} />
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
             <WoundStrainSingleBox 
               type="wound"
               threshold={woundThreshold}
@@ -2359,12 +2359,12 @@ export default function SWCharacterOverview() {
       </div>
 
       <div className="w-full">
-        <div className="flex flex-wrap border-b-2 border-black mb-4">
-          <button className={`px-4 py-2 font-bold ${activeTab === 'stats' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('stats')}>Stats</button>
-          <button className={`px-4 py-2 font-bold ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
-          <button className={`px-4 py-2 font-bold ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
-          <button className={`px-4 py-2 font-bold ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
-          <button className={`px-4 py-2 font-bold ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
+        <div className="grid grid-cols-5 border-b-2 border-black mb-4 w-full">
+          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'stats' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('stats')}>Stats</button>
+          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'skills' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('skills')}>Skills</button>
+          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'equipment' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('equipment')}>Equipment</button>
+          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'ships' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('ships')}>Ships</button>
+          <button className={`px-2 py-2 text-xs sm:text-sm font-bold text-center ${activeTab === 'actions' ? 'border-b-2 border-green-600 bg-gray-100' : ''}`} onClick={() => setActiveTab('actions')}>Actions</button>
         </div>
 
         {/* ==================== STATS TAB ==================== */}
@@ -2589,15 +2589,10 @@ export default function SWCharacterOverview() {
                           <div className="flex items-start gap-3">
                             <div>
                               <input type="checkbox" checked={item.equipped} onChange={() => handleWeaponEquipToggle(index)} />
-                              {canEdit && (
-                                <div className="mt-2">
-                                  <button onClick={() => handleDeleteEquipment(index)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-                                </div>
-                              )}
                             </div>
                             <button
                               type="button"
-                              onClick={() => handleEquipmentInfoClick(item, 'weapon')}
+                              onClick={() => handleEquipmentInfoClick(item, 'weapon', index)}
                               className="text-left hover:underline"
                             >
                               <div className="font-semibold">{item.equipment_name}</div>
@@ -2626,15 +2621,10 @@ export default function SWCharacterOverview() {
                         <div className="flex items-start gap-3">
                           <div>
                             <input type="checkbox" checked={item.equipped} onChange={() => handleArmourEquipToggle(index)} />
-                            {canEdit && (
-                              <div className="mt-2">
-                                <button onClick={() => handleDeleteEquipment(index, true)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-                              </div>
-                            )}
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleEquipmentInfoClick(item, 'armour')}
+                            onClick={() => handleEquipmentInfoClick(item, 'armour', index)}
                             className="text-left hover:underline"
                           >
                             <div className="font-semibold">{item.equipment_name}</div>
@@ -3752,6 +3742,23 @@ export default function SWCharacterOverview() {
                   <span className="font-semibold">Description:</span>{' '}
                   <span className="whitespace-pre-wrap">{equipmentInfoPopup.item.description || 'N/A'}</span>
                 </div>
+                {canEdit && (
+                  <div className="pt-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleDeleteEquipment(
+                          equipmentInfoPopup.index,
+                          equipmentInfoPopup.type === 'armour'
+                        );
+                        setEquipmentInfoPopup(null);
+                      }}
+                      className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
