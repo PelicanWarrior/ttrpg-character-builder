@@ -2326,12 +2326,12 @@ export default function SWCharacterOverview() {
         <p>{race ? `${race} ${career} - ${specialization}` : `${career} - ${specialization}`}</p>
       </div>
 
-      <div className="w-full mb-8 overflow-x-auto">
-        <div className="flex items-start gap-4 min-w-max flex-nowrap">
-          <div className="flex items-start justify-center shrink-0" style={{ width: '150px' }}>
+      <div className="flex flex-wrap gap-4 mb-8 items-start">
+          <div className="flex gap-4 min-w-[360px]">
+          <div className="flex items-start justify-center" style={{ width: '150px' }}>
             <SoakBox value={totalSoak} />
           </div>
-          <div className="flex gap-3 shrink-0">
+          <div className="flex gap-3">
             <WoundStrainSingleBox 
               type="wound"
               threshold={woundThreshold}
