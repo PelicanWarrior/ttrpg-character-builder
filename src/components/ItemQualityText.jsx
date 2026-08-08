@@ -67,7 +67,7 @@ export const getItemQualityDetails = (qualityName, rating) => {
   };
 };
 
-export default function ItemQualityText({ text, onQualityClick }) {
+export default function ItemQualityText({ text, onQualityClick, getMatchedTextSuffix }) {
   if (!text) return null;
 
   const content = String(text);
@@ -89,18 +89,19 @@ export default function ItemQualityText({ text, onQualityClick }) {
     const details = getItemQualityDetails(matchedQuality, matchedRating);
 
     if (details) {
+      const suffix = getMatchedTextSuffix?.(details, matchedText) || '';
       segments.push(
         <button
           key={`${matchedQuality}-${match.index}`}
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            onQualityClick?.(event, details);
+            onQualityClick?.(event, suffix ? { ...details, hardpointSuffix: suffix } : details);
           }}
           className="text-blue-700 underline underline-offset-2 hover:text-blue-900"
           title={`Show ${details.qualityName} details`}
         >
-          {matchedText}
+          {matchedText}{suffix}
         </button>
       );
     } else {

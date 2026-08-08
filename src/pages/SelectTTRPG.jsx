@@ -836,9 +836,9 @@ export default function SelectTTRPG() {
               )}
 
               <div className="mt-6 pt-4 border-t border-gray-300">
-                <label className="text-xs font-medium mb-2 block" style={{ color: '#000' }}>Difficulty (1-5)</label>
+                <label className="text-xs font-medium mb-2 block" style={{ color: '#000' }}>Difficulty (0-5)</label>
                 <div className="flex gap-2 mb-3 items-center">
-                  {[1, 2, 3, 4, 5].map(num => (
+                  {[0, 1, 2, 3, 4, 5].map(num => (
                     <button
                       key={num}
                       onClick={() => setSelectedDifficulty(num)}

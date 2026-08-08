@@ -192,9 +192,26 @@ export default function SWNotes() {
   // Admin and permissions
   const [isAdmin, setIsAdmin] = useState(false);
   const [uploadPicturesEnabled, setUploadPicturesEnabled] = useState(false);
+  const [diceOutcomeEnabled, setDiceOutcomeEnabled] = useState(false);
 
   // Helper: can the current user upload pictures?
   const canUploadPictures = () => isAdmin || uploadPicturesEnabled;
+
+  const handleDiceOutcomeToggle = async (checked) => {
+    if (!isAdmin) return;
+
+    setDiceOutcomeEnabled(checked);
+
+    const { error } = await supabase
+      .from('Admin_Control')
+      .update({ Dice_Outcome: checked })
+      .eq('id', 1);
+
+    if (error) {
+      console.error('Error updating Dice_Outcome setting:', error);
+      setDiceOutcomeEnabled((prev) => !prev);
+    }
+  };
 
   const getSwPictureUrl = (pictureId) => `/SW_Pictures/Picture ${pictureId}.png?t=${Date.now()}`;
 
@@ -409,7 +426,7 @@ export default function SWNotes() {
       // Fetch Upload Pictures setting
       const { data: adminControl, error: controlError } = await supabase
         .from('Admin_Control')
-        .select('Upload_pictures')
+        .select('Upload_pictures, Dice_Outcome')
         .eq('id', 1)
         .single();
 
@@ -419,6 +436,7 @@ export default function SWNotes() {
       }
 
       setUploadPicturesEnabled(adminControl?.Upload_pictures === true);
+      setDiceOutcomeEnabled(adminControl?.Dice_Outcome === true);
     } catch (err) {
       console.error('Failed to load permissions:', err);
     }
@@ -2136,12 +2154,11 @@ export default function SWNotes() {
   // Optionally, scroll to a selected note if you have a selectedNoteId state
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <div className="py-10 px-4 border-b border-gray-300">
-        <h1 className="text-3xl font-bold mb-2 text-center">{campaignName}</h1>
-        <p className="text-gray-600 mb-8 text-center">My Notes</p>
-
-        <div className="flex gap-3 justify-center mb-8">
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
+      <div className="py-4 px-4 border-b border-gray-300">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h1 className="text-3xl font-bold text-left">{campaignName}</h1>
+          <div className="flex flex-wrap gap-3">
           <button
             onClick={() => navigate('/select-ttrpg')}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -2154,6 +2171,7 @@ export default function SWNotes() {
           >
             Back to My Campaigns
           </button>
+          </div>
         </div>
 
         <div className="flex justify-center gap-3">
@@ -2255,7 +2273,7 @@ export default function SWNotes() {
         </div>
       )}
 
-      <div className="flex flex-1 gap-0 bg-white overflow-x-auto overflow-y-visible">
+      <div className="flex flex-1 gap-0 bg-white overflow-x-auto overflow-y-hidden">
         {/* Panel 1: Top-Level Places */}
         <div className="shrink-0 w-56 bg-gray-50 border-r border-gray-300 p-2 overflow-y-auto flex flex-col relative">
           <h2 className="text-sm font-bold mb-2 text-gray-800">Places</h2>
@@ -4256,6 +4274,9 @@ export default function SWNotes() {
             dicePopup={dicePopup}
             setDicePopup={setDicePopup}
             selectedNPC={selectedNPC}
+            isAdmin={isAdmin}
+            diceOutcomeEnabled={diceOutcomeEnabled}
+            onDiceOutcomeToggle={handleDiceOutcomeToggle}
           />
         </div>
       )}
