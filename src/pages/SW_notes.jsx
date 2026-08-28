@@ -3047,27 +3047,29 @@ export default function SWNotes() {
               {/* Race, Picture, and Description */}
               {!editingNPCId && (
                 <>
-                  <div className="mb-4" style={{ overflow: 'hidden' }}>
+                  <div className="mb-4">
                     {(() => {
                       console.log('NPC PictureID:', selectedNPC.PictureID, 'for NPC:', selectedNPC.Name);
                       if (selectedNPC.PictureID) {
                         return (
-                          <img
-                            src={getSwPictureUrl(selectedNPC.PictureID)}
-                            alt={selectedNPC.Name}
-                            className="rounded"
-                            style={{ width: '200px', height: '240px', float: 'right', marginLeft: '1rem', marginBottom: '1rem', objectFit: 'contain', display: 'block' }}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => openImagePreview(getSwPictureUrl(selectedNPC.PictureID), selectedNPC.Name)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                openImagePreview(getSwPictureUrl(selectedNPC.PictureID), selectedNPC.Name);
-                              }
-                            }}
-                            onError={e => { e.target.style.display = 'none'; }}
-                          />
+                          <div className="mb-3 flex justify-center rounded border border-gray-300 bg-gray-50 p-1">
+                            <img
+                              src={getSwPictureUrl(selectedNPC.PictureID)}
+                              alt={selectedNPC.Name}
+                              className="max-w-full rounded object-contain cursor-zoom-in"
+                              style={{ width: '200px', height: '240px', display: 'block' }}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => openImagePreview(getSwPictureUrl(selectedNPC.PictureID), selectedNPC.Name)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  openImagePreview(getSwPictureUrl(selectedNPC.PictureID), selectedNPC.Name);
+                                }
+                              }}
+                              onError={e => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          </div>
                         );
                       }
                       return null;
