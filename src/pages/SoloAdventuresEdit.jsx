@@ -26,10 +26,16 @@ export default function SoloAdventuresEdit() {
   const [newPageContent, setNewPageContent] = useState('');
   const [addingPage, setAddingPage] = useState(false);
 
-  const [editingPageId, setEditingPageId] = useState('');
   const [editingPageTitle, setEditingPageTitle] = useState('');
   const [editingPageContent, setEditingPageContent] = useState('');
   const [savingPage, setSavingPage] = useState(false);
+
+  const [isDetailsBoxOpen, setIsDetailsBoxOpen] = useState(true);
+  const [isPagesBoxOpen, setIsPagesBoxOpen] = useState(true);
+  const [isSelectPageOpen, setIsSelectPageOpen] = useState(true);
+  const [isAddPageOpen, setIsAddPageOpen] = useState(true);
+  const [isPageOptionsBoxOpen, setIsPageOptionsBoxOpen] = useState(true);
+  const [detailsNpc, setDetailsNpc] = useState(null);
 
   const [choices, setChoices] = useState([]);
   const [loadingChoices, setLoadingChoices] = useState(false);
@@ -114,7 +120,6 @@ export default function SoloAdventuresEdit() {
     if (!Number.isFinite(parsedNpcId) || parsedNpcId <= 0) return;
 
     setBattleNpcIds((prev) => [...prev, parsedNpcId]);
-    setSelectedNpcId('');
   };
 
   const removeBattleNpcIdAtIndex = (indexToRemove, setBattleNpcIds) => {
@@ -127,6 +132,11 @@ export default function SoloAdventuresEdit() {
   };
 
   const getBattleNpcById = (npcId) => availableBattleNpcs.find((npc) => String(npc.id) === String(npcId)) || null;
+
+  const openNpcDetails = (npcId) => {
+    const npc = getBattleNpcById(npcId);
+    if (npc) setDetailsNpc(npc);
+  };
 
   const handleCreatedBattleNpc = (npc) => {
     const createdId = npc?.id;
@@ -271,6 +281,19 @@ export default function SoloAdventuresEdit() {
       active = false;
     };
   }, [adventureId, userId, firstPageId, selectedPageId]);
+
+  useEffect(() => {
+    if (!selectedPageId) {
+      setEditingPageTitle('');
+      setEditingPageContent('');
+      return;
+    }
+
+    const page = pages.find((p) => String(p.id) === String(selectedPageId));
+    setEditingPageTitle(page?.title || '');
+    setEditingPageContent(page?.content || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPageId]);
 
   useEffect(() => {
     let active = true;
@@ -654,20 +677,23 @@ export default function SoloAdventuresEdit() {
     setNewPageContent('');
   };
 
-  const startEditPage = (page) => {
-    setEditingPageId(String(page.id));
-    setEditingPageTitle(page.title || '');
-    setEditingPageContent(page.content || '');
+  const getStoredPage = (pageId) => pages.find((p) => String(p.id) === String(pageId));
+
+  const hasUnsavedPageChanges = () => {
+    if (!selectedPageId) return false;
+    const stored = getStoredPage(selectedPageId);
+    if (!stored) return false;
+    return (stored.title || '') !== editingPageTitle || (stored.content || '') !== editingPageContent;
   };
 
-  const cancelEditPage = () => {
-    setEditingPageId('');
-    setEditingPageTitle('');
-    setEditingPageContent('');
+  const loadPageIntoEditor = (pageId) => {
+    const page = getStoredPage(pageId);
+    setEditingPageTitle(page?.title || '');
+    setEditingPageContent(page?.content || '');
   };
 
   const handleSavePage = async () => {
-    if (!editingPageId) return;
+    if (!selectedPageId) return;
     if (!editingPageTitle.trim()) {
       setPageError('Page title is required.');
       return;
@@ -683,7 +709,7 @@ export default function SoloAdventuresEdit() {
         content: editingPageContent.trim() || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', editingPageId)
+      .eq('id', selectedPageId)
       .eq('adventure_id', adventureId);
 
     setSavingPage(false);
@@ -695,12 +721,27 @@ export default function SoloAdventuresEdit() {
 
     setPages((prev) =>
       prev.map((p) =>
-        String(p.id) === String(editingPageId)
+        String(p.id) === String(selectedPageId)
           ? { ...p, title: editingPageTitle.trim(), content: editingPageContent.trim() || null }
           : p
       )
     );
-    cancelEditPage();
+  };
+
+  const handleSelectPage = async (newPageId) => {
+    if (!newPageId || String(newPageId) === String(selectedPageId)) return;
+
+    if (hasUnsavedPageChanges()) {
+      const priorPage = getStoredPage(selectedPageId);
+      const shouldSave = window.confirm(
+        `Save changes to "${priorPage?.title || 'the current page'}" before switching pages?`
+      );
+      if (shouldSave) {
+        await handleSavePage();
+      }
+    }
+
+    setSelectedPageId(newPageId);
   };
 
   const handleDeletePage = async (pageId) => {
@@ -950,12 +991,21 @@ export default function SoloAdventuresEdit() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 flex items-center justify-between gap-4">
           <h1 className="text-4xl font-black tracking-wide text-gray-900">EDIT {title || 'SOLO ADVENTURE'}</h1>
-          <button
-            onClick={() => navigate('/solo-adventures/create')}
-            className="rounded-xl border-2 border-gray-900 bg-white px-5 py-3 text-sm font-bold uppercase tracking-wide text-black shadow-sm transition hover:bg-gray-100"
-          >
-            Back
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-xl border-2 border-gray-900 bg-gray-900 px-5 py-3 text-sm font-bold uppercase tracking-wide text-black shadow-sm transition hover:bg-gray-800 disabled:opacity-70"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              onClick={() => navigate('/solo-adventures/create')}
+              className="rounded-xl border-2 border-gray-900 bg-white px-5 py-3 text-sm font-bold uppercase tracking-wide text-black shadow-sm transition hover:bg-gray-100"
+            >
+              Back
+            </button>
+          </div>
         </div>
 
         <div className="rounded-3xl border-4 border-gray-900 bg-white p-8 shadow-2xl">
@@ -965,168 +1015,225 @@ export default function SoloAdventuresEdit() {
           {!loading && !error && (
             <div className="space-y-6">
               <div className="rounded-3xl border-2 border-amber-500 bg-amber-200 p-6 shadow-sm">
-                <label className="mb-3 block text-base font-bold text-gray-900" htmlFor="edit-adventure-title">
-                  TITLE
-                </label>
-                <input
-                  id="edit-adventure-title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full rounded-2xl border-2 border-amber-800 bg-amber-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-amber-500"
-                />
-
-                <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="edit-adventure-description">
-                  DESCRIPTION
-                </label>
-                <textarea
-                  id="edit-adventure-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows="5"
-                  className="w-full rounded-2xl border-2 border-emerald-800 bg-emerald-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-emerald-500"
-                />
-
-                <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="edit-adventure-first-page">
-                  FIRST PAGE
-                </label>
-                <select
-                  id="edit-adventure-first-page"
-                  value={firstPageId}
-                  onChange={(e) => setFirstPageId(e.target.value)}
-                  className="w-full rounded-2xl border-2 border-sky-800 bg-sky-50 px-5 py-3 text-base text-sky-950 shadow-sm outline-none transition focus:border-sky-500"
-                >
-                  <option value="">-- Select First Page --</option>
-                  {pages.map((p) => (
-                    <option key={p.id} value={String(p.id)}>
-                      {p.title}
-                    </option>
-                  ))}
-                </select>
-
                 <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="mt-6 w-full rounded-2xl bg-gray-900 px-5 py-3 text-base font-bold uppercase tracking-wide text-black transition hover:bg-gray-800 disabled:opacity-70"
+                  type="button"
+                  onClick={() => setIsDetailsBoxOpen((open) => !open)}
+                  className="flex w-full items-center justify-between text-left"
                 >
-                  {saving ? 'Saving...' : 'Save Adventure'}
+                  <span className="text-base font-bold text-gray-900">ADVENTURE DETAILS</span>
+                  <span
+                    className={`text-xl font-bold text-gray-900 transition-transform ${isDetailsBoxOpen ? 'rotate-180' : ''}`}
+                  >
+                    ▼
+                  </span>
                 </button>
+
+                {isDetailsBoxOpen && (
+                  <div className="mt-4">
+                    <label className="mb-3 block text-base font-bold text-gray-900" htmlFor="edit-adventure-title">
+                      TITLE
+                    </label>
+                    <input
+                      id="edit-adventure-title"
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full rounded-2xl border-2 border-amber-800 bg-amber-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-amber-500"
+                    />
+
+                    <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="edit-adventure-description">
+                      DESCRIPTION
+                    </label>
+                    <textarea
+                      id="edit-adventure-description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows="5"
+                      className="w-full rounded-2xl border-2 border-emerald-800 bg-emerald-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-emerald-500"
+                    />
+
+                    <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="edit-adventure-first-page">
+                      FIRST PAGE
+                    </label>
+                    <select
+                      id="edit-adventure-first-page"
+                      value={firstPageId}
+                      onChange={(e) => setFirstPageId(e.target.value)}
+                      className="w-full rounded-2xl border-2 border-sky-800 bg-sky-50 px-5 py-3 text-base text-sky-950 shadow-sm outline-none transition focus:border-sky-500"
+                    >
+                      <option value="">-- Select First Page --</option>
+                      {pages.map((p) => (
+                        <option key={p.id} value={String(p.id)}>
+                          {p.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-3xl border-2 border-violet-500 bg-violet-200 p-6 shadow-sm">
-                <h2 className="text-2xl font-bold text-gray-900">ADVENTURE PAGES</h2>
-                {loadingPages && <p className="mt-3 text-gray-700">Loading pages...</p>}
-                {pageError && <p className="mt-3 font-semibold text-red-700">{pageError}</p>}
-
-                <div className="mt-4 rounded-2xl border-2 border-indigo-300 bg-indigo-50 p-4">
-                  <h3 className="text-lg font-bold text-gray-900">ADD PAGE</h3>
-                  <input
-                    type="text"
-                    value={newPageTitle}
-                    onChange={(e) => setNewPageTitle(e.target.value)}
-                    placeholder="Page title"
-                    className="mt-3 w-full rounded-xl border-2 border-indigo-700 bg-white px-4 py-2 text-gray-900 outline-none"
-                  />
-                  <textarea
-                    value={newPageContent}
-                    onChange={(e) => setNewPageContent(e.target.value)}
-                    placeholder="Page story text"
-                    rows="4"
-                    className="mt-3 w-full rounded-xl border-2 border-indigo-700 bg-white px-4 py-2 text-gray-900 outline-none"
-                  />
-                  <button
-                    onClick={handleAddPage}
-                    disabled={addingPage}
-                    className="mt-3 rounded-xl bg-gray-900 px-4 py-2 font-bold uppercase tracking-wide text-black transition hover:bg-gray-800 disabled:opacity-70"
+                <button
+                  type="button"
+                  onClick={() => setIsPagesBoxOpen((open) => !open)}
+                  className="flex w-full items-center justify-between text-left"
+                >
+                  <span className="text-2xl font-bold text-gray-900">ADVENTURE PAGES</span>
+                  <span
+                    className={`text-xl font-bold text-gray-900 transition-transform ${isPagesBoxOpen ? 'rotate-180' : ''}`}
                   >
-                    {addingPage ? 'Adding...' : 'Add Page'}
-                  </button>
-                </div>
+                    ▼
+                  </span>
+                </button>
 
-                {!loadingPages && pages.length > 0 && (
-                  <div className="mt-6 space-y-3">
-                    {pages.map((page) => (
-                      <div key={page.id} className="rounded-xl border-2 border-violet-400 bg-violet-50 p-4">
-                        {String(editingPageId) === String(page.id) ? (
-                          <div>
-                            <input
-                              type="text"
-                              value={editingPageTitle}
-                              onChange={(e) => setEditingPageTitle(e.target.value)}
-                              className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
-                            />
-                            <textarea
-                              value={editingPageContent}
-                              onChange={(e) => setEditingPageContent(e.target.value)}
-                              rows="4"
-                              className="mt-3 w-full rounded-xl border-2 border-emerald-700 bg-emerald-50 px-4 py-2 text-gray-900 outline-none"
-                            />
-                            <div className="mt-3 flex gap-3">
-                              <button
-                                onClick={handleSavePage}
-                                disabled={savingPage}
-                                className="rounded-lg bg-green-600 px-4 py-2 font-bold uppercase text-black transition hover:bg-green-700 disabled:opacity-70"
+                {isPagesBoxOpen && (
+                  <div className="mt-4">
+                    {loadingPages && <p className="mt-3 text-gray-700">Loading pages...</p>}
+                    {pageError && <p className="mt-3 font-semibold text-red-700">{pageError}</p>}
+
+                    {!loadingPages && pages.length > 0 && (
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          onClick={() => setIsSelectPageOpen((open) => !open)}
+                          className="flex w-full items-center justify-between text-left"
+                        >
+                          <span className="text-base font-bold text-gray-900">SELECT PAGE</span>
+                          <span
+                            className={`text-xl font-bold text-gray-900 transition-transform ${isSelectPageOpen ? 'rotate-180' : ''}`}
+                          >
+                            ▼
+                          </span>
+                        </button>
+
+                        {isSelectPageOpen && (
+                          <div className="mt-3">
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                              <select
+                                id="edit-page-select"
+                                value={selectedPageId}
+                                onChange={(e) => handleSelectPage(e.target.value)}
+                                className="flex-1 rounded-2xl border-2 border-violet-700 bg-violet-50 px-4 py-3 text-base text-gray-900 outline-none transition focus:border-violet-500"
                               >
-                                {savingPage ? 'Saving...' : 'Save Page'}
+                                {pages.map((p) => (
+                                  <option key={p.id} value={String(p.id)}>
+                                    {p.title}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => selectedPageId && loadPageIntoEditor(selectedPageId)}
+                                disabled={!selectedPageId}
+                                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-blue-700 disabled:opacity-60"
+                              >
+                                Edit
                               </button>
                               <button
-                                onClick={cancelEditPage}
-                                className="rounded-lg bg-gray-600 px-4 py-2 font-bold uppercase text-black transition hover:bg-gray-700"
+                                onClick={() => selectedPageId && handleDeletePage(selectedPageId)}
+                                disabled={!selectedPageId}
+                                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-red-700 disabled:opacity-60"
                               >
-                                Cancel
+                                Delete
                               </button>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="font-bold text-gray-900">{page.title}</div>
-                              <div className="flex gap-2">
+
+                            {selectedPageId && (
+                              <div className="mt-4 rounded-xl border-2 border-violet-400 bg-violet-50 p-4">
+                                <input
+                                  type="text"
+                                  value={editingPageTitle}
+                                  onChange={(e) => setEditingPageTitle(e.target.value)}
+                                  className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                                />
+                                <textarea
+                                  value={editingPageContent}
+                                  onChange={(e) => setEditingPageContent(e.target.value)}
+                                  rows="4"
+                                  className="mt-3 w-full rounded-xl border-2 border-emerald-700 bg-emerald-50 px-4 py-2 text-gray-900 outline-none"
+                                />
                                 <button
-                                  onClick={() => setSelectedPageId(String(page.id))}
-                                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-bold uppercase text-black transition hover:bg-indigo-700"
+                                  onClick={handleSavePage}
+                                  disabled={savingPage}
+                                  className="mt-3 rounded-lg bg-green-600 px-4 py-2 font-bold uppercase text-black transition hover:bg-green-700 disabled:opacity-70"
                                 >
-                                  Open
-                                </button>
-                                <button
-                                  onClick={() => startEditPage(page)}
-                                  className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold uppercase text-black transition hover:bg-blue-700"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeletePage(page.id)}
-                                  className="rounded-lg bg-red-600 px-3 py-2 text-sm font-bold uppercase text-black transition hover:bg-red-700"
-                                >
-                                  Delete
+                                  {savingPage ? 'Saving...' : 'Save Page'}
                                 </button>
                               </div>
-                            </div>
-                            {page.content && (
-                              <p className="text-sm text-gray-700">
-                                {page.content.length > 180 ? `${page.content.slice(0, 180)}...` : page.content}
-                              </p>
                             )}
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
 
-                {!loadingPages && pages.length === 0 && (
-                  <p className="mt-4 text-gray-700">No pages yet. Add your first page above.</p>
+                    {!loadingPages && pages.length === 0 && (
+                      <p className="mt-4 text-gray-700">No pages yet. Add your first page below.</p>
+                    )}
+
+                    <div className="mt-6 rounded-2xl border-2 border-indigo-300 bg-indigo-50 p-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddPageOpen((open) => !open)}
+                        className="flex w-full items-center justify-between text-left"
+                      >
+                        <span className="text-lg font-bold text-gray-900">ADD PAGE</span>
+                        <span
+                          className={`text-xl font-bold text-gray-900 transition-transform ${isAddPageOpen ? 'rotate-180' : ''}`}
+                        >
+                          ▼
+                        </span>
+                      </button>
+
+                      {isAddPageOpen && (
+                        <div className="mt-3">
+                          <input
+                            type="text"
+                            value={newPageTitle}
+                            onChange={(e) => setNewPageTitle(e.target.value)}
+                            placeholder="Page title"
+                            className="w-full rounded-xl border-2 border-indigo-700 bg-white px-4 py-2 text-gray-900 outline-none"
+                          />
+                          <textarea
+                            value={newPageContent}
+                            onChange={(e) => setNewPageContent(e.target.value)}
+                            placeholder="Page story text"
+                            rows="4"
+                            className="mt-3 w-full rounded-xl border-2 border-indigo-700 bg-white px-4 py-2 text-gray-900 outline-none"
+                          />
+                          <button
+                            onClick={handleAddPage}
+                            disabled={addingPage}
+                            className="mt-3 rounded-xl bg-gray-900 px-4 py-2 font-bold uppercase tracking-wide text-black transition hover:bg-gray-800 disabled:opacity-70"
+                          >
+                            {addingPage ? 'Adding...' : 'Add Page'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
               <div className="rounded-3xl border-2 border-sky-500 bg-sky-200 p-6 shadow-sm">
-                <h2 className="text-2xl font-bold text-gray-900">PAGE OPTIONS</h2>
-                {!selectedPageId && <p className="mt-3 text-gray-700">Select a page to manage options.</p>}
-                {selectedPageId && (
-                  <div>
-                    <p className="mt-3 font-semibold text-gray-900">
-                      Editing options for: {selectedPage?.title || 'Selected page'}
-                    </p>
+                <button
+                  type="button"
+                  onClick={() => setIsPageOptionsBoxOpen((open) => !open)}
+                  className="flex w-full items-center justify-between text-left"
+                >
+                  <span className="text-2xl font-bold text-gray-900">PAGE OPTIONS</span>
+                  <span
+                    className={`text-xl font-bold text-gray-900 transition-transform ${isPageOptionsBoxOpen ? 'rotate-180' : ''}`}
+                  >
+                    ▼
+                  </span>
+                </button>
+                {isPageOptionsBoxOpen && (
+                  <>
+                    {!selectedPageId && <p className="mt-3 text-gray-700">Select a page to manage options.</p>}
+                    {selectedPageId && (
+                      <div>
+                        <p className="mt-3 font-semibold text-gray-900">
+                          Editing options for: {selectedPage?.title || 'Selected page'}
+                        </p>
 
                     {choiceError && <p className="mt-3 font-semibold text-red-700">{choiceError}</p>}
                     {!supportsChoiceSkillRouting && (
@@ -1200,52 +1307,56 @@ export default function SoloAdventuresEdit() {
 
                                 {supportsChoiceSkillRouting && editingChoiceHasSkillCheck ? (
                                   <div className="mt-3 space-y-2">
-                                    <select
-                                      value={editingChoiceSkillName}
-                                      onChange={(e) => setEditingChoiceSkillName(e.target.value)}
-                                      className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
-                                    >
-                                      <option value="">-- Select Skill --</option>
-                                      {availableSkills.map((skill) => (
-                                        <option key={skill} value={skill}>
-                                          {skill}
-                                        </option>
-                                      ))}
-                                      {editingChoiceSkillName && !availableSkills.includes(editingChoiceSkillName) && (
-                                        <option value={editingChoiceSkillName}>{editingChoiceSkillName}</option>
-                                      )}
-                                    </select>
-                                    <input
-                                      type="text"
-                                      value={editingChoiceDifficulty}
-                                      onChange={(e) => setEditingChoiceDifficulty(e.target.value)}
-                                      placeholder="Difficulty (optional)"
-                                      className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
-                                    />
-                                    <select
-                                      value={editingChoiceSuccessPageId}
-                                      onChange={(e) => setEditingChoiceSuccessPageId(e.target.value)}
-                                      className="w-full rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none"
-                                    >
-                                      <option value="">-- On Success --</option>
-                                      {pages.map((p) => (
-                                        <option key={p.id} value={String(p.id)}>
-                                          {p.title}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <select
-                                      value={editingChoiceFailurePageId}
-                                      onChange={(e) => setEditingChoiceFailurePageId(e.target.value)}
-                                      className="w-full rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none"
-                                    >
-                                      <option value="">-- On Failure --</option>
-                                      {pages.map((p) => (
-                                        <option key={p.id} value={String(p.id)}>
-                                          {p.title}
-                                        </option>
-                                      ))}
-                                    </select>
+                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                      <select
+                                        value={editingChoiceSkillName}
+                                        onChange={(e) => setEditingChoiceSkillName(e.target.value)}
+                                        className="flex-1 rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                                      >
+                                        <option value="">-- Select Skill --</option>
+                                        {availableSkills.map((skill) => (
+                                          <option key={skill} value={skill}>
+                                            {skill}
+                                          </option>
+                                        ))}
+                                        {editingChoiceSkillName && !availableSkills.includes(editingChoiceSkillName) && (
+                                          <option value={editingChoiceSkillName}>{editingChoiceSkillName}</option>
+                                        )}
+                                      </select>
+                                      <input
+                                        type="text"
+                                        value={editingChoiceDifficulty}
+                                        onChange={(e) => setEditingChoiceDifficulty(e.target.value)}
+                                        placeholder="Difficulty (optional)"
+                                        className="flex-1 rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                                      />
+                                    </div>
+                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                      <select
+                                        value={editingChoiceSuccessPageId}
+                                        onChange={(e) => setEditingChoiceSuccessPageId(e.target.value)}
+                                        className="flex-1 rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none"
+                                      >
+                                        <option value="">-- On Success --</option>
+                                        {pages.map((p) => (
+                                          <option key={p.id} value={String(p.id)}>
+                                            {p.title}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        value={editingChoiceFailurePageId}
+                                        onChange={(e) => setEditingChoiceFailurePageId(e.target.value)}
+                                        className="flex-1 rounded-xl border-2 border-sky-700 bg-white px-4 py-2 text-gray-900 outline-none"
+                                      >
+                                        <option value="">-- On Failure --</option>
+                                        {pages.map((p) => (
+                                          <option key={p.id} value={String(p.id)}>
+                                            {p.title}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
                                   </div>
                                 ) : (
                                   <div className="mt-3 space-y-3">
@@ -1287,6 +1398,14 @@ export default function SoloAdventuresEdit() {
                                           >
                                             Add NPC
                                           </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => openNpcDetails(editingChoiceSelectedBattleNpcId)}
+                                            disabled={!editingChoiceSelectedBattleNpcId}
+                                            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-indigo-700 disabled:opacity-60"
+                                          >
+                                            Details
+                                          </button>
                                           {battleNpcSystem === 'SW' && (
                                             <>
                                               <button
@@ -1326,13 +1445,22 @@ export default function SoloAdventuresEdit() {
                                             {editingChoiceBattleNpcIds.map((npcId, index) => (
                                               <div key={`${npcId}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
                                                 <span className="text-sm text-gray-900">{getBattleNpcLabel(npcId)}</span>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => removeBattleNpcIdAtIndex(index, setEditingChoiceBattleNpcIds)}
-                                                  className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold uppercase text-black transition hover:bg-red-700"
-                                                >
-                                                  Remove
-                                                </button>
+                                                <div className="flex gap-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => openNpcDetails(npcId)}
+                                                    className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-bold uppercase text-black transition hover:bg-indigo-700"
+                                                  >
+                                                    Details
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => removeBattleNpcIdAtIndex(index, setEditingChoiceBattleNpcIds)}
+                                                    className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold uppercase text-black transition hover:bg-red-700"
+                                                  >
+                                                    Remove
+                                                  </button>
+                                                </div>
                                               </div>
                                             ))}
                                           </div>
@@ -1452,49 +1580,53 @@ export default function SoloAdventuresEdit() {
 
                       {supportsChoiceSkillRouting && newChoiceHasSkillCheck ? (
                         <div className="mt-3 space-y-2">
-                          <select
-                            value={newChoiceSkillName}
-                            onChange={(e) => setNewChoiceSkillName(e.target.value)}
-                            className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
-                          >
-                            <option value="">-- Select Skill --</option>
-                            {availableSkills.map((skill) => (
-                              <option key={skill} value={skill}>
-                                {skill}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            value={newChoiceDifficulty}
-                            onChange={(e) => setNewChoiceDifficulty(e.target.value)}
-                            placeholder="Difficulty (optional)"
-                            className="w-full rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
-                          />
-                          <select
-                            value={newChoiceSuccessPageId}
-                            onChange={(e) => setNewChoiceSuccessPageId(e.target.value)}
-                            className="w-full rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
-                          >
-                            <option value="">-- On Success --</option>
-                            {pages.map((p) => (
-                              <option key={p.id} value={String(p.id)}>
-                                {p.title}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={newChoiceFailurePageId}
-                            onChange={(e) => setNewChoiceFailurePageId(e.target.value)}
-                            className="w-full rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
-                          >
-                            <option value="">-- On Failure --</option>
-                            {pages.map((p) => (
-                              <option key={p.id} value={String(p.id)}>
-                                {p.title}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <select
+                              value={newChoiceSkillName}
+                              onChange={(e) => setNewChoiceSkillName(e.target.value)}
+                              className="flex-1 rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                            >
+                              <option value="">-- Select Skill --</option>
+                              {availableSkills.map((skill) => (
+                                <option key={skill} value={skill}>
+                                  {skill}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              value={newChoiceDifficulty}
+                              onChange={(e) => setNewChoiceDifficulty(e.target.value)}
+                              placeholder="Difficulty (optional)"
+                              className="flex-1 rounded-xl border-2 border-amber-700 bg-amber-50 px-4 py-2 text-gray-900 outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <select
+                              value={newChoiceSuccessPageId}
+                              onChange={(e) => setNewChoiceSuccessPageId(e.target.value)}
+                              className="flex-1 rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
+                            >
+                              <option value="">-- On Success --</option>
+                              {pages.map((p) => (
+                                <option key={p.id} value={String(p.id)}>
+                                  {p.title}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={newChoiceFailurePageId}
+                              onChange={(e) => setNewChoiceFailurePageId(e.target.value)}
+                              className="flex-1 rounded-xl border-2 border-sky-700 bg-sky-50 px-4 py-2 text-gray-900 outline-none"
+                            >
+                              <option value="">-- On Failure --</option>
+                              {pages.map((p) => (
+                                <option key={p.id} value={String(p.id)}>
+                                  {p.title}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       ) : (
                         <div className="mt-3 space-y-3">
@@ -1536,6 +1668,14 @@ export default function SoloAdventuresEdit() {
                                 >
                                   Add NPC
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openNpcDetails(newChoiceSelectedBattleNpcId)}
+                                  disabled={!newChoiceSelectedBattleNpcId}
+                                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-indigo-700 disabled:opacity-60"
+                                >
+                                  Details
+                                </button>
                                 {battleNpcSystem === 'SW' && (
                                   <>
                                     <button
@@ -1575,13 +1715,22 @@ export default function SoloAdventuresEdit() {
                                   {newChoiceBattleNpcIds.map((npcId, index) => (
                                     <div key={`${npcId}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-sky-200 bg-white px-3 py-2">
                                       <span className="text-sm text-gray-900">{getBattleNpcLabel(npcId)}</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => removeBattleNpcIdAtIndex(index, setNewChoiceBattleNpcIds)}
-                                        className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold uppercase text-black transition hover:bg-red-700"
-                                      >
-                                        Remove
-                                      </button>
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => openNpcDetails(npcId)}
+                                          className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-bold uppercase text-black transition hover:bg-indigo-700"
+                                        >
+                                          Details
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeBattleNpcIdAtIndex(index, setNewChoiceBattleNpcIds)}
+                                          className="rounded-lg bg-red-600 px-3 py-1 text-xs font-bold uppercase text-black transition hover:bg-red-700"
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -1601,6 +1750,8 @@ export default function SoloAdventuresEdit() {
                     </div>
                   </div>
                 )}
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1618,6 +1769,125 @@ export default function SoloAdventuresEdit() {
         campaignId={null}
         npcToEdit={battleNpcModalNpc}
       />
+
+      {detailsNpc && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setDetailsNpc(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-4 border-gray-900 bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">{detailsNpc.Name || detailsNpc.name}</h2>
+              <button
+                onClick={() => setDetailsNpc(null)}
+                className="rounded-lg bg-gray-900 px-3 py-1 text-sm font-bold uppercase text-black transition hover:bg-gray-800"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                {detailsNpc.PictureID ? (
+                  <img
+                    src={`/SW_Pictures/Picture ${detailsNpc.PictureID} Face.png?t=${Date.now()}`}
+                    alt={detailsNpc.Name || detailsNpc.name}
+                    className="mb-3 w-full max-w-[220px] rounded-xl border border-gray-300 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="mb-3 flex h-48 w-48 items-center justify-center rounded-xl border border-dashed border-gray-400 text-sm text-gray-500">
+                    No picture
+                  </div>
+                )}
+
+                {detailsNpc.Description && (
+                  <p className="whitespace-pre-wrap text-sm text-gray-800">{detailsNpc.Description}</p>
+                )}
+
+                <div className="mt-3 space-y-1 text-sm text-gray-800">
+                  {detailsNpc.Soak != null && (
+                    <p>
+                      <span className="font-semibold">Soak:</span> {detailsNpc.Soak}
+                    </p>
+                  )}
+                  {detailsNpc.Wound != null && (
+                    <p>
+                      <span className="font-semibold">Wound:</span> {detailsNpc.Wound}
+                    </p>
+                  )}
+                  {detailsNpc.Strain != null && (
+                    <p>
+                      <span className="font-semibold">Strain:</span> {detailsNpc.Strain}
+                    </p>
+                  )}
+                  {Number(detailsNpc.Force_Rating || 0) > 0 && (
+                    <p>
+                      <span className="font-semibold">Force Rating:</span> {detailsNpc.Force_Rating}
+                    </p>
+                  )}
+                </div>
+
+                {detailsNpc.Abilities && String(detailsNpc.Abilities).trim() && (
+                  <div className="mt-4">
+                    <h3 className="border-b border-gray-800 pb-1 text-sm font-bold text-gray-900">Abilities</h3>
+                    <p className="mt-2 text-sm text-gray-800">{detailsNpc.Abilities}</p>
+                  </div>
+                )}
+
+                {detailsNpc.Force_Abilities && String(detailsNpc.Force_Abilities).trim() && (
+                  <div className="mt-4">
+                    <h3 className="border-b border-gray-800 pb-1 text-sm font-bold text-gray-900">Force Abilities</h3>
+                    <p className="mt-2 text-sm text-gray-800">{detailsNpc.Force_Abilities}</p>
+                  </div>
+                )}
+
+                {detailsNpc.Equipment && String(detailsNpc.Equipment).trim() && (
+                  <div className="mt-4">
+                    <h3 className="border-b border-gray-800 pb-1 text-sm font-bold text-gray-900">Equipment</h3>
+                    <p className="mt-2 text-sm text-gray-800">{detailsNpc.Equipment}</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="border-b border-gray-800 pb-1 text-sm font-bold text-gray-900">Skills</h3>
+                {detailsNpc.Skills && String(detailsNpc.Skills).trim() ? (
+                  <div className="mt-2 space-y-1">
+                    {Object.entries(
+                      String(detailsNpc.Skills)
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                        .reduce((acc, name) => {
+                          acc[name] = (acc[name] || 0) + 1;
+                          return acc;
+                        }, {})
+                    )
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([skillName, rank]) => (
+                        <div
+                          key={skillName}
+                          className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-1 text-sm text-gray-800"
+                        >
+                          <span>{skillName}</span>
+                          <span className="font-semibold">Rank {rank}</span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-500">No skills listed.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

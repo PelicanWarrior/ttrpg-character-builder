@@ -16,6 +16,8 @@ export default function SoloAdventuresCreate() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [creatingAdventure, setCreatingAdventure] = useState(false);
+  const [isCreateBoxOpen, setIsCreateBoxOpen] = useState(false);
+  const [isAdventuresBoxOpen, setIsAdventuresBoxOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -209,71 +211,102 @@ export default function SoloAdventuresCreate() {
               {selectedTtrpgId && (
                 <div className="space-y-6">
                   <div className="rounded-3xl border-2 border-amber-500 bg-amber-200 p-6 shadow-sm">
-                    <label className="mb-3 block text-base font-bold text-gray-900" htmlFor="adventure-title">
-                      TITLE
-                    </label>
-                    <input
-                      id="adventure-title"
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Enter adventure title"
-                      className="w-full rounded-2xl border-2 border-amber-800 bg-amber-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-amber-500"
-                    />
-
-                    <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="adventure-description">
-                      DESCRIPTION
-                    </label>
-                    <textarea
-                      id="adventure-description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Enter adventure description (optional)"
-                      rows="4"
-                      className="w-full rounded-2xl border-2 border-emerald-800 bg-emerald-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-emerald-500"
-                    />
-
-                    {adventureError && <p className="mt-4 text-base font-semibold text-red-700">{adventureError}</p>}
-
                     <button
-                      onClick={handleCreateAdventure}
-                      disabled={creatingAdventure}
-                      className="mt-6 w-full rounded-2xl bg-gray-900 px-5 py-3 text-base font-bold uppercase tracking-wide text-black transition hover:bg-gray-800 disabled:opacity-70"
+                      type="button"
+                      onClick={() => setIsCreateBoxOpen((open) => !open)}
+                      className="flex w-full items-center justify-between text-left"
                     >
-                      {creatingAdventure ? 'Creating...' : 'Create Adventure'}
+                      <span className="text-base font-bold text-gray-900">CREATE ADVENTURE</span>
+                      <span
+                        className={`text-xl font-bold text-gray-900 transition-transform ${isCreateBoxOpen ? 'rotate-180' : ''}`}
+                      >
+                        ▼
+                      </span>
                     </button>
+
+                    {isCreateBoxOpen && (
+                      <div className="mt-4">
+                        <label className="mb-3 block text-base font-bold text-gray-900" htmlFor="adventure-title">
+                          TITLE
+                        </label>
+                        <input
+                          id="adventure-title"
+                          type="text"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          placeholder="Enter adventure title"
+                          className="w-full rounded-2xl border-2 border-amber-800 bg-amber-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-amber-500"
+                        />
+
+                        <label className="mb-3 mt-6 block text-base font-bold text-gray-900" htmlFor="adventure-description">
+                          DESCRIPTION
+                        </label>
+                        <textarea
+                          id="adventure-description"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="Enter adventure description (optional)"
+                          rows="4"
+                          className="w-full rounded-2xl border-2 border-emerald-800 bg-emerald-50 px-5 py-3 text-base text-gray-900 placeholder-gray-500 shadow-sm outline-none transition focus:border-emerald-500"
+                        />
+
+                        {adventureError && <p className="mt-4 text-base font-semibold text-red-700">{adventureError}</p>}
+
+                        <button
+                          onClick={handleCreateAdventure}
+                          disabled={creatingAdventure}
+                          className="mt-6 w-full rounded-2xl bg-gray-900 px-5 py-3 text-base font-bold uppercase tracking-wide text-black transition hover:bg-gray-800 disabled:opacity-70"
+                        >
+                          {creatingAdventure ? 'Creating...' : 'Create Adventure'}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {loadingAdventures && <p className="mt-6 text-lg text-gray-700">Loading adventures...</p>}
 
                   {!loadingAdventures && adventures.length > 0 && (
                     <div className="mt-8 rounded-3xl border-2 border-violet-500 bg-violet-200 p-6 shadow-sm">
-                      <h2 className="mb-6 text-2xl font-bold text-gray-900">YOUR ADVENTURES</h2>
-                      <div className="space-y-4">
-                        {adventures.map((adventure) => (
-                          <div key={adventure.id} className="rounded-2xl border-2 border-violet-400 bg-violet-50 p-4 shadow-sm">
-                            <div>
-                              <div className="mb-3 flex items-center justify-between gap-3">
-                                <div className="text-lg font-bold text-gray-900">{adventure.title}</div>
-                                <div className="flex gap-3">
-                                  <button
-                                    onClick={() => navigate(`/solo-adventures/edit/${adventure.id}`)}
-                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-blue-700"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteAdventure(adventure.id)}
-                                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsAdventuresBoxOpen((open) => !open)}
+                        className="flex w-full items-center justify-between text-left"
+                      >
+                        <span className="text-2xl font-bold text-gray-900">YOUR ADVENTURES</span>
+                        <span
+                          className={`text-xl font-bold text-gray-900 transition-transform ${isAdventuresBoxOpen ? 'rotate-180' : ''}`}
+                        >
+                          ▼
+                        </span>
+                      </button>
+
+                      {isAdventuresBoxOpen && (
+                        <div className="mt-6 space-y-4">
+                          {adventures.map((adventure) => (
+                            <div key={adventure.id} className="rounded-2xl border-2 border-violet-400 bg-violet-50 p-4 shadow-sm">
+                              <div>
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                  <div className="text-lg font-bold text-gray-900">{adventure.title}</div>
+                                  <div className="flex gap-3">
+                                    <button
+                                      onClick={() => navigate(`/solo-adventures/edit/${adventure.id}`)}
+                                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-blue-700"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteAdventure(adventure.id)}
+                                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold uppercase text-black transition hover:bg-red-700"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

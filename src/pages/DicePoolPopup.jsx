@@ -85,6 +85,8 @@ export default function DicePoolPopup({
   isAdmin = false,
   diceOutcomeEnabled = false,
   onDiceOutcomeToggle,
+  hideRollAgain = false,
+  simplified = false,
 }) {
   const [rollResults, setRollResults] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(0);
@@ -307,6 +309,35 @@ export default function DicePoolPopup({
   const parsedRoll = rollResults ? parseRollResults(rollResults.poolResults, rollResults.diffResults) : null;
   const showCombinedOutcome = Boolean(isAdmin && diceOutcomeEnabled && rollResults);
 
+  const renderSimpleDie = (key, die, resultText) => (
+    <div key={key} className="flex flex-col items-center" style={{ minWidth: 56 }}>
+      <div className="text-xs font-medium mb-1 text-center" style={{ maxWidth: 80, color: '#000' }}>
+        {die.name || diceMap[die.color] || FALLBACK_DICE_NAMES[die.color] || 'Unknown'}
+      </div>
+      <div
+        style={{
+          width: 48,
+          height: 48,
+          border: '3px solid black',
+          borderRadius: 8,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 4,
+          ...getDiceColorStyle(die.color),
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+          {splitResultLines(resultText || '').map((ln, idx2) => (
+            <div key={idx2} style={{ fontSize: 12, lineHeight: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 72, color: '#000' }}>
+              {ln}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   const renderOutcomeContent = () => {
     if (!rollResults) return null;
 
@@ -355,7 +386,7 @@ export default function DicePoolPopup({
           backgroundColor: 'white',
           borderRadius: '10px',
           width: 'fit-content',
-          minWidth: '420px',
+          minWidth: simplified ? 0 : '420px',
           maxWidth: 'calc(100vw - 40px)',
           display: 'flex',
           flexDirection: 'column',
@@ -368,7 +399,44 @@ export default function DicePoolPopup({
         {!rollResults || showCombinedOutcome ? (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             {/* Dice setup panel (hidden after roll) */}
-            <div style={{ minWidth: '420px', width: 'fit-content' }}>
+            <div style={{ minWidth: simplified ? 0 : '420px', width: 'fit-content' }}>
+              {simplified ? (
+                <div>
+                  <div className="flex items-end gap-2 mb-1" style={{ flexWrap: 'wrap' }}>
+                    {poolDetails.map((d, i) => renderSimpleDie(`ability-${i}`, d, rollResults?.poolResults?.[i]))}
+                    {boostsArr.map((b, bi) =>
+                      renderSimpleDie(`boost-${bi}`, b, rollResults?.poolResults?.[poolDetails.length + bi])
+                    )}
+                  </div>
+
+                  {(selectedDifficulty > 0 || setbacksArr.length > 0) && (
+                    <div className="flex items-end gap-2 mt-3" style={{ flexWrap: 'wrap' }}>
+                      {Array.from({ length: selectedDifficulty }).map((_, di) => {
+                        const dieColour =
+                          String((dicePopup?.difficultyDice || [])[di] || 'P').toUpperCase() === 'R' ? 'R' : 'P';
+                        return renderSimpleDie(
+                          `difficulty-${di}`,
+                          { color: dieColour, name: dieColour === 'R' ? 'Challenge' : 'Difficulty' },
+                          rollResults?.diffResults?.[di]
+                        );
+                      })}
+                      {setbacksArr.map((s, si) =>
+                        renderSimpleDie(`setback-${si}`, s, rollResults?.diffResults?.[(selectedDifficulty || 0) + si])
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-6">
+                    <button
+                      onClick={handleRoll}
+                      className="w-full px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+                    >
+                      {rollResults ? 'Roll Again' : 'Roll'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
 
         <div className="flex items-end mb-1" style={{ gap: 8, alignItems: 'flex-end' }}>
                   {poolDetails.map((d, i) => (
@@ -669,6 +737,8 @@ export default function DicePoolPopup({
                     {rollResults ? 'Roll Again' : 'Roll'}
                   </button>
                 </div>
+                </>
+              )}
             </div>
 
             {showCombinedOutcome && (
@@ -684,12 +754,14 @@ export default function DicePoolPopup({
             {renderOutcomeContent()}
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                onClick={handleRoll}
-                className="px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
-              >
-                Roll Again
-              </button>
+              {!hideRollAgain && (
+                <button
+                  onClick={handleRoll}
+                  className="px-3 py-2 bg-gray-100 text-black rounded font-bold hover:bg-gray-200"
+                >
+                  Roll Again
+                </button>
+              )}
 
               {fromSkillCheck && onUseResult && (
                 <button
@@ -700,7 +772,7 @@ export default function DicePoolPopup({
                     setDicePopup(null);
                   }}
                 >
-                  {actionLabel}
+                  {typeof actionLabel === 'function' ? actionLabel(parsedRoll) : actionLabel}
                 </button>
               )}
 

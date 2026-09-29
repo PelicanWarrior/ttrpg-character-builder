@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { DragHandle } from '../assets/DragHandle';
 import DicePoolPopup from './DicePoolPopup';
@@ -282,14 +282,39 @@ export default function SWNotes() {
   const [existingNPCsList, setExistingNPCsList] = useState([]); // List of NPCs for current player
   const [selectedExistingNPC, setSelectedExistingNPC] = useState(null); // Currently selected NPC to add
   const [addExistingNPCPos, setAddExistingNPCPos] = useState({ top: 0, left: 0 });
+  const [existingNPCSearch, setExistingNPCSearch] = useState('');
 
   // Add Existing Note state
   const [showAddExistingNote, setShowAddExistingNote] = useState(null); // ID of place to add existing note to
   const [existingNotesList, setExistingNotesList] = useState([]); // List of notes with Part_of_Place = 0
   const [selectedExistingNote, setSelectedExistingNote] = useState(null); // Currently selected note to add
   const [addExistingNotePos, setAddExistingNotePos] = useState({ top: 0, left: 0 });
+  const [existingNoteSearch, setExistingNoteSearch] = useState('');
   const [skillCheckFormPos, setSkillCheckFormPos] = useState({ top: 0, left: 0 });
   const [skillCheckFieldsLocked, setSkillCheckFieldsLocked] = useState(false);
+
+  const sortedExistingNPCs = useMemo(() => {
+    return [...existingNPCsList].sort((a, b) => (a.Name || '').localeCompare(b.Name || ''));
+  }, [existingNPCsList]);
+
+  const filteredExistingNPCs = useMemo(() => {
+    const term = existingNPCSearch.trim().toLowerCase();
+    if (!term) return sortedExistingNPCs;
+    return sortedExistingNPCs.filter((npc) =>
+      (npc.Name || '').toLowerCase().includes(term) ||
+      (npc.races?.name || '').toLowerCase().includes(term)
+    );
+  }, [sortedExistingNPCs, existingNPCSearch]);
+
+  const sortedExistingNotes = useMemo(() => {
+    return [...existingNotesList].sort((a, b) => (a.Place_Name || '').localeCompare(b.Place_Name || ''));
+  }, [existingNotesList]);
+
+  const filteredExistingNotes = useMemo(() => {
+    const term = existingNoteSearch.trim().toLowerCase();
+    if (!term) return sortedExistingNotes;
+    return sortedExistingNotes.filter((note) => (note.Place_Name || '').toLowerCase().includes(term));
+  }, [sortedExistingNotes, existingNoteSearch]);
 
   const getAnchoredMenuPosition = (buttonEl, menuWidth = 160) => {
     const rect = buttonEl.getBoundingClientRect();
@@ -376,7 +401,7 @@ export default function SWNotes() {
     try {
       const { data, error } = await supabase
         .from('SW_campaign_notes')
-        .select('id, Place_Name, Order, Part_of_Place, Description, PictureID')
+        .select('id, Place_Name, Order, Part_of_Place, Description, PictureID, Note_Date, Date_Order')
         .eq('CampaignID', campaignId)
         .or('Part_of_Place.eq.0,Part_of_Place.is.null')
         .order('Order', { ascending: true });
@@ -479,7 +504,7 @@ export default function SWNotes() {
     try {
       const { data, error } = await supabase
         .from('SW_campaign_notes')
-        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
         .eq('CampaignID', campaignId)
         .order('Order', { ascending: true });
       if (error) throw error;
@@ -713,7 +738,7 @@ export default function SWNotes() {
       // After reordering, fetch all top-level places and renumber them sequentially
       const { data: allTopLevelPlaces, error: fetchError } = await supabase
         .from('SW_campaign_notes')
-        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
         .eq('Part_of_Place', 0)
         .eq('CampaignID', parseInt(campaignId, 10))
         .order('Order', { ascending: true });
@@ -797,7 +822,7 @@ export default function SWNotes() {
     try {
       const { data, error } = await supabase
         .from('SW_campaign_notes')
-        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
         .eq('id', noteId)
         .single();
 
@@ -834,7 +859,7 @@ export default function SWNotes() {
       // Fetch the parent note to get its Part_of_Place field (which contains comma-separated child IDs)
       const { data: parentNote, error: parentError } = await supabase
         .from('SW_campaign_notes')
-        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
         .eq('id', noteId)
         .single();
 
@@ -851,7 +876,7 @@ export default function SWNotes() {
       if (childIds.length > 0) {
         const { data, error: childrenError } = await supabase
           .from('SW_campaign_notes')
-          .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+          .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
           .in('id', childIds)
           .order('Order', { ascending: true });
 
@@ -900,7 +925,7 @@ export default function SWNotes() {
         // Fetch child notes of the current parent
         const { data, error } = await supabase
           .from('SW_campaign_notes')
-          .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+          .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
           .eq('Part_of_Place', parentId)
           .order('Order', { ascending: true });
 
@@ -1424,7 +1449,7 @@ export default function SWNotes() {
         .from('SW_campaign_notes')
         .update({ Part_of_Place: newPartOfPlace })
         .eq('id', note.id)
-        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+        .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
         .single();
 
       if (updateError) throw updateError;
@@ -2413,7 +2438,7 @@ export default function SWNotes() {
                               const { data: insertedNote, error } = await supabase
                                 .from('SW_campaign_notes')
                                 .insert([payload])
-                                .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+                                .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
                                 .single();
 
                               if (error) throw error;
@@ -2903,7 +2928,7 @@ export default function SWNotes() {
                     <div>
                       <label className="block font-medium text-gray-700 mb-1">Skills</label>
                       <div className="flex gap-2">
-                        <select id="edit-npc-skill-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
+                        <select id="edit-npc-skill-select" className="flex-1 min-w-0 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
                           <option value="">-- Select Skill --</option>
                           {skillsList.map((skill) => (
                             <option key={skill.id} value={skill.skill}>{skill.skill}</option>
@@ -2934,7 +2959,7 @@ export default function SWNotes() {
                     <div>
                       <label className="block font-medium text-gray-700 mb-1">Abilities</label>
                       <div className="flex gap-2">
-                        <select id="edit-npc-ability-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
+                        <select id="edit-npc-ability-select" className="flex-1 min-w-0 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
                           <option value="">-- Select Ability --</option>
                           {abilitiesList.map((a) => (
                             <option key={a.id} value={a.ability}>{a.ability}</option>
@@ -2964,7 +2989,7 @@ export default function SWNotes() {
                     <div>
                       <label className="block font-medium text-gray-700 mb-1">Force Abilities</label>
                       <div className="flex gap-2">
-                        <select id="edit-npc-force-ability-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
+                        <select id="edit-npc-force-ability-select" className="flex-1 min-w-0 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
                           <option value="">-- Select Force Ability --</option>
                           {forceTalentsList.map((a) => (
                             <option key={a.id} value={a.talent_name}>{a.talent_name}</option>
@@ -2995,7 +3020,7 @@ export default function SWNotes() {
                     <div>
                       <label className="block font-medium text-gray-700 mb-1">Equipment</label>
                       <div className="flex gap-2">
-                        <select id="edit-npc-equipment-select" className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
+                        <select id="edit-npc-equipment-select" className="flex-1 min-w-0 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500">
                           <option value="">-- Select Equipment --</option>
                           {equipmentList.map((e) => (
                             <option key={e.id} value={e.name}>{e.name}</option>
@@ -3102,14 +3127,21 @@ export default function SWNotes() {
                     <div className="mb-4">
                       <h4 className="text-xs font-bold text-gray-800 mb-2 border-b border-gray-800 pb-1">Abilities</h4>
                       <div className="space-y-2">
-                        {selectedNPC.Abilities.split(',')
-                          .map(a => a.trim())
-                          .sort((a, b) => a.localeCompare(b))
-                          .map((abilityName, idx) => {
+                        {Object.entries(
+                          selectedNPC.Abilities.split(',')
+                            .map(a => a.trim())
+                            .filter(Boolean)
+                            .reduce((acc, name) => {
+                              acc[name] = (acc[name] || 0) + 1;
+                              return acc;
+                            }, {})
+                        )
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([abilityName, level], idx) => {
                             const description = abilityDescriptions[abilityName];
                             return (
                               <div key={idx} className="text-xs">
-                                <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName}</div>
+                                <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName} (Level {level})</div>
                                 {description && <div className="text-gray-600 text-xs mt-1">{description}</div>}
                               </div>
                             );
@@ -3131,14 +3163,21 @@ export default function SWNotes() {
                         </button>
                       </div>
                       <div className="space-y-2">
-                        {selectedNPC.Force_Abilities.split(',')
-                          .map((a) => a.trim())
-                          .sort((a, b) => a.localeCompare(b))
-                          .map((abilityName, idx) => {
+                        {Object.entries(
+                          selectedNPC.Force_Abilities.split(',')
+                            .map((a) => a.trim())
+                            .filter(Boolean)
+                            .reduce((acc, name) => {
+                              acc[name] = (acc[name] || 0) + 1;
+                              return acc;
+                            }, {})
+                        )
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([abilityName, level], idx) => {
                             const description = forceAbilityDescriptions[abilityName];
                             return (
                               <div key={idx} className="text-xs">
-                                <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName}</div>
+                                <div className="font-semibold text-gray-800 border-b border-gray-800 inline-block pb-0.5">{abilityName} (Level {level})</div>
                                 {description && <div className="text-gray-600 text-xs mt-1">{description}</div>}
                               </div>
                             );
@@ -3845,6 +3884,7 @@ export default function SWNotes() {
                     alert('NPC added successfully!');
                     setShowAddExistingNPC(null);
                     setSelectedExistingNPC(null);
+                    setExistingNPCSearch('');
                     if (updatedNpc) {
                       upsertNpcInState(updatedNpc);
                     }
@@ -3864,6 +3904,7 @@ export default function SWNotes() {
                 onClick={() => {
                   setShowAddExistingNPC(null);
                   setSelectedExistingNPC(null);
+                  setExistingNPCSearch('');
                 }}
                 className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
               >
@@ -3874,6 +3915,13 @@ export default function SWNotes() {
             {/* NPC Selection Dropdown */}
             <div className="mb-4">
               <label className="block text-xs font-medium text-gray-700 mb-2">Select NPC</label>
+              <input
+                type="text"
+                value={existingNPCSearch}
+                onChange={(e) => setExistingNPCSearch(e.target.value)}
+                placeholder="Search NPCs..."
+                className="w-full mb-2 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+              />
               <select
                 value={selectedExistingNPC?.id || ''}
                 onChange={(e) => {
@@ -3883,7 +3931,7 @@ export default function SWNotes() {
                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
               >
                 <option value="">-- Select an NPC --</option>
-                {existingNPCsList.map((npc) => (
+                {filteredExistingNPCs.map((npc) => (
                   <option key={npc.id} value={npc.id}>
                     {npc.Name} {npc.races ? `(${npc.races.name})` : ''}
                   </option>
@@ -4014,7 +4062,7 @@ export default function SWNotes() {
                       .from('SW_campaign_notes')
                       .update({ Part_of_Place: newPartOfPlace })
                       .eq('id', selectedExistingNote.id)
-                      .select('id, Place_Name, Description, Part_of_Place, Order, PictureID')
+                      .select('id, Place_Name, Description, Part_of_Place, Order, PictureID, Note_Date, Date_Order')
                       .single();
 
                     if (updateError) throw updateError;
@@ -4022,6 +4070,7 @@ export default function SWNotes() {
                     alert('Note added successfully!');
                     setShowAddExistingNote(null);
                     setSelectedExistingNote(null);
+                    setExistingNoteSearch('');
                     if (updatedNote) {
                       upsertNoteInState(updatedNote);
                     }
@@ -4041,6 +4090,7 @@ export default function SWNotes() {
                 onClick={() => {
                   setShowAddExistingNote(null);
                   setSelectedExistingNote(null);
+                  setExistingNoteSearch('');
                 }}
                 className="flex-1 px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition"
               >
@@ -4051,6 +4101,13 @@ export default function SWNotes() {
             {/* Note Selection Dropdown */}
             <div className="mb-4">
               <label className="block text-xs font-medium text-gray-700 mb-2">Select Note</label>
+              <input
+                type="text"
+                value={existingNoteSearch}
+                onChange={(e) => setExistingNoteSearch(e.target.value)}
+                placeholder="Search notes..."
+                className="w-full mb-2 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
+              />
               <select
                 value={selectedExistingNote?.id || ''}
                 onChange={(e) => {
@@ -4060,7 +4117,7 @@ export default function SWNotes() {
                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-500"
               >
                 <option value="">-- Select a Note --</option>
-                {existingNotesList.map((note) => (
+                {filteredExistingNotes.map((note) => (
                   <option key={note.id} value={note.id}>
                     {note.Place_Name}
                   </option>
@@ -4171,13 +4228,10 @@ export default function SWNotes() {
                 </button>
                 <button
                   onClick={async (e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setAddExistingNPCPos({
-                      top: rect.bottom + window.scrollY,
-                      left: rect.left + window.scrollX + 160,
-                    });
+                    setAddExistingNPCPos(getAnchoredPopupPosition(e.currentTarget, 500, 520));
                     setShowAddExistingNPC(place.id);
                     setSelectedExistingNPC(null);
+                    setExistingNPCSearch('');
                     setShowDropdown(null);
                     await loadExistingNPCsForPlayer();
                   }}
@@ -4187,13 +4241,10 @@ export default function SWNotes() {
                 </button>
                 <button
                   onClick={async (e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setAddExistingNotePos({
-                      top: rect.bottom + window.scrollY,
-                      left: rect.left + window.scrollX + 160,
-                    });
+                    setAddExistingNotePos(getAnchoredPopupPosition(e.currentTarget, 500, 520));
                     setShowAddExistingNote(place.id);
                     setSelectedExistingNote(null);
+                    setExistingNoteSearch('');
                     setShowDropdown(null);
                     await loadExistingNotesForCampaign();
                   }}

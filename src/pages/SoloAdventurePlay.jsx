@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import DicePoolPopup from './DicePoolPopup';
+
+const MANEUVER_EFFECT_DESCRIPTIONS = {
+  'maneuver:aim': 'Adds a boost die to your next attack.',
+  'maneuver:take-cover': 'Adds a setback die to incoming ranged attacks until your next turn.',
+};
 
 export default function SoloAdventurePlay() {
   const navigate = useNavigate();
@@ -16,6 +21,8 @@ export default function SoloAdventurePlay() {
   const [adventure, setAdventure] = useState(null);
   const [ttrpg, setTtrpg] = useState(null);
   const [character, setCharacter] = useState(null);
+  const woundMaxBaseRef = useRef(0);
+  const strainMaxBaseRef = useRef(0);
   const [firstPage, setFirstPage] = useState(null);
   const [characterFaceErrored, setCharacterFaceErrored] = useState(false);
   const [characterSoak, setCharacterSoak] = useState(null);
@@ -32,6 +39,20 @@ export default function SoloAdventurePlay() {
   const [initiativeChoiceId, setInitiativeChoiceId] = useState(null);
   const [battleActionOptions, setBattleActionOptions] = useState([]);
   const [selectedBattleAction, setSelectedBattleAction] = useState('');
+  const [maneuverSlotsUsed, setManeuverSlotsUsed] = useState(0);
+  const [actionSlotUsed, setActionSlotUsed] = useState(false);
+  const [usedManeuverValues, setUsedManeuverValues] = useState([]);
+  const [battleLog, setBattleLog] = useState([]);
+  const [attackTargetId, setAttackTargetId] = useState('');
+  const [pendingAimBoost, setPendingAimBoost] = useState(false);
+  const [pendingCoverSetback, setPendingCoverSetback] = useState(false);
+  const [activeAttack, setActiveAttack] = useState(null);
+  const [enemyTurnResult, setEnemyTurnResult] = useState(null);
+  const [battleWon, setBattleWon] = useState(false);
+  const [enemyAimBoosts, setEnemyAimBoosts] = useState({});
+  const [enemyAimUsed, setEnemyAimUsed] = useState({});
+  const processingEnemyTurnRef = useRef(false);
+  const enemyTurnPlanRef = useRef(null);
   const [dicePopup, setDicePopup] = useState(null);
   const [activeSkillChoice, setActiveSkillChoice] = useState(null);
   const [swSkillStats, setSwSkillStats] = useState({});
@@ -290,7 +311,7 @@ export default function SoloAdventurePlay() {
           if (equippedIds.length > 0) {
             const { data: equippedItems, error: itemsError } = await supabase
               .from('SW_equipment')
-              .select('id, name, skill, damage, critical, soak')
+              .select('id, name, skill, damage, critical, soak, skills(skill)')
               .in('id', equippedIds);
 
             if (!itemsError) {
@@ -309,12 +330,16 @@ export default function SoloAdventurePlay() {
                     .replace(/\s*\(\d+\)\s*$/, '')
                     .replace(/\s+\d+\s*$/, '')
                     .trim();
-                  const skillText = String(item.skill || '').trim();
+                  const skillText = String(item.skills?.skill || '').trim();
                   const showSkillText = /[a-z]/i.test(skillText);
 
                   return {
                     value: `weapon:${item.id}`,
                     label: `Action: ${displayName}${showSkillText ? ` (${skillText})` : ''}`,
+                    skill: showSkillText ? skillText : '',
+                    damage: Number(item.damage) || 0,
+                    critical: Number(item.critical) || 0,
+                    weaponName: displayName,
                   };
                 });
 
@@ -380,6 +405,8 @@ export default function SoloAdventurePlay() {
       setAdventure(adventureData);
       setTtrpg(ttrpgData);
       setCharacter(characterData);
+      woundMaxBaseRef.current = Number(characterData.wound_threshold) || Number(characterData.wound_current) || 0;
+      strainMaxBaseRef.current = Number(characterData.strain_threshold) || Number(characterData.strain_current) || 0;
       setCharacterSoak(calculatedSoak);
       setBattleActionOptions(derivedBattleActionOptions);
       setSelectedBattleAction('');
@@ -469,7 +496,7 @@ export default function SoloAdventurePlay() {
 
       const { data, error: npcError } = await supabase
         .from('SW_campaign_NPC')
-        .select('id, Name, PictureID, Wound, Strain, Presence, Willpower, Skills, Abilities')
+        .select('id, Name, PictureID, Wound, Strain, Soak, Presence, Willpower, Skills, Abilities')
         .in('id', uniqueNpcIds);
 
       if (!active) return;
@@ -482,17 +509,33 @@ export default function SoloAdventurePlay() {
       }
 
       const byId = new Map((data || []).map((row) => [row.id, row]));
+      const nameOccurrences = {};
+      orderedNpcIds.forEach((npcId) => {
+        const row = byId.get(npcId);
+        const baseName = row?.Name || `NPC #${npcId}`;
+        nameOccurrences[baseName] = (nameOccurrences[baseName] || 0) + 1;
+      });
+
+      const nameCounters = {};
       const resolvedEnemies = orderedNpcIds.map((npcId, index) => {
         const row = byId.get(npcId);
+        const baseName = row?.Name || `NPC #${npcId}`;
+        let displayName = baseName;
+        if (nameOccurrences[baseName] > 1) {
+          nameCounters[baseName] = (nameCounters[baseName] || 0) + 1;
+          displayName = `${baseName} #${nameCounters[baseName]}`;
+        }
+
         return {
           key: `${npcId}-${index}`,
           id: npcId,
-          name: row?.Name || `NPC #${npcId}`,
+          name: displayName,
           face: resolveSwNpcFaceUrl(row),
           woundCurrent: Number(row?.Wound) || 0,
           woundMax: Number(row?.Wound) || 0,
           strainCurrent: Number(row?.Strain) || 0,
           strainMax: Number(row?.Strain) || 0,
+          soak: Number(row?.Soak) || 0,
           presence: Number(row?.Presence) || 0,
           willpower: Number(row?.Willpower) || 0,
           skills: row?.Skills || '',
@@ -555,6 +598,20 @@ export default function SoloAdventurePlay() {
     setPendingEnemyInitiative([]);
     setInitiativeChoiceId(null);
     setSelectedBattleAction('');
+    setManeuverSlotsUsed(0);
+    setActionSlotUsed(false);
+    setUsedManeuverValues([]);
+    setBattleLog([]);
+    setAttackTargetId('');
+    setPendingAimBoost(false);
+    setPendingCoverSetback(false);
+    setActiveAttack(null);
+    setEnemyTurnResult(null);
+    setBattleWon(false);
+    setEnemyAimBoosts({});
+    setEnemyAimUsed({});
+    processingEnemyTurnRef.current = false;
+    enemyTurnPlanRef.current = null;
   }, [battlePopupChoice?.id]);
 
   useEffect(() => {
@@ -932,6 +989,36 @@ export default function SoloAdventurePlay() {
   };
 
   const handleDicePopupResult = async (netSuccess, netAdvantage) => {
+    if (activeAttack) {
+      const successes = Math.max(0, Number(netSuccess) || 0);
+      const hit = successes >= 1;
+      const damageDealt = hit ? Math.max(0, activeAttack.damage + successes - (activeAttack.targetSoak || 0)) : 0;
+
+      setBattleEnemies((prev) =>
+        prev.map((enemy) =>
+          String(enemy.key) === String(activeAttack.targetKey)
+            ? { ...enemy, woundCurrent: Math.max(0, enemy.woundCurrent - damageDealt) }
+            : enemy
+        )
+      );
+
+      setBattleLog((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-${prev.length}`,
+          side: 'PC',
+          text: hit
+            ? `${activeAttack.weaponName} hit ${activeAttack.targetName} for ${damageDealt} damage.`
+            : `${activeAttack.weaponName} missed ${activeAttack.targetName}.`,
+          kind: 'action',
+          maneuverKey: null,
+        },
+      ]);
+
+      setActiveAttack(null);
+      return;
+    }
+
     if (pendingEnemyInitiative.length > 0 || (battlePopupChoice && initiativeChoiceId === battlePopupChoice.id)) {
       const playerEntry = {
         id: 'player',
@@ -980,11 +1067,308 @@ export default function SoloAdventurePlay() {
   const strainThreshold = Number(character?.strain_threshold) || 0;
   const woundCurrent = Number(character?.wound_current ?? woundThreshold) || 0;
   const strainCurrent = Number(character?.strain_current ?? strainThreshold) || 0;
-  const woundMax = Math.max(woundThreshold, woundCurrent);
-  const strainMax = Math.max(strainThreshold, strainCurrent);
+  const woundMax = Math.max(woundThreshold, woundMaxBaseRef.current);
+  const strainMax = Math.max(strainThreshold, strainMaxBaseRef.current);
   const isPlayersTurn = battleInitiativeOrder.length > 0 && battleInitiativeOrder[0]?.side === 'PC';
   const selectedBattleActionOption = battleActionOptions.find((option) => option.value === selectedBattleAction) || null;
   const selectedBattleActionLabel = selectedBattleActionOption?.label || 'Choose Action / Maneuver';
+  const isManeuverSelected = selectedBattleAction.startsWith('maneuver:');
+  const isWeaponSelected = selectedBattleAction.startsWith('weapon:');
+  const isActionSelected = !!selectedBattleAction && !isManeuverSelected;
+  const willTakeStrain = !!selectedBattleAction && maneuverSlotsUsed + (actionSlotUsed ? 1 : 0) === 2;
+  const confirmButtonLabel = `${selectedBattleActionLabel}${willTakeStrain ? ' (Take 1 Strain)' : ''}`;
+  const canConfirmBattleAction =
+    !!selectedBattleAction &&
+    (isManeuverSelected ? maneuverSlotsUsed < 2 && !usedManeuverValues.includes(selectedBattleAction) : !actionSlotUsed) &&
+    (!isWeaponSelected || !!attackTargetId);
+
+  const consumeSlotAndStrain = async () => {
+    if (isManeuverSelected) {
+      setManeuverSlotsUsed((prev) => Math.min(2, prev + 1));
+      setUsedManeuverValues((prev) => [...prev, selectedBattleAction]);
+    } else if (selectedBattleAction) {
+      setActionSlotUsed(true);
+    }
+
+    if (!willTakeStrain || !characterId) return;
+
+    let updatedStrainCurrent = null;
+    setCharacter((prev) => {
+      if (!prev) return prev;
+      const currentStrain = Number(prev.strain_current ?? strainThreshold) || 0;
+      updatedStrainCurrent = Math.max(0, currentStrain - 1);
+      return { ...prev, strain_current: updatedStrainCurrent };
+    });
+
+    if (updatedStrainCurrent === null) return;
+
+    const { error: strainErr } = await supabase
+      .from('SW_player_characters')
+      .update({ strain_current: updatedStrainCurrent })
+      .eq('id', characterId);
+
+    if (strainErr) console.error('Error updating strain_current:', strainErr);
+  };
+
+  const startWeaponAttack = async () => {
+    const weaponOption = selectedBattleActionOption;
+    const targetEnemy = battleEnemies.find((enemy) => String(enemy.key) === String(attackTargetId));
+    if (!weaponOption || !targetEnemy) return;
+
+    const skillPool = getSwSkillDicePool(weaponOption.skill) || '';
+    if (!skillPool) {
+      alert(`No dice pool could be generated for skill "${weaponOption.skill || 'Unknown'}".`);
+      return;
+    }
+
+    const playerAbilityNames = parseAbilityNames(character?.talents || '');
+    const abilityBoostCount = getAbilityBoostCountForSkill(playerAbilityNames, weaponOption.skill);
+    const totalBoosts = abilityBoostCount + (pendingAimBoost ? 1 : 0);
+
+    setActiveAttack({
+      targetKey: targetEnemy.key,
+      targetName: targetEnemy.name,
+      weaponName: weaponOption.weaponName || weaponOption.label,
+      damage: weaponOption.damage || 0,
+      targetSoak: targetEnemy.soak || 0,
+    });
+
+    setDicePopup({
+      pool: skillPool,
+      details: skillPool.split('').map((color) => ({ color, name: '' })),
+      boosts: buildBoostDice(totalBoosts),
+      setbacks: [],
+      difficulty: 1,
+      difficultyLocked: true,
+      isForceRoll: false,
+      label: `Attack: ${weaponOption.weaponName || ''} vs ${targetEnemy.name}`,
+    });
+
+    if (pendingAimBoost) {
+      setPendingAimBoost(false);
+      setBattleLog((prev) => prev.filter((entry) => entry.maneuverKey !== 'maneuver:aim'));
+    }
+
+    await consumeSlotAndStrain();
+
+    setSelectedBattleAction('');
+    setAttackTargetId('');
+  };
+
+  const handleConfirmBattleAction = async () => {
+    if (isWeaponSelected) {
+      await startWeaponAttack();
+      return;
+    }
+
+    const confirmedActionValue = selectedBattleAction;
+    const confirmedActionLabel = selectedBattleActionLabel;
+    const confirmedIsManeuver = isManeuverSelected;
+    const willBecomeAimBoost = confirmedActionValue === 'maneuver:aim';
+    const willBecomeCoverSetback = confirmedActionValue === 'maneuver:take-cover';
+
+    await consumeSlotAndStrain();
+
+    if (confirmedActionValue) {
+      const effectText = MANEUVER_EFFECT_DESCRIPTIONS[confirmedActionValue] || null;
+      const labelOnly = confirmedActionLabel.replace(/^(Maneuver|Action|Ability):\s*/i, '');
+      setBattleLog((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-${prev.length}`,
+          side: 'PC',
+          text: effectText ? `${labelOnly}: ${effectText}` : confirmedActionLabel,
+          kind: confirmedIsManeuver ? 'maneuver' : 'action',
+          maneuverKey: confirmedIsManeuver ? confirmedActionValue : null,
+        },
+      ]);
+    }
+
+    if (willBecomeAimBoost) setPendingAimBoost(true);
+    if (willBecomeCoverSetback) setPendingCoverSetback(true);
+
+    setSelectedBattleAction('');
+  };
+
+  const handleEndTurn = () => {
+    setManeuverSlotsUsed(0);
+    setActionSlotUsed(false);
+    setUsedManeuverValues([]);
+    setSelectedBattleAction('');
+    setAttackTargetId('');
+    setBattleLog((prev) => prev.filter((entry) => entry.kind !== 'action'));
+
+    setBattleInitiativeOrder((prev) => (prev.length > 1 ? [...prev.slice(1), prev[0]] : prev));
+  };
+
+  useEffect(() => {
+    if (!battlePopupChoice) return;
+    if (battleWon) return;
+    if (loadingBattleEnemies) return;
+    if (battleEnemies.length === 0) return;
+
+    const allDefeated = battleEnemies.every((enemy) => (Number(enemy.woundCurrent) || 0) <= 0);
+    if (allDefeated) setBattleWon(true);
+  }, [battleEnemies, battlePopupChoice, battleWon, loadingBattleEnemies]);
+
+  const handleBattleWonContinue = async () => {
+    const destinationPageId =
+      battlePopupChoice?.next_page_id || battlePopupChoice?.success_page_id || battlePopupChoice?.failure_page_id;
+
+    setBattleWon(false);
+    setBattlePopupChoice(null);
+
+    if (destinationPageId) {
+      const loadedPage = await loadPageById(destinationPageId);
+      if (loadedPage?.id) {
+        await autoSaveProgress(loadedPage.id);
+      }
+    }
+  };
+
+  const handleAcknowledgeEnemyTurn = () => {
+    const plan = enemyTurnPlanRef.current;
+    setEnemyTurnResult(null);
+
+    if (plan && plan.steps[plan.stepIndex] !== 'done' && plan.stepIndex < plan.steps.length - 1) {
+      plan.stepIndex += 1;
+      enemyTurnPlanRef.current = plan;
+      runEnemyTurnStep();
+      return;
+    }
+
+    enemyTurnPlanRef.current = null;
+    processingEnemyTurnRef.current = false;
+    setBattleInitiativeOrder((prev) => (prev.length > 1 ? [...prev.slice(1), prev[0]] : prev));
+  };
+
+  const runEnemyTurnStep = (currentActorForNewTurn) => {
+    let plan = enemyTurnPlanRef.current;
+
+    if (!plan) {
+      const actor = currentActorForNewTurn;
+      const enemy = battleEnemies.find((item) => String(item.key) === String(actor.id));
+      const enemyName = enemy?.name || actor.name || 'Enemy';
+
+      if (!enemy || enemy.woundCurrent <= 0) {
+        enemyTurnPlanRef.current = { enemyKey: actor.id, enemyName, steps: ['done'], stepIndex: 0 };
+        setEnemyTurnResult({ message: `${enemyName} is down and cannot act.` });
+        return;
+      }
+
+      const alreadyAimed = !!enemyAimUsed[enemy.key];
+      const hasAimBoost = !!enemyAimBoosts[enemy.key];
+      const wantsToAim = !alreadyAimed && !hasAimBoost && Math.random() < 0.5;
+
+      plan = {
+        enemyKey: enemy.key,
+        enemyName,
+        steps: wantsToAim ? ['maneuver', 'attack'] : ['attack'],
+        stepIndex: 0,
+      };
+      enemyTurnPlanRef.current = plan;
+    }
+
+    const enemy = battleEnemies.find((item) => String(item.key) === String(plan.enemyKey));
+    const enemyName = plan.enemyName;
+    const step = plan.steps[plan.stepIndex];
+
+    if (step === 'done') return;
+
+    if (step === 'maneuver') {
+      setEnemyAimUsed((prev) => ({ ...prev, [plan.enemyKey]: true }));
+      setEnemyAimBoosts((prev) => ({ ...prev, [plan.enemyKey]: true }));
+      setEnemyTurnResult({ message: `${enemyName} takes aim, gaining a boost die for their next attack.` });
+      return;
+    }
+
+    if (step === 'attack') {
+      if (!enemy || enemy.woundCurrent <= 0) {
+        setEnemyTurnResult({ message: `${enemyName} is down and cannot act.` });
+        return;
+      }
+
+      const rollSimpleSuccesses = () => {
+        const roll = Math.random();
+        if (roll < 0.15) return 0;
+        if (roll < 0.55) return 1;
+        if (roll < 0.85) return 2;
+        return 3;
+      };
+
+      const hasAimBoost = !!enemyAimBoosts[plan.enemyKey];
+      let successes = rollSimpleSuccesses();
+      if (hasAimBoost && Math.random() < 0.5) successes += 1;
+
+      const usedCover = pendingCoverSetback && Math.random() < 0.5;
+      if (usedCover) successes = Math.max(0, successes - 1);
+
+      const hit = successes >= 1;
+      const soakValue = Number(characterSoak ?? character?.brawn) || 0;
+      const damageDealt = hit ? Math.max(0, 2 + successes - soakValue) : 0;
+
+      if (hasAimBoost) {
+        setEnemyAimBoosts((prev) => ({ ...prev, [plan.enemyKey]: false }));
+      }
+
+      if (pendingCoverSetback) {
+        setPendingCoverSetback(false);
+        setBattleLog((prev) => prev.filter((entry) => entry.maneuverKey !== 'maneuver:take-cover'));
+      }
+
+      if (hit && damageDealt > 0) {
+        setCharacter((prev) => {
+          if (!prev) return prev;
+          const currentWound = Number(prev.wound_current ?? woundThreshold) || 0;
+          const nextWound = Math.max(0, currentWound - damageDealt);
+          return { ...prev, wound_current: nextWound };
+        });
+
+        if (characterId) {
+          supabase
+            .from('SW_player_characters')
+            .update({ wound_current: Math.max(0, woundCurrent - damageDealt) })
+            .eq('id', characterId)
+            .then(({ error }) => {
+              if (error) console.error('Error updating wound_current:', error);
+            });
+        }
+      }
+
+      const playerName = character?.name || character?.Name || 'you';
+      setEnemyTurnResult({
+        message: hit
+          ? `${enemyName} attacks ${playerName} for ${damageDealt} damage.${usedCover ? ' (Reduced by cover)' : ''}`
+          : `${enemyName} attacks ${playerName} but misses.${usedCover ? ' (Cover helped)' : ''}`,
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!battlePopupChoice) return;
+    if (battleInitiativeOrder.length === 0) return;
+    if (enemyTurnResult) return;
+    if (processingEnemyTurnRef.current) return;
+
+    const currentActor = battleInitiativeOrder[0];
+    if (!currentActor || currentActor.side === 'PC') return;
+
+    processingEnemyTurnRef.current = true;
+    runEnemyTurnStep(currentActor);
+  }, [
+    battleInitiativeOrder,
+    battlePopupChoice,
+    enemyTurnResult,
+    battleEnemies,
+    enemyAimBoosts,
+    enemyAimUsed,
+    pendingCoverSetback,
+    characterSoak,
+    character,
+    characterId,
+    woundThreshold,
+    woundCurrent,
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-100 via-slate-100 to-stone-200 px-6 py-10">
@@ -1131,14 +1515,62 @@ export default function SoloAdventurePlay() {
 
       {dicePopup && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="w-full max-w-5xl rounded-2xl border-2 border-gray-900 bg-white p-4 shadow-2xl">
+          <div className="w-fit max-w-[calc(100vw-2rem)] rounded-2xl border-2 border-gray-900 bg-white p-4 shadow-2xl">
             <DicePoolPopup
               dicePopup={dicePopup}
               setDicePopup={setDicePopup}
               onUseResult={handleDicePopupResult}
               fromSkillCheck
-              actionLabel={pendingEnemyInitiative.length > 0 || (battlePopupChoice && initiativeChoiceId === battlePopupChoice.id) ? 'Set Initiative' : 'Continue'}
+              actionLabel={
+                activeAttack
+                  ? (parsedRoll) => {
+                      const successes = Math.max(0, Number(parsedRoll?.netSuccess) || 0);
+                      if (successes < 1) return 'Attack Missed';
+                      const dmg = Math.max(0, activeAttack.damage + successes - (activeAttack.targetSoak || 0));
+                      return `Deal ${dmg} Damage`;
+                    }
+                  : pendingEnemyInitiative.length > 0 || (battlePopupChoice && initiativeChoiceId === battlePopupChoice.id)
+                  ? 'Set Initiative'
+                  : 'Continue'
+              }
+              hideRollAgain={
+                !!activeAttack ||
+                pendingEnemyInitiative.length > 0 ||
+                (battlePopupChoice && initiativeChoiceId === battlePopupChoice.id)
+              }
+              simplified
             />
+          </div>
+        </div>
+      )}
+
+      {enemyTurnResult && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4 py-6">
+          <div className="w-full max-w-md rounded-2xl border-2 border-gray-900 bg-white p-6 shadow-2xl">
+            <h3 className="mb-3 text-lg font-bold text-gray-900">Enemy Turn</h3>
+            <p className="mb-4 text-sm text-gray-800">{enemyTurnResult.message}</p>
+            <button
+              type="button"
+              onClick={handleAcknowledgeEnemyTurn}
+              className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-gray-800"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {battleWon && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="w-full max-w-md rounded-2xl border-2 border-gray-900 bg-white p-6 text-center shadow-2xl">
+            <h3 className="mb-4 text-xl font-bold text-gray-900">Battle Won</h3>
+            <button
+              type="button"
+              onClick={handleBattleWonContinue}
+              className="w-full rounded-lg bg-green-700 px-4 py-2 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-green-800"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
@@ -1250,39 +1682,119 @@ export default function SoloAdventurePlay() {
                   <div className="flex-1 space-y-3">
                     {renderEnergyBar('Wound', woundCurrent, woundMax, 'bg-red-500')}
                     {strainMax > 0 && renderEnergyBar('Strain', strainCurrent, strainMax, 'bg-blue-500')}
+                    {battleLog.filter((entry) => entry.side === 'PC').length > 0 && (
+                      <div className="space-y-1 border-t border-red-200 pt-2">
+                        {battleLog
+                          .filter((entry) => entry.side === 'PC')
+                          .map((entry) => (
+                            <p key={entry.id} className="text-[11px] text-gray-700">
+                              {entry.text}
+                            </p>
+                          ))}
+                      </div>
+                    )}
                   </div>
                   <div className="w-full rounded-lg border border-red-100 bg-white p-2 md:w-64">
                     <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-red-900">
                       1 Action / 1 Maneauver Left
                     </p>
+                    <div className="mb-2 flex gap-2">
+                      {[0, 1].map((idx) => {
+                        const used = maneuverSlotsUsed > idx;
+                        const flashing = !used && isManeuverSelected && maneuverSlotsUsed === idx;
+                        return (
+                          <div
+                            key={`maneuver-box-${idx}`}
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg border-2 text-sm font-bold uppercase ${
+                              used
+                                ? 'border-gray-400 bg-gray-300 text-gray-500'
+                                : flashing
+                                ? 'animate-pulse border-yellow-500 bg-yellow-300 text-yellow-900'
+                                : 'border-red-300 bg-white text-red-900'
+                            }`}
+                          >
+                            M
+                          </div>
+                        );
+                      })}
+                      <div
+                        className={`flex h-9 w-9 items-center justify-center rounded-lg border-2 text-sm font-bold uppercase ${
+                          actionSlotUsed
+                            ? 'border-gray-400 bg-gray-300 text-gray-500'
+                            : isActionSelected
+                            ? 'animate-pulse border-yellow-500 bg-yellow-300 text-yellow-900'
+                            : 'border-red-300 bg-white text-red-900'
+                        }`}
+                      >
+                        A
+                      </div>
+                    </div>
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-red-900">
                       Action / Maneuver
                     </label>
-                    <select
-                      value={selectedBattleAction}
-                      onChange={(event) => setSelectedBattleAction(event.target.value)}
-                      className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-800"
-                      disabled={battleActionOptions.length === 0}
-                    >
-                      <option value="">Select Ability or Action</option>
-                      {battleActionOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    {battleActionOptions.length === 0 && (
-                      <p className="mt-1 text-[10px] text-gray-600">No abilities or actions found.</p>
+                    {(maneuverSlotsUsed < 2 || !actionSlotUsed) && (
+                      <>
+                        <select
+                          value={selectedBattleAction}
+                          onChange={(event) => {
+                            setSelectedBattleAction(event.target.value);
+                            setAttackTargetId('');
+                          }}
+                          className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-800"
+                          disabled={battleActionOptions.length === 0}
+                        >
+                          <option value="">Select Ability or Action</option>
+                          {battleActionOptions.map((option) => {
+                            const isManeuverOption = option.value.startsWith('maneuver:');
+                            const isDisabled = isManeuverOption
+                              ? maneuverSlotsUsed >= 2 || usedManeuverValues.includes(option.value)
+                              : actionSlotUsed;
+                            return (
+                              <option key={option.value} value={option.value} disabled={isDisabled}>
+                                {option.label}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        {battleActionOptions.length === 0 && (
+                          <p className="mt-1 text-[10px] text-gray-600">No abilities or actions found.</p>
+                        )}
+                        {isWeaponSelected && (
+                          <div className="mt-2">
+                            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-red-900">
+                              Target
+                            </label>
+                            <select
+                              value={attackTargetId}
+                              onChange={(event) => setAttackTargetId(event.target.value)}
+                              className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-800"
+                              disabled={battleEnemies.length === 0}
+                            >
+                              <option value="">Select Target</option>
+                              {battleEnemies.map((enemy) => (
+                                <option key={enemy.key} value={enemy.key}>
+                                  {enemy.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          disabled={!canConfirmBattleAction}
+                          className="mt-2 w-full rounded bg-red-700 px-2 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                          onClick={handleConfirmBattleAction}
+                        >
+                          {confirmButtonLabel}
+                        </button>
+                      </>
                     )}
                     <button
                       type="button"
-                      disabled={!isPlayersTurn || !selectedBattleAction}
-                      className="mt-2 w-full rounded bg-red-700 px-2 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-gray-400"
-                      onClick={() => {
-                        alert(`Selected: ${selectedBattleActionLabel}`);
-                      }}
+                      className="mt-2 w-full rounded bg-gray-700 px-2 py-1.5 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-gray-800"
+                      onClick={handleEndTurn}
                     >
-                      {selectedBattleActionLabel}
+                      End Turn
                     </button>
                   </div>
                 </div>
@@ -1299,16 +1811,24 @@ export default function SoloAdventurePlay() {
                 )}
                 {!loadingBattleEnemies && !battleEnemiesError && battleEnemies.length > 0 && (
                   <div className="space-y-3">
-                    {battleEnemies.map((enemy) => (
-                      <div key={`enemy-stats-${enemy.key}`} className="rounded-lg border border-red-100 bg-white p-2">
-                        <div className="mb-1 text-xs font-bold uppercase tracking-wide text-red-900">{enemy.name}</div>
-                        <div className="space-y-2">
-                          {renderEnergyBar('Wound', enemy.woundCurrent, enemy.woundMax, 'bg-red-500')}
-                          {enemy.strainMax > 0 &&
-                            renderEnergyBar('Strain', enemy.strainCurrent, enemy.strainMax, 'bg-blue-500')}
+                    {battleEnemies.map((enemy) => {
+                      const isTargeted = isWeaponSelected && String(attackTargetId) === String(enemy.key);
+                      return (
+                        <div
+                          key={`enemy-stats-${enemy.key}`}
+                          className={`rounded-lg border p-2 ${
+                            isTargeted ? 'animate-pulse border-yellow-500 bg-yellow-100' : 'border-red-100 bg-white'
+                          }`}
+                        >
+                          <div className="mb-1 text-xs font-bold uppercase tracking-wide text-red-900">{enemy.name}</div>
+                          <div className="space-y-2">
+                            {renderEnergyBar('Wound', enemy.woundCurrent, enemy.woundMax, 'bg-red-500')}
+                            {enemy.strainMax > 0 &&
+                              renderEnergyBar('Strain', enemy.strainCurrent, enemy.strainMax, 'bg-blue-500')}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
