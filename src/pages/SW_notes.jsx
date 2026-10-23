@@ -2092,6 +2092,8 @@ export default function SWNotes() {
         return addExistingNPCPos;
       case 'existing-note':
         return addExistingNotePos;
+      case 'skill-check':
+        return skillCheckFormPos;
       default:
         return { top: 0, left: 0 };
     }
@@ -2110,6 +2112,9 @@ export default function SWNotes() {
         break;
       case 'existing-note':
         setAddExistingNotePos(nextPos);
+        break;
+      case 'skill-check':
+        setSkillCheckFormPos(nextPos);
         break;
       default:
         break;
@@ -2157,6 +2162,8 @@ export default function SWNotes() {
   const noteRefs = useRef({});
   const npcRefs = useRef({});
   const editDescriptionRef = useRef(null);
+  // Refs for each place column, used to anchor Add Note/Add NPC popups over the clicked column
+  const columnRefs = useRef({});
 
   const autoResizeTextarea = (textareaEl) => {
     if (!textareaEl) return;
@@ -2345,7 +2352,10 @@ export default function SWNotes() {
           const childPlaces = getChildPlaces(place.id);
           return (
             <div key={place.id} className="flex shrink-0">
-              <div className="w-[28rem] bg-white border-r border-gray-300 p-2 overflow-y-auto flex flex-col relative">
+              <div
+                ref={(el) => { columnRefs.current[place.id] = el; }}
+                className="w-[28rem] bg-white border-r border-gray-300 p-2 overflow-y-auto flex flex-col relative"
+              >
               {/* Back Button and Dropdown Menu */}
               <div className="flex items-center justify-between mb-2 relative z-20">
                 {index === 0 && selectedHierarchy.length > 0 && (
@@ -3740,6 +3750,12 @@ export default function SWNotes() {
             overflowY: 'auto',
           }}
         >
+          <div
+            onMouseDown={(e) => handlePanelDragStart(e, 'skill-check')}
+            className="mb-2 px-2 py-1 bg-gray-300 rounded text-xs font-semibold text-gray-700 cursor-move select-none"
+          >
+            Move
+          </div>
           <div className="bg-white rounded-lg p-4">
             <h4 className="font-bold text-gray-800 mb-3 text-sm">
               {editingSkillCheckId ? 'Edit Skill Check' : 'Add Skill Check to'} {selectedHierarchy.find(p => p.id === showInlineAddSkillCheck)?.Place_Name || 'Note'}
@@ -4191,10 +4207,13 @@ export default function SWNotes() {
                 )}
                 <button
                   onClick={() => {
-                    setInlineAddNotePos({
-                      top: dropdownPos.top,
-                      left: dropdownPos.left + 160,
-                    });
+                    const columnEl = columnRefs.current[place.id];
+                    const columnRect = columnEl ? columnEl.getBoundingClientRect() : null;
+                    setInlineAddNotePos(
+                      columnRect
+                        ? { top: columnRect.top + 20, left: columnRect.left + 20 }
+                        : { top: dropdownPos.top, left: dropdownPos.left + 160 }
+                    );
                     setShowInlineAddNote(place.id);
                     setInlinePlaceName('');
                     setInlineDescription('');
@@ -4206,10 +4225,13 @@ export default function SWNotes() {
                 </button>
                 <button
                   onClick={() => {
-                    setInlineAddNPCPos({
-                      top: dropdownPos.top,
-                      left: dropdownPos.left + 160,
-                    });
+                    const columnEl = columnRefs.current[place.id];
+                    const columnRect = columnEl ? columnEl.getBoundingClientRect() : null;
+                    setInlineAddNPCPos(
+                      columnRect
+                        ? { top: columnRect.top + 20, left: columnRect.left + 20 }
+                        : { top: dropdownPos.top, left: dropdownPos.left + 160 }
+                    );
                     setShowInlineAddNPC(place.id);
                     setShowDropdown(null);
                   }}

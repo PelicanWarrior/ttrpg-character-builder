@@ -3,7 +3,8 @@ import { supabase } from './src/supabaseClient.js';
 const campaignId = 2;
 const sponsorName = 'Aurek Vector Dynamics';
 const redlineNoteName = 'Redline Racers';
-const beatParagraph = `${sponsorName}, a high-performance speeder manufacturer seeking an exclusive Coruscant racing-team partner, is backing the next Uscru event. The winning team will receive 50,000 credits, and Tol's share from Zero Dawn Speedworks will be 3,000 credits. Redline Racers believes the contract is theirs if Zero Dawn is removed from contention. In the previous race, Redline's engineers deliberately sabotaged Zero Dawn's lead racer's speeder by tampering with its repulsor stabilizer, making the resulting crash look like an accident and leaving the driver unable to race for several weeks. After learning that Tol is taking the vacant seat, Redline will approach him privately and offer 5,000 credits to throw the race.`;
+const legacyBeatParagraph = `${sponsorName}, a high-performance speeder manufacturer seeking an exclusive Coruscant racing-team partner, is backing the next Uscru event. The winning team will receive 50,000 credits, and Tol's share from Zero Dawn Speedworks will be 3,000 credits. Redline Racers believes the contract is theirs if Zero Dawn is removed from contention. In the previous race, Redline's engineers deliberately sabotaged Zero Dawn's lead racer's speeder by tampering with its repulsor stabilizer, making the resulting crash look like an accident and leaving the driver unable to race for several weeks. After learning that Tol is taking the vacant seat, Redline will approach him privately and offer 5,000 credits to throw the race.`;
+const beatParagraph = `Separately, ${sponsorName}, a high-performance speeder manufacturer, will sponsor the team that wins the league championship; this sponsorship is not part of the purse for this race. The prize for winning this race is 50,000 credits for the team, and Tol will receive 3,000 credits from Zero Dawn Speedworks' winnings. Redline Racers wants Zero Dawn out of the league-title contest to improve Redline's chance of winning the Aurek Vector Dynamics sponsorship. In the previous race, Redline's engineers deliberately sabotaged Zero Dawn's lead racer's speeder by tampering with its repulsor stabilizer, making the resulting crash look like an accident and leaving the driver unable to race for several weeks. After learning that Tol is taking the vacant seat, Redline will approach him privately and offer 5,000 credits to throw the race.`;
 
 const npcDefinitions = [
   {
@@ -31,7 +32,7 @@ const npcDefinitions = [
   {
     Name: 'Sella Vorn',
     Race: 29,
-    Description: 'Owner and team principal of Redline Racers, a polished, ambitious racing outfit that treats every circuit as a business acquisition. Sella is composed in public, ruthless in negotiations, and convinced that Aurek Vector Dynamics should choose Redline as its exclusive Coruscant partner. She sees Zero Dawn Speedworks as the last obstacle to that deal and is prepared to use money, pressure, or deniable interference to remove it. Sella is the likely source of Redline\'s 5,000-credit offer to Tol.',
+    Description: 'Owner and team principal of Redline Racers, a polished, ambitious racing outfit that treats every circuit as a business acquisition. Sella is composed in public and ruthless in negotiations. She wants Redline to win the league championship and earn Aurek Vector Dynamics\' separate league sponsorship, and sees Zero Dawn Speedworks as a serious rival for that title. She is prepared to use money, pressure, or deniable interference to remove the competition. Sella is the likely source of Redline\'s 5,000-credit offer to Tol.',
     Brawn: 2,
     Agility: 2,
     Intellect: 3,
@@ -53,7 +54,7 @@ const npcDefinitions = [
   {
     Name: 'Rix Talvar',
     Race: 17,
-    Description: 'Redline Racers\' celebrated lead pilot: fearless, camera-ready, and skilled at making aggressive race lines look effortless. Rix is the public face of Redline\'s bid for Aurek Vector Dynamics sponsorship and expects to beat Tol on the track. He knows the previous Zero Dawn crash benefited his team, but how much he knows about the sabotage is unclear; he may be complicit, or merely enjoying an advantage he did not ask questions about.',
+    Description: 'Redline Racers\' celebrated lead pilot: fearless, camera-ready, and skilled at making aggressive race lines look effortless. Rix is the public face of Redline\'s campaign to win the league championship; the team that wins receives the Aurek Vector Dynamics sponsorship. He expects to beat Tol on the track. He knows the previous Zero Dawn crash benefited his team, but how much he knows about the sabotage is unclear; he may be complicit, or merely enjoying an advantage he did not ask questions about.',
     Brawn: 2,
     Agility: 4,
     Intellect: 2,
@@ -145,7 +146,9 @@ if (teamDescription === zeroDawn.Description && !zeroDawn.Description.includes('
 }
 
 let beatDescription = storyBeat.Description ?? '';
-if (!beatDescription.includes(`${sponsorName}, a high-performance speeder manufacturer`)) {
+if (beatDescription.includes(legacyBeatParagraph)) {
+  beatDescription = beatDescription.replace(legacyBeatParagraph, beatParagraph);
+} else if (!beatDescription.includes(`sponsor the team that wins the league championship`)) {
   beatDescription = `${beatDescription.trim()}\n\n${beatParagraph}`;
 }
 
@@ -168,7 +171,7 @@ if (redlineExisting) {
   const { data, error } = await supabase
     .from('SW_campaign_notes')
     .update({
-      Description: 'Redline Racers is a sleek, aggressively managed racing company competing in the Uscru underground circuit. Led by Sella Vorn, its crimson-and-black team is courting Aurek Vector Dynamics for an exclusive Coruscant sponsorship. Redline considers Zero Dawn Speedworks the main threat to that deal and has already sabotaged Zero Dawn\'s lead racer, disguising the resulting crash as an accident. Its public image is precision engineering and disciplined racecraft; privately, the team is willing to manipulate the competition to secure its future.',
+      Description: 'Redline Racers is a sleek, aggressively managed racing company competing in the Uscru underground circuit. Led by Sella Vorn, its crimson-and-black team is competing to win the league championship, whose champion will earn a separate sponsorship from Aurek Vector Dynamics. The 50,000-credit prize for winning an individual race is separate from that league sponsorship. Redline considers Zero Dawn Speedworks a threat to its championship hopes and has already sabotaged Zero Dawn\'s lead racer, disguising the resulting crash as an accident. Its public image is precision engineering and disciplined racecraft; privately, the team is willing to manipulate the competition to secure its future.',
       Part_of_Place: String(circuit.id),
       CampaignID: campaignId,
     })
@@ -181,7 +184,7 @@ if (redlineExisting) {
     .from('SW_campaign_notes')
     .insert([{
       Place_Name: redlineNoteName,
-      Description: 'Redline Racers is a sleek, aggressively managed racing company competing in the Uscru underground circuit. Led by Sella Vorn, its crimson-and-black team is courting Aurek Vector Dynamics for an exclusive Coruscant sponsorship. Redline considers Zero Dawn Speedworks the main threat to that deal and has already sabotaged Zero Dawn\'s lead racer, disguising the resulting crash as an accident. Its public image is precision engineering and disciplined racecraft; privately, the team is willing to manipulate the competition to secure its future.',
+      Description: 'Redline Racers is a sleek, aggressively managed racing company competing in the Uscru underground circuit. Led by Sella Vorn, its crimson-and-black team is competing to win the league championship, whose champion will earn a separate sponsorship from Aurek Vector Dynamics. The 50,000-credit prize for winning an individual race is separate from that league sponsorship. Redline considers Zero Dawn Speedworks a threat to its championship hopes and has already sabotaged Zero Dawn\'s lead racer, disguising the resulting crash as an accident. Its public image is precision engineering and disciplined racecraft; privately, the team is willing to manipulate the competition to secure its future.',
       Part_of_Place: String(circuit.id),
       Order: 1,
       CampaignID: campaignId,
